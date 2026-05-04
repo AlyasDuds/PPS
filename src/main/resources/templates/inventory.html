@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
       lang="en"
       th:replace="~{layout/main-layout :: layout(~{::title}, ~{::main})}">
 
@@ -29,7 +30,7 @@
         </div>
         <div class="header-btns">
             <a th:href="@{/inventory/export}" class="btn btn-outline">⬇️ Export CSV</a>
-            <button class="btn btn-primary" type="button" onclick="openModal()">＋ Add Item</button>
+            <button class="btn btn-primary" type="button" onclick="openModal()" sec:authorize="hasAnyRole('ADMIN', 'ASSET')">＋ Add Item</button>
         </div>
     </div>
 
@@ -247,7 +248,7 @@
                     <!-- Actions -->
                     <td>
                         <div class="action-wrap">
-                            <!-- Edit -->
+                            <!-- Edit (only for ADMIN/ASSET roles) -->
                             <button type="button"
                                     class="act-btn edit"
                                     title="Edit"
@@ -259,17 +260,19 @@
                                     th:data-emp="${item.employeeId}"
                                     th:data-date="${item.dateAcquired}"
                                     th:data-amt="${item.amount != null ? item.amount : 0}"
-                                    th:data-by="${item.createdBy}"><i class="fas fa-edit"></i></button>
-                            <!-- Print Tag -->
+                                    th:data-by="${item.createdBy}"
+                                    sec:authorize="hasAnyRole('ADMIN', 'ASSET')"><i class="fas fa-edit"></i></button>
+                            <!-- Print Tag (available to all authenticated users) -->
                             <button type="button"
                                     class="act-btn print"
                                     title="Print Property Tag"
                                     th:data-id="${item.inventoryId}"><i class="fas fa-print"></i></button>
-                            <!-- Delete -->
+                            <!-- Delete (only for ADMIN/ASSET roles) -->
                             <form th:action="@{/inventory/{id}/delete(id=${item.inventoryId})}"
                                   method="post"
                                   style="display:inline"
-                                  onsubmit="return confirm('Delete this item permanently?')">
+                                  onsubmit="return confirm('Delete this item permanently?')"
+                                  sec:authorize="hasAnyRole('ADMIN', 'ASSET')">
                                 <button type="submit" class="act-btn del" title="Delete"><i class="fas fa-trash-alt"></i></button>
                             </form>
                         </div>

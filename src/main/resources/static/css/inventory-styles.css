@@ -224,6 +224,41 @@
   padding: 3px 8px; letter-spacing: 0.5px; white-space: nowrap;
 }
 
+/* product image and name cells */
+.prod-img-wrap {
+  width: 38px; height: 38px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg);
+  display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0;
+}
+.prod-name { font-weight: 700; font-size: 13px; color: var(--text); }
+.prod-id { font-size: 10px; color: var(--muted); margin-top: 2px; font-family: monospace; }
+.td-desc { font-size: 12px; color: var(--muted); line-height: 1.4; max-width: 200px; }
+
+/* category badges */
+.cat-badge {
+  display: inline-block; font-size: 10px; font-weight: 600; padding: 3px 8px;
+  border-radius: 5px; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.cat-office { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+.cat-it { background: #dbeafe; color: #1e40af; border: 1px solid #93c5fd; }
+.cat-vehicle { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+
+/* status badges */
+.status-badge.status-yes { background: var(--green-light); color: var(--green); }
+.status-badge.status-no { background: var(--red-light); color: var(--red); }
+
+/* table cell utilities */
+.td-muted { color: var(--muted); font-size: 12px; }
+.amount-cell { font-weight: 600; font-size: 13px; color: var(--text); }
+
+/* sort links */
+.sort-link {
+  color: var(--muted); text-decoration: none; font-size: 10px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase; display: inline-flex; align-items: center; gap: 4px;
+}
+.sort-link:hover { color: var(--text); }
+.sort-link.sorted { color: var(--accent); }
+
 /* computer icon cell */
 .pc-icon-wrap {
   width: 38px; height: 38px; border-radius: 8px;
@@ -382,6 +417,13 @@
   .form-group.full { grid-column: 1; }
   .modal { width: 95vw; max-width: none; }
   .modal-header, .modal-body, .modal-footer { padding-left: 20px; padding-right: 20px; }
+  
+  /* Mobile filter improvements */
+  .filters-bar { position: relative; }
+  .filters-bar::before {
+    content: ''; position: absolute; top: -8px; left: -16px; right: -16px; bottom: -8px;
+    background: var(--bg); border-radius: var(--radius); z-index: -1;
+  }
 }
 
 @media (max-width: 768px) {
@@ -399,6 +441,13 @@
   .form-grid { gap: 12px; }
   .modal-footer { flex-direction: column; }
   .modal-footer .btn { width: 100%; justify-content: center; }
+  
+  /* Modal improvements for tablets */
+  .modal-overlay { padding: 20px; }
+  .modal { border-radius: var(--radius); }
+  .modal-title { font-size: 16px; }
+  .modal-sub { font-size: 11px; }
+  .form-input, .form-select, .form-textarea { font-size: 13px; }
 }
 
 @media (max-width: 480px) {
@@ -421,4 +470,40 @@
   .table-wrapper { margin: 0 -8px; padding: 0 8px; }
   .inv-table th:first-child, .inv-table td:first-child { padding-left: 12px; }
   .inv-table th:last-child, .inv-table td:last-child { padding-right: 12px; }
+  
+  /* Mobile table improvements */
+  .inv-table { min-width: 600px; }
+  .inv-table th { font-size: 9px; padding: 8px 12px; }
+  .inv-table td { padding: 10px 12px; font-size: 12px; }
+  .tracking-badge { font-size: 10px; padding: 2px 6px; }
+  .prod-img-wrap { width: 32px; height: 32px; font-size: 14px; }
+  .prod-name { font-size: 12px; }
+  .prod-id { font-size: 9px; }
+  .td-desc { font-size: 11px; max-width: 150px; }
+  .cat-badge { font-size: 9px; padding: 2px 6px; }
+  .status-badge { font-size: 9px; padding: 2px 6px; }
+  .amount-cell { font-size: 12px; }
+  .act-btn { width: 28px; height: 28px; font-size: 11px; }
+  
+  /* Hide less important columns on very small screens */
+  .inv-table th:nth-child(3), .inv-table td:nth-child(3), /* Description */
+  .inv-table th:nth-child(5), .inv-table td:nth-child(5) { /* Employee ID */
+    display: none;
+  }
+  
+  /* Touch-friendly interactions */
+  .btn { min-height: 44px; min-width: 44px; }
+  .act-btn { min-height: 44px; min-width: 44px; }
+  .search-wrap { min-height: 44px; }
+  .filter-pill { min-height: 44px; }
+  .page-btn { min-height: 36px; min-width: 36px; }
+  .modal-x { min-height: 44px; min-width: 44px; }
+  
+  /* Better touch feedback */
+  .btn:active, .act-btn:active, .page-btn:active { transform: scale(0.95); }
+  
+  /* Improved scrolling for mobile */
+  .table-wrapper { -webkit-overflow-scrolling: touch; scroll-behavior: smooth; }
+  .inv-table { scroll-snap-type: x proximity; }
+  .inv-table td { scroll-snap-align: start; }
 }

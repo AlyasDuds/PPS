@@ -432,6 +432,16 @@ body {
     }
 }
 
+/* ── Asset Item Name Clickable Styles ─────────────────────────── */
+.asset-item-name {
+    cursor: pointer;
+    color: #007bff;
+}
+
+.asset-item-name:hover {
+    text-decoration: underline;
+}
+
 /* ── Focus / Accessibility ───────────────────────────────────── */
 .tab-item:focus {
     outline: 2px solid #007bff;

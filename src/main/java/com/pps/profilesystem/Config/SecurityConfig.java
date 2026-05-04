@@ -2,6 +2,7 @@ package com.pps.profilesystem.Config;
 
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -71,7 +72,7 @@ public class SecurityConfig {
                     "/css/**",
                     "/js/**",
                     "/images/**",
-                    "/assets/**",
+                    "/static/assets/**",
                     "/postal-offices/**",
                     "/api/keep-alive",          // public ping for session check
                     "/api/user/current"         // public check for authentication status
@@ -85,7 +86,20 @@ public class SecurityConfig {
                 // All authenticated users can receive approval/connectivity notifications.
                 .requestMatchers("/api/notifications/**").authenticated()
                 // Asset login/page restriction
-                .requestMatchers("/inventory", "/inventory/**").hasAnyRole("ADMIN", "ASSET")
+                // Inventory: ADMIN/ASSET can edit, others can view only
+                .requestMatchers(HttpMethod.GET, "/inventory", "/inventory/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/inventory", "/inventory/**").hasAnyRole("ADMIN", "ASSET")
+                .requestMatchers(HttpMethod.PUT, "/inventory", "/inventory/**").hasAnyRole("ADMIN", "ASSET")
+                .requestMatchers(HttpMethod.DELETE, "/inventory", "/inventory/**").hasAnyRole("ADMIN", "ASSET")
+                // Assets: ADMIN/ASSET can edit, others can view table only
+                .requestMatchers(HttpMethod.GET, "/assets", "/assets/**").authenticated()
+                .requestMatchers(HttpMethod.POST, "/assets", "/assets/**").hasAnyRole("ADMIN", "ASSET")
+                .requestMatchers(HttpMethod.PUT, "/assets", "/assets/**").hasAnyRole("ADMIN", "ASSET")
+                .requestMatchers(HttpMethod.DELETE, "/assets", "/assets/**").hasAnyRole("ADMIN", "ASSET")
+                // Asset profile details: ADMIN/ASSET only
+                .requestMatchers(HttpMethod.GET, "/assets/profile", "/assets/profile/**").hasAnyRole("ADMIN", "ASSET")
+                .requestMatchers(HttpMethod.GET, "/assets/dashboard", "/assets/dashboard/**").hasAnyRole("ADMIN", "ASSET")
+                .requestMatchers(HttpMethod.GET, "/assets/age", "/assets/age/**").hasAnyRole("ADMIN", "ASSET")
                 .anyRequest().authenticated()
             )
             .formLogin(form -> form

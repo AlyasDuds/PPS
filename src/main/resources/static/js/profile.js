@@ -221,3 +221,45 @@ function uploadCarouselPhoto(input, slot) {
         complete: function () { input.value = ''; }
     });
 }
+
+/* ── Navigation Functions ─────────────────────────────────────── */
+function goBackToQuarters() {
+    const url = sessionStorage.getItem('quartersReturnUrl');
+    sessionStorage.removeItem('quartersReturnUrl');
+    window.location.href = url || '/quarters';
+}
+
+function goBackToReport() {
+    const url = sessionStorage.getItem('reportReturnUrl');
+    sessionStorage.removeItem('reportReturnUrl');
+    window.location.href = url || '/report';
+}
+
+function goBackToDashboard() {
+    const url = sessionStorage.getItem('dashboardReturnUrl');
+    sessionStorage.removeItem('dashboardReturnUrl');
+    window.location.href = url || '/dashboard';
+}
+
+/* ── Asset Click Permission Check ─────────────────────────── */
+function checkAssetClickPermission(element) {
+    var roleFlags = document.getElementById('profileRoleFlags');
+    var canClickAsset = roleFlags ? roleFlags.dataset.canClickAsset === 'true' : false;
+    
+    if (!canClickAsset) {
+        if (typeof Swal !== 'undefined') {
+            Swal.fire({
+                icon: 'error',
+                title: 'Access Denied',
+                text: 'Only Asset roles can click asset items'
+            });
+        } else {
+            alert('Access Denied: Only Asset roles can click asset items');
+        }
+        return;
+    }
+    
+    // If permission granted, navigate to inventory
+    var searchQuery = element.getAttribute('data-search');
+    window.location.href = '/inventory?q=' + encodeURIComponent(searchQuery);
+}
