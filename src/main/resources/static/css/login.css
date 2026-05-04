@@ -1,0 +1,336 @@
+* { 
+    box-sizing: border-box; 
+    margin: 0; 
+    padding: 0; 
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background: #f5f5f0;
+}
+
+/* ===== SPLASH SCREEN ===== */
+#splashScreen {
+    position: fixed;
+    inset: 0;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    transition: opacity 0.8s ease;
+}
+
+#splashScreen.splash-fade-out {
+    opacity: 0;
+}
+
+.splash-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+}
+
+.splash-gif {
+    width: 800px;
+    height: 500px;
+    object-fit: contain;
+    animation: splash-bounce 0.8s ease infinite alternate;
+}
+
+@keyframes splash-bounce {
+    from { transform: translateY(0px); }
+    to   { transform: translateY(-10px); }
+}
+
+.splash-text {
+    font-size: 18px;
+    font-weight: 600;
+    color: #f59e0b;
+    letter-spacing: 1px;
+}
+
+.splash-dots {
+    display: flex;
+    gap: 8px;
+}
+
+.splash-dots span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: #f59e0b;
+    animation: dot-pulse 1.2s ease-in-out infinite;
+}
+
+.splash-dots span:nth-child(2) { animation-delay: 0.2s; }
+.splash-dots span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes dot-pulse {
+    0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
+    40%            { transform: scale(1.0); opacity: 1; }
+}
+
+/* Login fade-in */
+.login-fade-in {
+    animation: fadeIn 0.6s ease forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+/* ===== END SPLASH SCREEN ===== */
+
+.split-container {
+    display: flex;
+    min-height: 100vh;
+    max-width: 1400px;
+    margin: auto;
+    background: #fff;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 0 50px rgba(0,0,0,0.1);
+}
+
+.left-section { 
+    flex: 55%; 
+}
+
+.background-img { 
+    width: 100%; 
+    height: 100%; 
+    object-fit: cover; 
+}
+
+.right-section {
+    flex: 45%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 60px;
+}
+
+.login-card { 
+    max-width: 420px; 
+    width: 100%; 
+}
+
+.logo { 
+    width: 120px; 
+    margin-bottom: 30px; 
+}
+
+.welcome-text h1 { 
+    font-size: 28px; 
+    color: #1a1a2e; 
+    margin-bottom: 8px;
+}
+
+.welcome-text p { 
+    color: #6b7280; 
+    margin-bottom: 30px; 
+    font-size: 15px;
+}
+
+.input-wrapper {
+    display: flex;
+    align-items: center;
+    height: 56px;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 0 18px;
+    margin-bottom: 20px;
+    transition: all 0.3s ease;
+}
+
+.input-wrapper:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.input-wrapper ion-icon {
+    margin-right: 12px;
+    color: #9ca3af;
+    font-size: 20px;
+    flex-shrink: 0;
+}
+
+.input-wrapper input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-size: 15px;
+    color: #1a1a2e;
+}
+
+.input-wrapper input::placeholder {
+    color: #9ca3af;
+}
+
+.password-toggle { 
+    cursor: pointer;
+    margin-left: 8px;
+    transition: color 0.3s ease;
+}
+
+.password-toggle:hover {
+    color: #3b82f6;
+}
+
+.remember-forgot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    font-size: 14px;
+}
+
+.remember-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #6b7280;
+    cursor: pointer;
+    user-select: none;
+}
+
+.remember-label input[type="checkbox"] {
+    display: none;
+}
+
+.custom-checkbox {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #d1d5db;
+    border-radius: 4px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+}
+
+.remember-label input[type="checkbox"]:checked + .custom-checkbox {
+    background: #3b82f6;
+    border-color: #3b82f6;
+}
+
+.remember-label input[type="checkbox"]:checked + .custom-checkbox::after {
+    content: '';
+    width: 4px;
+    height: 8px;
+    border: 2px solid #fff;
+    border-top: none;
+    border-left: none;
+    transform: rotate(45deg) translateY(-1px);
+    display: block;
+}
+
+.forgot-password { 
+    color: #ef4444; 
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}
+
+.forgot-password:hover {
+    color: #dc2626;
+    text-decoration: underline;
+}
+
+.login-button {
+    width: 100%;
+    padding: 16px;
+    background: #3b82f6;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+}
+
+.login-button:hover {
+    background: #2563eb;
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4);
+}
+
+.login-button:active {
+    transform: translateY(0);
+}
+
+.login-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Hide the hidden input fields */
+#loginError, #logoutSuccess, #urlMessage {
+    display: none;
+}
+
+/* Custom SweetAlert2 styling to match the design */
+.swal2-popup {
+    font-family: 'Poppins', sans-serif;
+    border-radius: 16px;
+}
+
+.swal2-title {
+    font-size: 24px;
+    font-weight: 600;
+}
+
+.swal2-html-container {
+    font-size: 15px;
+}
+
+/* Responsive Design */
+@media (max-width: 1024px) {
+    .split-container {
+        border-radius: 0;
+    }
+}
+
+@media (max-width: 768px) {
+    .split-container {
+        flex-direction: column;
+    }
+    
+    .left-section {
+        display: none;
+    }
+    
+    .right-section {
+        flex: 100%;
+        padding: 40px 24px;
+    }
+    
+    .login-card {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .welcome-text h1 {
+        font-size: 24px;
+    }
+    
+    .logo {
+        width: 100px;
+    }
+    
+    .right-section {
+        padding: 30px 20px;
+    }
+
+    .splash-gif {
+        width: 130px;
+        height: 130px;
+    }
+}

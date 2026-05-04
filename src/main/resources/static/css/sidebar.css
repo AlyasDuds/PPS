@@ -1,0 +1,407 @@
+/* ============================================
+   PHLPost WHITE AESTHETIC SIDEBAR
+   Clean • Minimal • Professional
+   ============================================ */
+
+:root {
+    --phlpost-blue: #2B5BA6;
+    --phlpost-red: #C1272D;
+    --phlpost-yellow: #FFD700;
+
+    --sidebar-width: 260px;
+    --sidebar-bg: #ffffff;
+    --sidebar-border: #e6e9ef;
+    --sidebar-text: #2c3e50;
+    --sidebar-muted: #8a97a8;
+    --sidebar-hover: #f4f7fb;
+    --sidebar-active: #C1272D;
+}
+
+/* Page background */
+body {
+    background: #f5f7fb;
+    margin: 0;
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+/* ============================================
+   SIDEBAR
+   ============================================ */
+#sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: var(--sidebar-width);
+    height: 100vh;
+    background: var(--sidebar-bg);
+    border-right: 1px solid var(--sidebar-border);
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    z-index: 1001;
+    contain: layout style paint;
+    will-change: transform;
+    transform: translateZ(0);
+    transition: transform 0.22s ease;
+}
+
+/* Collapsed Sidebar State */
+#sidebar.collapsed {
+    width: 80px;
+}
+
+/* Hide menu text in collapsed state */
+#sidebar.collapsed .sidebar-link span,
+#sidebar.collapsed .sidebar-sublink span,
+#sidebar.collapsed .sidebar-heading,
+#sidebar.collapsed .sidebar-divider,
+#sidebar.collapsed .sidebar-submenu {
+    display: none;
+}
+
+/* Adjust links in collapsed state */
+#sidebar.collapsed .sidebar-link {
+    padding: 0.75rem;
+    justify-content: center;
+}
+
+#sidebar.collapsed .sidebar-link i {
+    margin: 0;
+    width: auto;
+}
+
+/* Adjust dropdowns in collapsed state */
+#sidebar.collapsed .sidebar-dropdown {
+    position: relative;
+}
+
+#sidebar.collapsed .sidebar-dropdown .sidebar-dropdown-toggle {
+    padding: 0.75rem;
+    justify-content: center;
+}
+
+#sidebar.collapsed .sidebar-dropdown .sidebar-dropdown-toggle .dropdown-arrow {
+    display: none;
+}
+
+/* Show submenu on hover in collapsed state */
+#sidebar.collapsed .sidebar-dropdown:hover .sidebar-submenu {
+    display: block !important;
+    position: absolute;
+    left: 100%;
+    top: 0;
+    width: 200px;
+    background: var(--sidebar-bg);
+    border: 1px solid var(--sidebar-border);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1001;
+}
+
+#sidebar.collapsed .sidebar-dropdown:hover .sidebar-submenu .sidebar-sublink {
+    display: flex !important;
+    padding: 0.75rem 1rem;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.92rem;
+}
+
+#sidebar.collapsed .sidebar-dropdown:hover .sidebar-submenu .sidebar-sublink:hover {
+    background: var(--sidebar-hover);
+}
+
+/* Adjust burger button in collapsed state */
+#sidebar.collapsed .sidebar-burger-toggle {
+    position: relative;
+    left: auto;
+    top: auto;
+    transform: none;
+    width: 100%;
+    margin-bottom: 0.5rem;
+}
+
+/* Adjust logo in collapsed state */
+#sidebar.collapsed .sidebar-brand > a,
+nav#sidebar.collapsed .sidebar-brand > a {
+    display: none !important; /* Hide logo completely when collapsed */
+}
+
+#sidebar.collapsed .sidebar-brand,
+nav#sidebar.collapsed .sidebar-brand {
+    justify-content: center; /* Center burger button when logo is hidden */
+}
+
+/* When expanded, logo should be clickable */
+.sidebar-brand > a {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+}
+
+.sidebar-brand > a:hover {
+    opacity: 0.8;
+}
+
+/* ============================================
+   MAIN CONTENT SPACE (IMPORTANT FIX)
+   ============================================ */
+.main-content {
+    margin-left: var(--sidebar-width);
+    padding: 20px;
+    min-height: 100vh;
+    background-color: #f8f9fa;
+}
+
+/* ============================================
+   BRAND
+   ============================================ */
+.sidebar-brand {
+    display: flex;
+    align-items: center;
+    padding: 1rem 1.2rem;
+    border-bottom: 2px solid var(--sidebar-border);
+    position: relative;
+}
+
+/* Burger Toggle Button */
+.sidebar-burger-toggle {
+    position: absolute;
+    left: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    color: var(--phlpost-blue);
+    font-size: 18px;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    pointer-events: auto;
+}
+
+.sidebar-burger-toggle:hover {
+    background: var(--sidebar-hover);
+    color: var(--phlpost-red);
+}
+
+.sidebar-burger-toggle:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(193, 39, 45, 0.2);
+}
+
+.sidebar-burger-toggle:active {
+    transform: translateY(-50%) scale(0.95);
+}
+
+/* Prevent any form submission */
+.sidebar-burger-toggle {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Adjust logo container when burger is present */
+.sidebar-brand > a {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.brand-icon {
+    color: var(--phlpost-yellow);
+    font-size: 1.2rem;
+    margin-right: 0.6rem;
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+.brand-text {
+    font-weight: normal;
+    font-size: 1rem;
+    color: var(--phlpost-blue);
+    letter-spacing: 0.5px;
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+/* ============================================
+   MENU
+   ============================================ */
+.sidebar-menu {
+    padding: 1rem 0;
+    flex: 1;
+    contain: layout style;
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+.sidebar-heading {
+    font-size: 0.7rem;
+    font-weight: normal;
+    color: var(--sidebar-muted);
+    padding: 1rem 1.5rem 0.4rem;
+    text-transform: uppercase;
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+.sidebar-link {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    color: var(--sidebar-text);
+    text-decoration: none;
+    font-size: 0.92rem;
+    border-left: 4px solid transparent;
+    transition: background 0.15s ease, color 0.15s ease, border-left-color 0.15s ease;
+    contain: layout style;
+    will-change: background-color, color, border-left-color;
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+.sidebar-link i {
+    width: 1.5rem;
+    margin-right: 0.7rem;
+    color: var(--phlpost-blue);
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+.sidebar-link:hover {
+    background: var(--sidebar-hover);
+    color: var(--phlpost-blue);
+    border-left: 4px solid var(--phlpost-blue);
+}
+
+.sidebar-link.active {
+    background: #fff5f5;
+    border-left: 4px solid var(--phlpost-red);
+    color: var(--phlpost-red);
+    font-weight: normal;
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+.sidebar-link.active i {
+    color: var(--phlpost-red);
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+/* Divider */
+.sidebar-divider {
+    height: 1px;
+    background: var(--sidebar-border);
+    margin: 1rem 1.5rem;
+}
+
+/* Footer */
+.sidebar-footer {
+    border-top: 1px solid var(--sidebar-border);
+    padding: 0.5rem 0;
+}
+
+.sidebar-footer a {
+    display: flex;
+    align-items: center;
+    padding: 0.7rem 1.5rem;
+    color: var(--sidebar-text);
+    text-decoration: none;
+}
+
+.sidebar-footer a:hover {
+    background: var(--sidebar-hover);
+    color: var(--phlpost-blue);
+}
+
+.sidebar-footer i {
+    margin-right: 0.7rem;
+    color: var(--phlpost-blue);
+}
+
+/* Badge */
+.sidebar-badge {
+    margin-left: auto;
+    background: var(--phlpost-red);
+    color: white;
+    font-size: 0.65rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 10px;
+}
+
+/* ============================================
+   MOBILE
+   ============================================ */
+@media (max-width: 768px) {
+    #sidebar {
+        left: -260px;
+        transition: transform 0.3s ease;
+        z-index: 1050;
+    }
+
+    #sidebar.active {
+        transform: translateX(260px);
+    }
+
+    .main-content {
+        margin-left: 0;
+    }
+
+    /* Overlay for mobile sidebar */
+    .sidebar-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 1040;
+        display: none;
+    }
+
+    .sidebar-overlay.show {
+        display: block;
+    }
+
+    /* Hide burger toggle on mobile (use header burger instead) */
+    .sidebar-burger-toggle {
+        display: none;
+    }
+
+    /* Hide brand text when collapsed on mobile */
+    #sidebar:not(.active) .brand-text {
+        display: none;
+    }
+
+    #sidebar:not(.active) .brand-icon {
+        margin-right: 0;
+    }
+
+    /* Reset collapsed state on mobile */
+    #sidebar.collapsed {
+        width: var(--sidebar-width);
+    }
+
+    #sidebar.collapsed .sidebar-link span,
+    #sidebar.collapsed .sidebar-sublink span,
+    #sidebar.collapsed .sidebar-heading,
+    #sidebar.collapsed .sidebar-divider {
+        display: block;
+    }
+
+    #sidebar.collapsed .sidebar-link {
+        padding: 0.75rem 1.5rem;
+        justify-content: flex-start;
+    }
+
+    #sidebar.collapsed .sidebar-link i {
+        margin-right: 0.7rem;
+        width: 1.5rem;
+    }
+}

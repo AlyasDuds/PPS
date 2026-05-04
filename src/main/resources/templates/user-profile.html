@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main-layout :: layout(~{::title}, ~{::content})}">
+
+<head>
+
+</head>
+
+<body>
+<div th:fragment="content">
+        <title>My Profile - PHLPost</title>
+    <link rel="stylesheet" th:href="@{/css/user-profile.css}">
+    <!-- Cover Banner -->
+    <div class="up-cover"></div>
+
+    <!-- Page Wrapper -->
+    <div class="up-wrapper">
+
+        <!-- ── Avatar Card ─────────────────────────────────────── -->
+        <div class="up-avatar-card">
+
+            <!-- Avatar initials -->
+            <div class="up-avatar"
+                 th:text="${#strings.substring(user.username, 0, 1)}">U</div>
+
+            <!-- Name / email / badges -->
+            <div>
+                <h1 class="up-name" th:text="${user.username}">Username</h1>
+                <p class="up-email">
+                    <i class="fas fa-envelope mr-1"></i>
+                    <span th:text="${user.email ?: 'No email on file'}">email@example.com</span>
+                </p>
+                <div class="up-badges">
+                    <span class="badge"
+                          th:classappend="'badge-' + ${roleColor}"
+                          th:text="${roleName}">Role</span>
+                    <span th:if="${user.enabled}"
+                          class="badge badge-success">
+                        <span class="up-status-dot active"></span> Active
+                    </span>
+                    <span th:unless="${user.enabled}"
+                          class="badge badge-danger">
+                        <span class="up-status-dot inactive"></span> Inactive
+                    </span>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="up-actions">
+                <a href="/dashboard" class="btn btn-outline-secondary up-btn-back btn-sm">
+                    <i class="fas fa-arrow-left mr-1"></i> Dashboard
+                </a>
+            </div>
+        </div>
+
+        <!-- ── Info Grid ───────────────────────────────────────── -->
+        <div class="up-grid">
+
+            <!-- Account Information -->
+            <div class="up-card">
+                <div class="up-card-title">
+                    <i class="fas fa-id-card"></i> Account Information
+                </div>
+
+                <div class="up-field">
+                    <div class="up-field-icon"><i class="fas fa-hashtag"></i></div>
+                    <div>
+                        <div class="up-field-label">User ID</div>
+                        <div class="up-field-value" th:text="${user.id}">#1</div>
+                    </div>
+                </div>
+
+                <div class="up-field">
+                    <div class="up-field-icon"><i class="fas fa-user"></i></div>
+                    <div>
+                        <div class="up-field-label">Username</div>
+                        <div class="up-field-value" th:text="${user.username}">username</div>
+                    </div>
+                </div>
+
+                <div class="up-field">
+                    <div class="up-field-icon"><i class="fas fa-envelope"></i></div>
+                    <div>
+                        <div class="up-field-label">Email Address</div>
+                        <div class="up-field-value"
+                             th:text="${user.email ?: 'Not set'}"
+                             th:classappend="${user.email == null} ? 'muted' : ''">
+                            email@example.com
+                        </div>
+                    </div>
+                </div>
+
+                <div class="up-field">
+                    <div class="up-field-icon"><i class="fas fa-shield-alt"></i></div>
+                    <div>
+                        <div class="up-field-label">Role</div>
+                        <div class="up-field-value">
+                            <span class="badge"
+                                  th:classappend="'badge-' + ${roleColor}"
+                                  th:text="${roleName}">User</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="up-field">
+                    <div class="up-field-icon"><i class="fas fa-toggle-on"></i></div>
+                    <div>
+                        <div class="up-field-label">Account Status</div>
+                        <div class="up-field-value">
+                            <span th:if="${user.enabled}">
+                                <span class="up-status-dot active"></span>
+                                <span class="text-success font-weight-bold">Active</span>
+                            </span>
+                            <span th:unless="${user.enabled}">
+                                <span class="up-status-dot inactive"></span>
+                                <span class="text-danger font-weight-bold">Inactive</span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Area & Access -->
+            <div class="up-card">
+                <div class="up-card-title">
+                    <i class="fas fa-map-marked-alt"></i> Access & Area
+                </div>
+
+                <div class="up-field">
+                    <div class="up-field-icon"><i class="fas fa-map"></i></div>
+                    <div>
+                        <div class="up-field-label">Assigned Area</div>
+                        <div class="up-field-value"
+                             th:if="${user.areaId != null}"
+                             th:text="'Area ' + ${user.areaId}">Area 1</div>
+                        <div class="up-field-value muted"
+                             th:unless="${user.areaId != null}">All Areas</div>
+                    </div>
+                </div>
+
+                <div class="up-field">
+                    <div class="up-field-icon"><i class="fas fa-key"></i></div>
+                    <div>
+                        <div class="up-field-label">Access Level</div>
+                        <div class="up-field-value">
+                            <span th:if="${roleName == 'Administrator'}" class="text-danger font-weight-bold">
+                                <i class="fas fa-crown mr-1"></i> Full Access
+                            </span>
+                            <span th:if="${roleName == 'Area Admin'}" class="text-warning font-weight-bold">
+                                <i class="fas fa-map-marker-alt mr-1"></i> Area Access
+                            </span>
+                            <span th:if="${roleName == 'User'}" class="text-primary font-weight-bold">
+                                <i class="fas fa-eye mr-1"></i> View Only
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="up-field">
+                    <div class="up-field-icon"><i class="fas fa-sign-in-alt"></i></div>
+                    <div>
+                        <div class="up-field-label">Login Identifier</div>
+                        <div class="up-field-value"
+                             th:text="${user.email ?: user.username}">login@example.com</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Change Password -->
+            <div class="up-card up-card-full">
+                <div class="up-card-title">
+                    <i class="fas fa-lock"></i> Change Password
+                </div>
+
+                <div id="pwAlert" class="alert" style="display:none;border-radius:10px;"></div>
+
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="up-form-label">Current Password</label>
+                        <div class="input-group">
+                            <input type="password" id="currentPassword"
+                                   class="form-control up-input"
+                                   placeholder="Enter current password">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button" id="toggleCurrentPassword" style="border-left: none;">
+                                    <i class="fas fa-eye" id="currentPasswordIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="up-form-label">New Password</label>
+                        <div class="input-group">
+                            <input type="password" id="newPassword"
+                                   class="form-control up-input"
+                                   placeholder="Min. 6 characters">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button" id="toggleNewPassword" style="border-left: none;">
+                                    <i class="fas fa-eye" id="newPasswordIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="up-form-label">Confirm New Password</label>
+                        <div class="input-group">
+                            <input type="password" id="confirmPassword"
+                                   class="form-control up-input"
+                                   placeholder="Repeat new password">
+                            <div class="input-group-append">
+                                <button class="btn btn-outline-secondary" type="button" id="toggleConfirmPassword" style="border-left: none;">
+                                    <i class="fas fa-eye" id="confirmPasswordIcon"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center gap-2 mt-1">
+                    <button type="button" class="btn up-btn-save" id="savePasswordBtn"
+                            th:data-user-id="${user.id}">
+                        <i class="fas fa-save mr-1"></i> Save Password
+                    </button>
+                    <small class="text-muted ml-2">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        Password must be at least 6 characters.
+                    </small>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Password script loaded by main-layout.html after jQuery -->
+
+</div>
+</body>
+</html>

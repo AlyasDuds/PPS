@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main-layout :: layout(~{::title}, ~{::content})}">
+
+<title th:fragment="title">User Management - PHLPost Profile System</title>
+
+<!-- User Modal Styles -->
+<div th:replace="~{fragments/modals/User-modal :: userModalStyles}"></div>
+
+<div th:fragment="content">
+    <div class="users-page container-fluid"
+         th:data-is-system-admin="${isSystemAdmin}"
+         th:data-is-area-admin="${isAreaAdmin}"
+         th:data-is-srd-operation="${isSrdOperation}"
+         th:data-current-area-id="${currentAreaId}">
+
+        <div class="page-header page-header--toolbar-only">
+            <div class="page-header-actions">
+                <button type="button" class="btn btn-add-user" onclick="showAddModal()">
+                    <i class="fas fa-user-plus"></i> Add New User
+                </button>
+            </div>
+        </div>
+
+        <div class="content-card">
+            <div class="card-header-custom">
+                <div>
+                    <h5 class="mb-1" style="font-weight: 700;">All Users</h5>
+                    <p class="text-muted mb-0" style="font-size: 14px;">Manage system users and their permissions</p>
+                </div>
+            </div>
+
+            <div class="table-responsive users-dt-wrap">
+                <table id="usersTable" class="table table-hover" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Role</th>
+                            <th>Access Level</th>
+                            <th>Status</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div th:replace="~{fragments/modals/User-modal :: userModal}"></div>
+    </div>
+</div>
+</html>

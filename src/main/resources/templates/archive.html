@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      th:replace="~{layout/main-layout :: layout(~{::title}, ~{::content})}">
+
+<head>
+    <title>Archive - PHLPost</title>
+</head>
+
+<body>
+
+<div th:fragment="content">
+
+    <div class="container-fluid py-4">
+
+        <!-- Stats Card -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card shadow-sm border-left-warning">
+                    <div class="card-body text-center">
+                        <h4 class="mb-0 text-warning" th:text="${archivedCount}">0</h4>
+                        <small class="text-muted">Total Archived</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table Card -->
+        <div class="card shadow-sm">
+            <div class="card-body">
+
+                <!-- Bulk Action Bar -->
+                <div id="bulkActionBar" class="mb-3" style="display:none;">
+                    <div class="d-flex align-items-center gap-2">
+                        <span class="text-muted mr-2"><span id="selectedCount">0</span> selected</span>
+                        <button id="btnBulkRestore" class="btn btn-success btn-sm mr-2">
+                            <i class="fas fa-undo mr-1"></i> Restore Selected
+                        </button>
+                        <button id="btnClearSelection" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-times mr-1"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Table -->
+                <!-- Iterates over ArchivedOffice records (record.postalOffice = PostalOffice entity) -->
+                <div class="table-responsive">
+                    <table id="archiveTable" class="table table-hover table-striped" style="width:100%">
+                        <thead class="thead-light">
+                            <tr>
+                                <th style="width:40px;">
+                                    <input type="checkbox" id="selectAll" title="Select All">
+                                </th>
+                                <th>#</th>
+                                <th>Post Office Name</th>
+                                <th>Area</th>
+                                <th>City / Municipality</th>
+                                <th>Postmaster</th>
+                                <th>Archived On</th>
+                                <th>Reason</th>
+                                <th>Archived By</th>
+                                <th class="text-center">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- record = ArchivedOffice, record.postalOffice = PostalOffice -->
+                            <tr th:each="record, iter : ${archivedRecords}">
+                                <td>
+                                    <input type="checkbox" class="row-checkbox"
+                                           th:data-id="${record.postalOffice.id}">
+                                </td>
+                                <td th:text="${iter.count}"></td>
+                                <td th:text="${record.postalOffice.name}"></td>
+                                <td th:text="${record.postalOffice.area != null ? record.postalOffice.area.areaName : 'N/A'}"></td>
+                                <td th:text="${record.postalOffice.cityMunicipality != null ? record.postalOffice.cityMunicipality.name : 'N/A'}"></td>
+                                <td th:text="${record.postalOffice.postmaster != null ? record.postalOffice.postmaster : 'N/A'}"></td>
+                                <!-- archivedAt now comes from ArchivedOffice record, not PostalOffice -->
+                                <td>
+                                    <span th:if="${record.archivedAt != null}"
+                                          th:text="${#temporals.format(record.archivedAt, 'MMM dd, yyyy')}">
+                                    </span>
+                                    <span th:unless="${record.archivedAt != null}" class="text-muted">—</span>
+                                </td>
+                                <!-- archiveReason from ArchivedOffice record -->
+                                <td>
+                                    <span th:if="${record.archiveReason != null and !#strings.isEmpty(record.archiveReason)}"
+                                          th:text="${record.archiveReason}"
+                                          class="badge badge-light text-wrap text-left"
+                                          style="max-width:160px;white-space:normal;">
+                                    </span>
+                                    <span th:unless="${record.archiveReason != null and !#strings.isEmpty(record.archiveReason)}"
+                                          class="text-muted">—</span>
+                                </td>
+                                <!-- archivedBy — new column from ArchivedOffice -->
+                                <td>
+                                    <span th:if="${record.archivedBy != null}"
+                                          th:text="${record.archivedBy}"
+                                          class="text-muted" style="font-size:12px;">
+                                    </span>
+                                    <span th:unless="${record.archivedBy != null}" class="text-muted">—</span>
+                                </td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-success btn-restore"
+                                            th:data-office-id="${record.postalOffice.id}"
+                                            th:data-office-name="${record.postalOffice.name}"
+                                            title="Restore Office">
+                                        <i class="fas fa-undo"></i> Restore
+                                    </button>
+                                </td>
+                            </tr>
+
+                            <!-- Empty state -->
+                            <tr th:if="${#lists.isEmpty(archivedRecords)}">
+                                <td colspan="10" class="text-center text-muted py-5">
+                                    <i class="fas fa-archive fa-2x mb-2 d-block"></i>
+                                    No archived post offices found.
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
+
+    </div>
+
+    <!-- ── Archive Reason Modal (triggered by .btn-archive on table.html) ── -->
+    <div class="modal fade" id="archiveReasonModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-archive mr-2 text-warning"></i>Archive Post Office
+                    </h5>
+                    <button type="button" class="close" data-dismiss="modal">
+                        <span>&times;</span>
+                    </button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">
+                        You are about to archive <strong id="archiveOfficeName"></strong>.
+                        This office will be hidden from all views but can be restored later.
+                    </p>
+                    <div class="form-group">
+                        <label for="archiveReasonInput">Reason <small class="text-muted">(optional)</small></label>
+                        <textarea id="archiveReasonInput" class="form-control" rows="3"
+                                  placeholder="e.g. Office closed, Duplicate record, Under review..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" id="confirmArchiveBtn">
+                        <i class="fas fa-archive mr-1"></i> Archive
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+</body>
+</html>

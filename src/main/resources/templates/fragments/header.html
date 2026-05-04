@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<div th:fragment="header">
+
+    <nav class="navbar navbar-expand navbar-light bg-white border-bottom shadow-sm sticky-top">
+        <div class="container-fluid">
+
+            <!-- Hamburger Menu for Mobile -->
+            <button class="btn btn-link d-md-none mr-2" id="mobileSidebarToggle" type="button">
+                <i class="fas fa-bars fa-lg text-primary"></i>
+            </button>
+
+            <!-- Breadcrumbs -->
+            <nav aria-label="breadcrumb" class="navbar-brand mb-0">
+                <ol class="breadcrumb breadcrumb-modern mb-0 bg-transparent p-0 align-items-center">
+                    <li class="breadcrumb-item breadcrumb-home-item">
+                        <a th:href="@{/dashboard}" class="text-decoration-none breadcrumb-link breadcrumb-link-home">
+                            <span class="breadcrumb-home-icon">
+                                <i class="fas fa-home"></i>
+                            </span>
+                            <span>Home</span>
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item" th:if="${activePage == 'profile'}">
+                        <a th:href="@{/table}" class="text-decoration-none breadcrumb-link">
+                            <i class="fas fa-map-marked-alt"></i> Postal Office Locator
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item" th:if="${activePage == 'profile'}">
+                        <a th:href="@{/quarters}" class="text-decoration-none breadcrumb-link">
+                            <i class="fas fa-wifi"></i> Connectivity
+                        </a>
+                    </li>
+                    <li class="breadcrumb-item active breadcrumb-current" aria-current="page" 
+                        th:text="${activePage == 'dashboard' ? 'Dashboard' : 
+                                activePage == 'table' ? 'Postal Office Locator' :
+                                activePage == 'quarters' ? 'Connectivity' :
+                                activePage == 'report' ? 'Report' :
+                                activePage == 'insert' ? 'Add New Office' :
+                                activePage == 'users' ? 'User Management' :
+                                activePage == 'notifications' ? 'Notifications' :
+                                activePage == 'archive' ? 'Archive' :
+                                activePage == 'profile' ? 'Profile' : 'Page'}">
+                       
+                    </li>
+                </ol>
+            </nav>
+
+            <!-- RIGHT SIDE -->
+            <ul class="navbar-nav ml-auto align-items-center">
+
+                <!-- Notification Bell -->
+                <li class="nav-item dropdown mr-3 position-relative"
+                    id="notifBellLi"
+                    sec:authorize="hasAnyRole('ADMIN','AREA_ADMIN','USER','SRD_OPERATION')">
+
+                    <!-- Bell button -->
+                    <a class="nav-link text-muted p-2"
+                       href="#"
+                       id="alertsDropdown"
+                       role="button"
+                       data-toggle="dropdown"
+                       aria-haspopup="true"
+                       aria-expanded="false"
+                       style="position:relative;display:inline-block;">
+
+                        <i class="fas fa-bell fa-fw" style="font-size:17px;"></i>
+
+                        <span id="notifBadge"
+                              style="display:none;
+                                     position:absolute;top:2px;right:0;
+                                     font-size:9px;padding:2px 5px;
+                                     border-radius:10px;min-width:18px;
+                                     text-align:center;line-height:1.4;
+                                     background:#dc3545;color:#fff;
+                                     font-weight:normal;">
+                        </span>
+                    </a>
+
+                    <div class="dropdown-menu dropdown-menu-right shadow notification-dropdown"
+                         aria-labelledby="alertsDropdown"
+                         style="min-width:360px;padding:0;border:none;
+                                border-radius:10px;overflow:hidden;">
+
+                        <div id="notifContent">
+                            <div class="px-3 py-3 text-center text-muted" style="font-size:13px;">
+                                <i class="fas fa-circle-notch fa-spin mr-1"></i>
+                                Loading notifications…
+                            </div>
+                        </div>
+
+                        <!-- Divider -->
+                        <div class="dropdown-divider"></div>
+                        
+                        <!-- View All Notifications Button -->
+                        <div class="px-3 py-2">
+                            <a href="/notifications" class="btn btn-primary btn-sm btn-block">
+                                <i class="fas fa-inbox mr-2"></i>
+                                View All Notifications
+                            </a>
+                        </div>
+
+                    </div>
+                </li>
+                <!-- end notification bell -->
+
+                <!-- User Dropdown -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle d-flex align-items-center pl-3 border-left"
+                       href="#" id="userDropdown" role="button" data-toggle="dropdown"
+                       aria-haspopup="true" aria-expanded="false">
+
+                        <div class="text-right mr-2 d-none d-md-block">
+                            <div style="font-size:13px;font-weight:normal;color:#333;"
+                                 th:text="${loggedInUsername ?: 'User'}">User</div>
+                            <div style="font-size:11px;color:#777;"
+                                 th:text="${loggedInRole ?: 'User'}">User</div>
+                        </div>
+
+                        <div class="bg-primary text-white rounded-circle
+                                    d-flex align-items-center justify-content-center"
+                             style="width:35px;height:35px;font-weight:normal;border:2px solid #eef2f7;"
+                             th:text="${loggedInInitial ?: 'U'}">U</div>
+                    </a>
+
+                    <div class="dropdown-menu dropdown-menu-right shadow" aria-labelledby="userDropdown">
+                        <a class="dropdown-item" th:href="@{/my-profile}">
+                            <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i> Profile
+                        </a>
+                        <div sec:authorize="hasRole('ADMIN')">
+                            <div class="dropdown-divider"></div>
+                            <a class="dropdown-item" th:href="@{/users}">
+                                <i class="fas fa-users fa-sm fa-fw mr-2 text-gray-400"></i> Manage Users
+                            </a>
+                        </div>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item" th:href="@{/logout}" onclick="if(window._sseClose)window._sseClose();">
+                            <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i> Logout
+                        </a>
+                    </div>
+                </li>
+
+            </ul>
+        </div>
+    </nav>
+
+    <style>
+        .breadcrumb-modern {
+            font-size: 14px;
+            font-weight: 500;
+            gap: 4px;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            padding: 0 !important;
+            box-shadow: none;
+            white-space: nowrap;
+        }
+
+        .breadcrumb-modern .breadcrumb-item + .breadcrumb-item::before {
+            content: "\f105";
+            font-family: "Font Awesome 5 Free";
+            font-weight: 900;
+            color: #a9b9d1;
+            font-size: 18px;
+            line-height: 1;
+            padding: 0 8px 0 4px;
+        }
+
+        .breadcrumb-link {
+            color: #355070;
+            border-radius: 0;
+            padding: 2px 4px;
+            transition: background-color .15s ease, color .15s ease;
+        }
+
+        .breadcrumb-link:hover {
+            background: transparent;
+            color: #1f3b5d;
+        }
+
+        .breadcrumb-link-home {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #2f4866;
+            font-weight: 600;
+        }
+
+        .breadcrumb-home-icon {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            background: #eaf0f7;
+            color: #355070;
+            box-shadow: none;
+        }
+
+        .breadcrumb-current {
+            background: transparent;
+            color: #2b4a6f;
+            border-radius: 0;
+            padding: 2px 4px;
+            line-height: 1.4;
+            box-shadow: none;
+            font-weight: 700;
+        }
+
+        @media (max-width: 767.98px) {
+            .breadcrumb-modern {
+                padding: 0 !important;
+                font-size: 12px;
+                overflow-x: auto;
+                max-width: 62vw;
+            }
+
+            .breadcrumb-home-icon {
+                width: 28px;
+                height: 28px;
+            }
+
+            .breadcrumb-modern .breadcrumb-item + .breadcrumb-item::before {
+                font-size: 14px;
+                padding: 0 6px 0 3px;
+            }
+        }
+
+        #notifBadge { transition: transform .15s ease, opacity .15s ease; }
+
+        .notification-dropdown { max-height: 420px; }
+
+        .notification-dropdown #notifContent {
+            max-height: 380px;
+            overflow-y: auto;
+        }
+
+        .notification-dropdown #notifContent::-webkit-scrollbar { width: 4px; }
+        .notification-dropdown #notifContent::-webkit-scrollbar-thumb {
+            background: #ccc; border-radius: 4px;
+        }
+
+        .notif-item:hover { background: #eef4ff !important; }
+
+        @keyframes bellShake {
+            0%,100% { transform: rotate(0); }
+            20%      { transform: rotate(-15deg); }
+            40%      { transform: rotate(15deg); }
+            60%      { transform: rotate(-10deg); }
+            80%      { transform: rotate(10deg); }
+        }
+        .bell-shake .fa-bell { animation: bellShake .5s ease; }
+    </style>
+
+</div>
+</html>

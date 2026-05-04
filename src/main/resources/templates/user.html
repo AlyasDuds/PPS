@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      th:replace="~{layout/main-layout :: layout(~{::title}, ~{::content})}">
+
+<head>
+    <title th:text="${title}">User Management - PPS Profile System</title>
+</head>
+
+<body th:data-is-system-admin="${isSystemAdmin}"
+      th:data-is-area-admin="${isAreaAdmin}">
+
+<div th:fragment="content">
+    <!-- users-management.css is loaded by main-layout when activePage == 'users' -->
+
+    <div class="users-page container-fluid px-0 px-sm-2 px-md-3">
+
+        <div class="page-header page-header--toolbar-only">
+            <div class="page-header-actions">
+                <button type="button" class="btn-add-user" onclick="showAddModal()">
+                    <i class="fas fa-plus"></i> Add New User
+                </button>
+                <button type="button" class="btn btn-secondary logout-btn" onclick="logout()">Logout</button>
+            </div>
+        </div>
+
+        <!-- Content Card -->
+        <div class="content-card">
+            <div class="card-header-custom">
+                <h2 th:text="${cardTitle}">Users List</h2>
+                <div></div>
+            </div>
+
+            <!-- Users Table -->
+            <div class="table-responsive">
+                <table id="usersTable" class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>User</th>
+                            <th>Email</th>
+                            <th>Role</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="usersTableBody">
+                        <tr th:if="${users == null or #lists.isEmpty(users)}">
+                            <td colspan="6" class="text-center">
+                                <div class="empty-state">
+                                    <i class="fas fa-users"></i>
+                                    <h3>No users found</h3>
+                                    <p>Click "Add New User" to create your first user.</p>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr th:each="user : ${users}" th:if="${users != null and not #lists.isEmpty(users)}">
+                            <td th:text="${user.id}">1</td>
+                            <td>
+                                <div class="user-info">
+                                    <div class="user-avatar" th:text="${#strings.substring(user.name, 0, 1).toUpperCase()}">A</div>
+                                    <div class="user-details">
+                                        <div class="user-name" th:text="${user.name}">Admin User</div>
+                                        <div class="user-email" th:text="${user.email}">admin@example.com</div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td th:text="${user.email}">admin@example.com</td>
+                            <td>
+                                <span class="badge badge-role" th:text="${user.role}">ADMIN</span>
+                            </td>
+                            <td>
+                                <span th:class="${user.active ? 'badge badge-active' : 'badge badge-inactive'}"
+                                      th:text="${user.active ? 'Active' : 'Inactive'}">Active</span>
+                            </td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button type="button" class="btn-action btn-view" th:onclick="'viewUser(' + ${user.id} + ')'" title="View">
+                                        <i class="fas fa-eye"></i>
+                                    </button>
+                                    <button type="button" class="btn-action btn-edit" th:onclick="'editUser(' + ${user.id} + ')'" title="Edit">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn-action btn-delete" th:onclick="'deleteUser(' + ${user.id} + ')'" title="Delete">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- User Modal included via Thymeleaf fragment -->
+        <div th:replace="~{fragments/modals/User-modal :: userModal}"></div>
+
+    </div><!-- /.users-page -->
+</div>
+
+</html>
