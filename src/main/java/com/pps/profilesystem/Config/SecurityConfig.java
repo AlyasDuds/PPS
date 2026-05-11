@@ -107,7 +107,7 @@ public class SecurityConfig {
                 .loginProcessingUrl("/login")
                 .usernameParameter("email")
                 .passwordParameter("password")
-                .defaultSuccessUrl("/dashboard", true)
+                .successHandler(new CustomAuthenticationSuccessHandler())
                 .failureUrl("/login?error=true")
                 .permitAll()
             )

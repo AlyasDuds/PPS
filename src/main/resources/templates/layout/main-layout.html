@@ -69,7 +69,8 @@
         <div class="sidebar-overlay" id="sidebarOverlay"></div>
         
         <!-- Sidebar -->
-        <div th:replace="~{fragments/sidebar :: sidebar}"></div>
+        <div sec:authorize="hasRole('ASSET')" th:replace="~{fragments/sidebar-asset :: sidebar}"></div>
+        <div sec:authorize="!hasRole('ASSET')" th:replace="~{fragments/sidebar :: sidebar}"></div>
 
         <!-- Main Content Area -->
         <div class="main-content">

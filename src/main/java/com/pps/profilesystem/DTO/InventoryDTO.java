@@ -23,6 +23,8 @@ public class InventoryDTO {
     private LocalDate dateAcquired;
     private String employeeId;
     private Integer postalOfficeId;
+    private String officeName;
+    private String area;
     private IsServiceable isServiceable;
     private Category category;
     private BigDecimal amount;

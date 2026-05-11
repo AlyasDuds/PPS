@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<nav th:fragment="sidebar" id="sidebar">
+
+    <!-- Sidebar Brand/Logo with Burger Toggle -->
+    <div class="sidebar-brand">
+        <button class="sidebar-burger-toggle" id="sidebarBurgerToggle" type="button" data-target="sidebar">
+            <i class="fas fa-bars"></i>
+        </button>
+        <a th:href="@{/inventory}" class="d-flex flex-column align-items-center justify-content-center" style="text-decoration: none; padding-top: 5px;">
+            <img th:src="@{/assets/images/phlpostlogo.png}" alt="PHLPost Logo"
+                style="height: 38px; margin-bottom: 2px;">
+            <span style="font-size: 11px; font-family: Helvetica, Arial, sans-serif; font-weight: 800; color: #002868; letter-spacing: 0.5px; white-space: nowrap;">AssetVault</span>
+        </a>
+    </div>
+
+    <!-- Sidebar Menu -->
+    <div class="sidebar-menu">
+
+        <!-- General Inventory Section -->
+        <div class="sidebar-heading">General Inventory</div>
+
+        <a th:href="@{/inventory}" class="sidebar-link" th:classappend="${activePage == 'inventory'} ? 'active' : ''"
+            data-page="inventory">
+            <i class="fas fa-boxes"></i>
+            <span>Inventory Assets</span>
+        </a>
+
+        <!-- Divider -->
+        <hr class="sidebar-divider">
+
+        <!-- Actions Section -->
+        <div class="sidebar-heading">Actions</div>
+
+        <button class="sidebar-link" style="width: 100%; text-align: left; border: none; background: none; cursor: pointer;" 
+                onclick="openModal()">
+            <i class="fas fa-plus"></i>
+            <span>＋ Add Item</span>
+        </button>
+
+        <!-- Asset Management Section -->
+        <hr class="sidebar-divider">
+        <div class="sidebar-heading">Asset Management</div>
+
+        <a th:href="@{/assets}" class="sidebar-link" th:classappend="${activePage == 'assets'} ? 'active' : ''"
+            data-page="assets">
+            <i class="fas fa-list"></i>
+            <span>Asset List</span>
+        </a>
+
+        <a th:href="@{/assets/dashboard}" class="sidebar-link" th:classappend="${activePage == 'assets-dashboard'} ? 'active' : ''"
+            data-page="assets-dashboard">
+            <i class="fas fa-chart-bar"></i>
+            <span>Asset Dashboard</span>
+        </a>
+
+        <a th:href="@{/assets/profile}" class="sidebar-link" th:classappend="${activePage == 'assets-profile'} ? 'active' : ''"
+            data-page="assets-profile">
+            <i class="fas fa-user-tag"></i>
+            <span>Asset Profiles</span>
+        </a>
+
+        <a th:href="@{/assets/age}" class="sidebar-link" th:classappend="${activePage == 'assets-age'} ? 'active' : ''"
+            data-page="assets-age">
+            <i class="fas fa-clock"></i>
+            <span>Asset Age Analysis</span>
+        </a>
+
+        <!-- Profile Section -->
+        <hr class="sidebar-divider">
+        <div class="sidebar-heading">Profile</div>
+
+        <a th:href="@{/profile}" class="sidebar-link" th:classappend="${activePage == 'profile'} ? 'active' : ''"
+            data-page="profile">
+            <i class="fas fa-user"></i>
+            <span>My Profile</span>
+        </a>
+
+    </div>
+
+</nav>
+
+<script th:src="@{/js/sidebar.js}"></script>
+
+</html>
