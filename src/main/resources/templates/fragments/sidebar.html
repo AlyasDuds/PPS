@@ -115,6 +115,16 @@
                 <i class="fas fa-archive"></i>
                 <span>Archive</span>
             </a>
+
+            <a href="#" class="sidebar-link" onclick="showStorageMonitor(); return false;" 
+                sec:authorize="hasRole('ADMIN')">
+                <i class="fas fa-hdd"></i>
+                <span>Storage Monitor</span>
+                <span id="storageStatusBadge" class="sidebar-notification-badge" style="display:none;background:#28a745;color:#fff;
+                             font-size:10px;padding:2px 6px;border-radius:10px;
+                             margin-left:auto;min-width:18px;text-align:center;
+                             font-weight:700;line-height:1.2;"></span>
+            </a>
         </div>
     </div>
 

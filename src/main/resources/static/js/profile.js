@@ -245,16 +245,19 @@ function goBackToDashboard() {
 function checkAssetClickPermission(element) {
     var roleFlags = document.getElementById('profileRoleFlags');
     var canClickAsset = roleFlags ? roleFlags.dataset.canClickAsset === 'true' : false;
+    var isSaUser = roleFlags ? roleFlags.dataset.isSaUser === 'true' : false;
+    var isSrdOperation = roleFlags ? roleFlags.dataset.isSrdOperation === 'true' : false;
     
-    if (!canClickAsset) {
+    // Allow access if user has ASSET permissions or is SA_USER or SRD_OPERATION
+    if (!canClickAsset && !isSaUser && !isSrdOperation) {
         if (typeof Swal !== 'undefined') {
             Swal.fire({
                 icon: 'error',
                 title: 'Access Denied',
-                text: 'Only Asset roles can click asset items'
+                text: 'Only Asset staff '
             });
         } else {
-            alert('Access Denied: Only Asset roles can click asset items');
+            alert('Access Denied: Only Asset staff ');
         }
         return;
     }
