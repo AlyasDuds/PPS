@@ -4,7 +4,9 @@ import com.pps.profilesystem.DTO.InventoryDTO;
 import com.pps.profilesystem.Entity.Inventory;
 import com.pps.profilesystem.Entity.Inventory.Category;
 import com.pps.profilesystem.Entity.Inventory.IsServiceable;
+import com.pps.profilesystem.Entity.PostalOffice;
 import com.pps.profilesystem.Repository.InventoryRepository;
+import com.pps.profilesystem.Repository.PostalOfficeRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +19,7 @@ import java.util.stream.Collectors;
 public class InventoryService {
 
     private final InventoryRepository inventoryRepository;
+    private final PostalOfficeRepository postalOfficeRepository;
 
     public List<InventoryDTO> getAllInventory() {
         return inventoryRepository.findAll()
@@ -96,6 +99,18 @@ public class InventoryService {
     // --- Mappers ---
 
     private InventoryDTO toDTO(Inventory inv) {
+        String officeName = null;
+        String area = null;
+        if (inv.getPostalOfficeId() != null) {
+            Optional<PostalOffice> office = postalOfficeRepository.findById(inv.getPostalOfficeId());
+            if (office.isPresent()) {
+                officeName = office.get().getName();
+                if (office.get().getArea() != null) {
+                    area = office.get().getArea().getAreaName();
+                }
+            }
+        }
+
         return InventoryDTO.builder()
                 .inventoryId(inv.getInventoryId())
                 .trackingNumber(inv.getTrackingNumber())
@@ -104,6 +119,8 @@ public class InventoryService {
                 .dateAcquired(inv.getDateAcquired())
                 .employeeId(inv.getEmployeeId())
                 .postalOfficeId(inv.getPostalOfficeId())
+                .officeName(officeName)
+                .area(area)
                 .isServiceable(inv.getIsServiceable())
                 .category(inv.getCategory())
                 .amount(inv.getAmount())

@@ -61,7 +61,9 @@ public class InventoryWebController {
                             boolean match = (i.getName() != null && i.getName().toLowerCase().contains(lq))
                                     || (i.getDescription() != null && i.getDescription().toLowerCase().contains(lq))
                                     || (i.getEmployeeId() != null && i.getEmployeeId().toLowerCase().contains(lq))
-                                    || (i.getTrackingNumber() != null && i.getTrackingNumber().toLowerCase().contains(lq));
+                                    || (i.getTrackingNumber() != null && i.getTrackingNumber().toLowerCase().contains(lq))
+                                    || (i.getOfficeName() != null && i.getOfficeName().toLowerCase().contains(lq))
+                                    || (i.getArea() != null && i.getArea().toLowerCase().contains(lq));
                             if (!match) return false;
                         }
                         if (StringUtils.hasText(category)) {

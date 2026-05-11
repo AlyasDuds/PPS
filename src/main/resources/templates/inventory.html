@@ -78,14 +78,14 @@
         <div class="filters-bar">
             <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
 
-                <!-- Search (also searches tracking number now) -->
+                <!-- Search (also searches tracking number, office name, and area now) -->
                 <div class="search-wrap">
                     <span style="color:var(--muted);font-size:13px">🔍</span>
                     <input type="text"
                            name="q"
                            id="searchInput"
                            th:value="${param.q}"
-                           placeholder="Search name, tracking no., employee…"
+                           placeholder="Search name, tracking no., office, area, employee…"
                            oninput="debounceSubmit()"/>
                 </div>
 
@@ -150,6 +150,8 @@
                         </a>
                     </th>
                     <th>Status</th>
+                    <th>Office Name</th>
+                    <th>Area</th>
                     <th>Employee ID</th>
                     <!-- Sortable: Date -->
                     <th>
@@ -227,6 +229,18 @@
                         <span th:if="${item.isServiceable == null}" class="td-muted">—</span>
                     </td>
 
+                    <!-- Office Name -->
+                    <td>
+                        <span class="td-muted"
+                              th:text="${item.officeName != null ? item.officeName : '—'}">—</span>
+                    </td>
+
+                    <!-- Area -->
+                    <td>
+                        <span class="td-muted"
+                              th:text="${item.area != null ? item.area : '—'}">—</span>
+                    </td>
+
                     <!-- Employee ID -->
                     <td>
                         <span class="td-muted"
@@ -281,7 +295,7 @@
 
                 <!-- ── EMPTY STATE ── -->
                 <tr th:if="${#lists.isEmpty(inventoryList)}" class="empty-row">
-                    <td colspan="9">
+                    <td colspan="11">
                         <div class="empty-icon">📭</div>
                         No items found. Try adjusting your search or filters.
                     </td>
