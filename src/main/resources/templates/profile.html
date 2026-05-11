@@ -13,7 +13,8 @@
          th:data-can-profile-edit="${canProfileEdit}"
          th:data-can-profile-archive="${canProfileArchive}"
          th:data-can-profile-photo="${canProfilePhotoUpload}"
-         th:data-is-asset="${#authorization.expression('hasAnyRole(''ADMIN'', ''ASSET'')')}"></div>
+         th:data-is-asset="${#authorization.expression('hasAnyRole(''ADMIN'', ''AREA_ADMIN'', ''USER'', ''SRD_OPERATION'')')}"
+         th:data-can-click-asset="${#authorization.expression('hasAnyRole(''ADMIN'', ''ASSET'')')}"></div>
 
     <link rel="stylesheet" th:href="@{/css/profile.css}">
 
@@ -129,21 +130,8 @@
         </div>
 
         <script>
-        function goBackToQuarters() {
-            const url = sessionStorage.getItem('quartersReturnUrl');
-            sessionStorage.removeItem('quartersReturnUrl');
-            window.location.href = url || '/quarters';
-        }
-        function goBackToReport() {
-            const url = sessionStorage.getItem('reportReturnUrl');
-            sessionStorage.removeItem('reportReturnUrl');
-            window.location.href = url || '/report';
-        }
-        function goBackToDashboard() {
-            const url = sessionStorage.getItem('dashboardReturnUrl');
-            sessionStorage.removeItem('dashboardReturnUrl');
-            window.location.href = url || '/dashboard';
-        }
+        // Navigation functions are now in profile-inline.js
+        // These functions are available via window.profileUtils
         </script>
 
         <!-- Profile Tabs -->
@@ -153,7 +141,7 @@
             <button class="tab-item" data-tab="connectivity"><i class="fas fa-wifi"></i> Connectivity</button>
             <button class="tab-item" data-tab="contact"><i class="fas fa-address-book"></i> Contact</button>
             <button class="tab-item" data-tab="staff"><i class="fas fa-users"></i> Staff</button>
-            <button class="tab-item" data-tab="assets"><i class="fas fa-box"></i> Assets</button>
+            <button class="tab-item" data-tab="assets" sec:authorize="hasAnyRole('ADMIN', 'AREA_ADMIN', 'USER', 'ASSET', 'SRD_OPERATION')"><i class="fas fa-box"></i> Assets</button>
         </div>
 
         <!-- TAB: Basic Info -->
@@ -341,7 +329,7 @@
         </div>
 
         <!-- TAB: Assets -->
-        <div id="tab-assets" class="tab-panel">
+        <div id="tab-assets" class="tab-panel" sec:authorize="hasAnyRole('ADMIN', 'AREA_ADMIN', 'USER', 'ASSET', 'SRD_OPERATION')">
             <div class="card mb-3 shadow-sm">
                 <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h6 class="mb-0"><i class="fas fa-box text-primary mr-2"></i>Assets Information</h6>
@@ -361,16 +349,15 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr th:each="item : ${inventoryList}"
-                                    style="cursor: pointer;"
-                                    title="Click to view in inventory"
-                                    th:data-search="${!#strings.isEmpty(item.trackingNumber) ? item.trackingNumber : item.name}"
-                                    onclick="window.location.href='/inventory?q=' + encodeURIComponent(this.getAttribute('data-search'))">
+                                <tr th:each="item : ${inventoryList}">
                                     <td>
                                         <span class="badge badge-secondary" th:text="${item.trackingNumber ?: 'N/A'}">N/A</span>
                                     </td>
                                     <td>
-                                        <div th:text="${item.name}">—</div>
+                                        <div class="asset-item-name" 
+                                             th:data-search="${!#strings.isEmpty(item.trackingNumber) ? item.trackingNumber : item.name}"
+                                             onclick="checkAssetClickPermission(this)"
+                                             th:text="${item.name}">—</div>
                                         <small class="text-muted" th:text="'#' + ${item.inventoryId}">—</small>
                                     </td>
                                     <td>

@@ -15,7 +15,7 @@
             <i class="fas fa-bars"></i>
         </button>
         <a th:href="@{/dashboard}" class="d-flex flex-column align-items-center justify-content-center" style="text-decoration: none; padding-top: 5px;">
-            <img th:src="@{assets/images/phlpostlogo.png}" alt="PHLPost Logo"
+            <img th:src="@{/assets/images/phlpostlogo.png}" alt="PHLPost Logo"
                 style="height: 38px; margin-bottom: 2px;">
             <span style="font-size: 11px; font-family: Helvetica, Arial, sans-serif; font-weight: 800; color: #002868; letter-spacing: 0.5px; white-space: nowrap;">Postal Profile</span>
         </a>
@@ -114,6 +114,16 @@
                 data-page="archive" sec:authorize="hasRole('ADMIN')">
                 <i class="fas fa-archive"></i>
                 <span>Archive</span>
+            </a>
+
+            <a href="#" class="sidebar-link" onclick="showStorageMonitor(); return false;" 
+                sec:authorize="hasRole('ADMIN')">
+                <i class="fas fa-hdd"></i>
+                <span>Storage Monitor</span>
+                <span id="storageStatusBadge" class="sidebar-notification-badge" style="display:none;background:#28a745;color:#fff;
+                             font-size:10px;padding:2px 6px;border-radius:10px;
+                             margin-left:auto;min-width:18px;text-align:center;
+                             font-weight:700;line-height:1.2;"></span>
             </a>
         </div>
     </div>

@@ -91,6 +91,9 @@
     <!-- Edit Postal Office Modal -->
     <div th:if="${activePage == 'table' or activePage == 'profile' or activePage == 'dashboard' or activePage == 'quarters'}" th:replace="~{fragments/modals/edit-modal :: editModal}"></div>
 
+    <!-- Storage Monitor Modal -->
+    <div th:if="${activePage == 'dashboard'}" th:replace="~{fragments/modals/storage-monitor-modal :: storageMonitorModal}"></div>
+
     <!-- ── Office Profile Popup Modal (used by table & quarters name links) ── -->
     <div class="modal fade" id="officeProfilePopupModal" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
@@ -206,6 +209,9 @@
                     edit modal ISP/connection tooltips. -->
    <script th:if="${activePage == 'insert' or activePage == 'table' or activePage == 'profile' or activePage == 'dashboard'}" 
            th:src="@{/js/global-tooltips.js}"></script>
+
+   <!-- 24. Storage Monitor - Admin only -->
+   <script th:if="${activePage == 'dashboard'}" th:src="@{/js/storage-monitor.js}"></script>
 
 </body>
 </html>
