@@ -135,7 +135,7 @@
                             </a>
                         </div>
                         <div class="dropdown-divider"></div>
-                        <a class="dropdown-item" th:href="@{/logout}" onclick="if(window._sseClose)window._sseClose();">
+                        <a class="dropdown-item" href="#" onclick="performLogout(); return false;">
                             <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i> Logout
                         </a>
                     </div>
@@ -254,6 +254,55 @@
         }
         .bell-shake .fa-bell { animation: bellShake .5s ease; }
     </style>
+
+    <script>
+        function performLogout() {
+            // Clear SSE connections
+            if (window._sseClose) {
+                try {
+                    window._sseClose();
+                } catch (e) {
+                    console.warn('[Logout] Error closing SSE:', e);
+                }
+            }
+            
+            // Clear storage
+            try {
+                localStorage.clear();
+                sessionStorage.clear();
+            } catch (e) {
+                console.warn('[Logout] Error clearing storage:', e);
+            }
+            
+            // Show confirmation dialog
+            Swal.fire({
+                title: 'Logout',
+                text: 'Are you sure you want to logout?',
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#002868',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Yes, Logout',
+                cancelButtonText: 'Cancel'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Perform logout
+                    fetch('/logout', {
+                        method: 'GET',
+                        credentials: 'same-origin',
+                        headers: {
+                            'X-Requested-With': 'XMLHttpRequest'
+                        }
+                    }).then(() => {
+                        window.location.href = '/login?logout=true';
+                    }).catch(() => {
+                        // If fetch fails, redirect anyway
+                        window.location.href = '/login?logout=true';
+                    });
+                }
+            });
+        }
+    </script>
 
 </div>
 </html>

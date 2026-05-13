@@ -4,8 +4,10 @@ import com.pps.profilesystem.DTO.InventoryDTO;
 import com.pps.profilesystem.Entity.Barcode;
 import com.pps.profilesystem.Entity.Inventory.Category;
 import com.pps.profilesystem.Entity.Inventory.IsServiceable;
+import com.pps.profilesystem.Entity.PostalOffice;
 import com.pps.profilesystem.Service.BarcodeService;
 import com.pps.profilesystem.Service.InventoryService;
+import com.pps.profilesystem.Service.PostalOfficeService;
 import com.pps.profilesystem.Service.PropertyTagGenerator;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -31,6 +33,7 @@ public class InventoryWebController {
 
     private final InventoryService inventoryService;
     private final BarcodeService barcodeService;
+    private final PostalOfficeService postalOfficeService;
 
     private static final int PAGE_SIZE = 7;
 
@@ -119,6 +122,10 @@ public class InventoryWebController {
             model.addAttribute("currentPage",      safePage);
             model.addAttribute("totalPages",       totalPages);
             model.addAttribute("activePage",       "inventory");
+            
+            // Add postal offices data for the dropdown
+            List<PostalOffice> postalOffices = postalOfficeService.getAllPostalOffices();
+            model.addAttribute("postalOffices", postalOffices);
         } catch (Exception e) {
             model.addAttribute("errorMsg", "Error loading inventory: " + e.getMessage());
         }

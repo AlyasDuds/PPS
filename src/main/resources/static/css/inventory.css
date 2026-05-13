@@ -1,5 +1,26 @@
 /* Inventory Page Specific Styles */
 
+/* Responsive Table */
+.table-responsive {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Tracking Number Column - Center Align */
+.inv-table th:first-child,
+.inv-table td:first-child {
+    text-align: center;
+    vertical-align: middle;
+}
+
+.inv-table th:first-child .sort-link {
+    display: inline-block;
+    text-align: center;
+    width: 100%;
+}
+
 /* Welcome Row */
 .welcome-row {
     padding: 28px 0 20px;
@@ -387,6 +408,93 @@
 .page-btn:focus {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
+}
+
+/* Mobile Responsive Styles */
+@media (max-width: 768px) {
+  .welcome-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .header-btns {
+    width: 100%;
+    justify-content: flex-start;
+  }
+  
+  .stat-cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  
+  .filters-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  
+  .search-wrap {
+    width: 100%;
+  }
+  
+  .search-wrap input {
+    width: 100%;
+  }
+  
+  .filter-pill {
+    width: 100%;
+  }
+  
+  .filter-pill select {
+    width: 100%;
+  }
+  
+  .table-responsive {
+    margin: 0 -15px;
+    border-radius: 0;
+  }
+  
+  .inv-table {
+    min-width: 800px;
+  }
+  
+  .table-footer {
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+  }
+  
+  .pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 480px) {
+  .welcome-title {
+    font-size: 24px;
+  }
+  
+  .btn {
+    padding: 8px 14px;
+    font-size: 11px;
+  }
+  
+  .inv-table th,
+  .inv-table td {
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+  
+  .act-btn {
+    padding: 6px 8px;
+  }
+  
+  .table-info {
+    font-size: 12px;
+    text-align: center;
+  }
 }
 
 /* Enhanced print styles */

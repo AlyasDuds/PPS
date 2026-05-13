@@ -14,7 +14,7 @@
     'use strict';
 
     // ── Configuration ────────────────────────────────────────────────────────
-    const SESSION_DURATION_MS = 15 * 60 * 1000;   // 15 minutes
+    const SESSION_DURATION_MS = 5 * 60 * 1000;   // 5 minutes
     const WARNING_BEFORE_MS = 2 * 60 * 1000;    //  2 minutes before expiry
     const LOGOUT_URL = '/login?timeout=true';
     const KEEP_ALIVE_URL = '/api/keep-alive';
@@ -53,6 +53,7 @@
     let warningOpen = false;
     let countdownInterval = null;
     let logoutPending = false;   // guard against double-logout
+    let initialized = false;     // guard against duplicate initialization
 
     // ── Helpers ──────────────────────────────────────────────────────────────
     function clearAllTimers() {
@@ -69,7 +70,38 @@
         logoutPending = true;
         clearAllTimers();
         Swal.close();                // close any open popup before redirect
-        window.location.href = LOGOUT_URL;
+        
+        // Clear any SSE connections
+        if (window._sseClose) {
+            try {
+                window._sseClose();
+            } catch (e) {
+                console.warn('[SessionTimeout] Error closing SSE:', e);
+            }
+        }
+        
+        // Clear any local storage or session data
+        try {
+            localStorage.clear();
+            sessionStorage.clear();
+        } catch (e) {
+            console.warn('[SessionTimeout] Error clearing storage:', e);
+        }
+        
+        // Force logout by calling the logout endpoint directly
+        fetch('/logout?timeout=true', {
+            method: 'GET',
+            credentials: 'same-origin',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        }).then(() => {
+            // Redirect to login page
+            window.location.href = LOGOUT_URL;
+        }).catch(() => {
+            // If fetch fails, redirect anyway
+            window.location.href = LOGOUT_URL;
+        });
     }
 
     // Optional: ping the server to keep the server-side session alive
@@ -184,12 +216,25 @@
     }
 
     // ── Boot ─────────────────────────────────────────────────────────────────
-    if (typeof Swal === 'undefined') {
-        console.error('[SessionTimeout] SweetAlert2 not loaded — session timeout disabled');
-    } else {
+    function initializeSessionTimeout() {
+        if (initialized) {
+            console.log('[SessionTimeout] Already initialized, skipping...');
+            return;
+        }
+        
+        if (typeof Swal === 'undefined') {
+            console.warn('[SessionTimeout] SweetAlert2 not yet loaded, retrying in 500ms...');
+            setTimeout(initializeSessionTimeout, 500);
+            return;
+        }
+        
+        initialized = true;
         resetTimers();
         console.log('[SessionTimeout] Initialized — expires in', SESSION_DURATION_MS / 60000, 'min');
     }
+    
+    // Initialize session timeout
+    initializeSessionTimeout();
 
     // ── Cleanup on navigation ────────────────────────────────────────────────
     // Clear all timers and remove activity listeners before the page unloads

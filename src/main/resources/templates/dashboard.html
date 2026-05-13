@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org" th:replace="~{layout/main-layout :: layout(~{::title}, ~{::content})}">
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security"
+      lang="en"
+      th:replace="~{layout/main-layout :: layout(~{::title}, ~{::main})}">
 
-<head>
-    <title>Dashboard - PHLPost</title>
-</head>
+<title>Dashboard - PHLPost</title>
 
-<section th:fragment="content">
+<main th:fragment="main">
     <div id="dashboardRoleFlags" class="d-none" aria-hidden="true" th:data-is-system-admin="${isSystemAdmin}"
         th:data-is-area-admin="${isAreaAdmin}" th:data-is-srd-operation="${isSrdOperation}"
         th:data-can-dashboard-edit="${canDashboardEdit}" th:data-can-dashboard-archive="${canDashboardArchive}"></div>
@@ -312,4 +313,8 @@
 
     </div>
 
-</section>
+    <!-- Session Timeout Script -->
+    <script th:src="@{/js/session-timeout.js}"></script>
+
+</main>
+</html>

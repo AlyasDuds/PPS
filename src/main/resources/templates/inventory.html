@@ -4,7 +4,7 @@
       lang="en"
       th:replace="~{layout/main-layout :: layout(~{::title}, ~{::main})}">
 
-<title>AssetVault — Inventory</title>
+<title>Inventory</title>
 
 <main th:fragment="main">
 
@@ -22,17 +22,7 @@
         </div>
     </div>
 
-    <!-- ── Welcome Row ── -->
-    <div class="welcome-row">
-        <div>
-            <div class="welcome-title">Inventory <em>Assets</em></div>
-            <div class="welcome-date" id="todayDate"></div>
-        </div>
-        <div class="header-btns">
-            <a th:href="@{/inventory/export}" class="btn btn-outline">⬇️ Export CSV</a>
-            <button class="btn btn-primary" type="button" onclick="openModal()" sec:authorize="hasAnyRole('ADMIN', 'ASSET')">＋ Add Item</button>
-        </div>
-    </div>
+
 
     <!-- ── Stat Cards ── -->
     <div class="stat-cards">
@@ -121,9 +111,8 @@
     </form>
 
     <!-- ── Inventory Table ── -->
-    <div class="inventory-card">
-        <div class="table-wrapper">
-            <table class="inv-table">
+    <div class="table-wrapper">
+        <table class="inv-table">
             <thead>
                 <tr>
                     <!-- Tracking Number -->
@@ -176,10 +165,8 @@
             </thead>
 
             <tbody>
-
                 <!-- ── DATABASE ROWS ── -->
                 <tr th:each="item : ${inventoryList}">
-
                     <!-- Tracking Number -->
                     <td>
                         <span class="tracking-badge"
@@ -272,6 +259,8 @@
                                     th:data-cat="${item.category != null ? item.category.name() : ''}"
                                     th:data-svc="${item.isServiceable != null ? item.isServiceable.name() : 'yes'}"
                                     th:data-emp="${item.employeeId}"
+                                    th:data-office="${item.officeName}"
+                                    th:data-area="${item.area}"
                                     th:data-date="${item.dateAcquired}"
                                     th:data-amt="${item.amount != null ? item.amount : 0}"
                                     th:data-by="${item.createdBy}"
@@ -300,10 +289,8 @@
                         No items found. Try adjusting your search or filters.
                     </td>
                 </tr>
-
             </tbody>
         </table>
-        </div>
 
         <!-- ── PAGINATION ── -->
         <div class="table-footer">
@@ -330,8 +317,7 @@
                    th:href="@{/inventory(q=${param.q},category=${param.category},serviceable=${param.serviceable},sort=${param.sort},dir=${param.dir},page=${currentPage + 1})}">›</a>
             </div>
         </div>
-
-    </div><!-- end .inventory-card -->
+    </div><!-- end .table-wrapper -->
     </div><!-- end .page-body -->
 
     <!-- ══════════════════════════════════════
@@ -380,6 +366,31 @@
                             <label class="form-label">Employee ID</label>
                             <input class="form-input" id="f-emp" name="employeeId" type="text"
                                    placeholder="e.g. EMP-0042"/>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Office Name</label>
+                            <select class="form-select" id="f-officeName" name="officeName">
+                                <option value="">Select office…</option>
+                                <option th:each="office : ${postalOffices}" 
+                                        th:value="${office.name}" 
+                                        th:text="${office.name}"
+                                        th:data-area="${office.area != null ? office.area.areaName : ''}">Postal Office</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Area</label>
+                            <select class="form-select" id="f-area" name="area">
+                                <option value="">Select area…</option>
+                                <option value="Area 1">Area 1</option>
+                                <option value="Area 2">Area 2</option>
+                                <option value="Area 3">Area 3</option>
+                                <option value="Area 4">Area 4</option>
+                                <option value="Area 5">Area 5</option>
+                                <option value="Area 6">Area 6</option>
+                                <option value="Area 7">Area 7</option>
+                                <option value="Area 8">Area 8</option>
+                                <option value="Area 9">Area 9</option>
+                            </select>
                         </div>
                         <div class="form-group">
                             <label class="form-label">Date Acquired</label>
