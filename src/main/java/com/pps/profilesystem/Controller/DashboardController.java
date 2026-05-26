@@ -68,7 +68,7 @@ public class DashboardController {
         // Stats — derived from the already-fetched list (no extra DB queries)
         long totalCount    = offices.size();
         long activeCount   = offices.stream()
-            .filter(po -> Boolean.TRUE.equals(po.getConnectionStatus())).count();
+            .filter(PostalOffice::isEffectivelyConnected).count();
         long inactiveCount = totalCount - activeCount;
         long openCount     = offices.stream()
             .filter(po -> "OPEN".equalsIgnoreCase(po.getOfficeStatus())).count();
@@ -130,7 +130,7 @@ public class DashboardController {
         dto.put("noOfEmployees", office.getNoOfEmployees());
         dto.put("latitude", office.getLatitude());
         dto.put("longitude", office.getLongitude());
-        dto.put("connectionStatus", office.getConnectionStatus());
+        dto.put("connectionStatus", office.isEffectivelyConnected());
         dto.put("officeStatus", office.getOfficeStatus());
         dto.put("speed", office.getSpeed());
         dto.put("remarks", office.getRemarks());

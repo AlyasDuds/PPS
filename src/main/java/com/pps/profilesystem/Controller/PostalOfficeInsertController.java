@@ -11,13 +11,20 @@ import com.pps.profilesystem.Repository.PostalOfficeRepository;
 import com.pps.profilesystem.Repository.ConnectivityRepository;
 import com.pps.profilesystem.Repository.ProviderRepository;
 import com.pps.profilesystem.Repository.UserRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.bind.annotation.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,12 +34,16 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/postal")
 public class PostalOfficeInsertController {
 
+    private static final Logger log = LoggerFactory.getLogger(PostalOfficeInsertController.class);
+    private static final int INSERT_TX_TIMEOUT_SEC = 20;
+
     @Autowired private PostalOfficeRepository postalOfficeRepository;
     @Autowired private LocationHierarchyService locationService;
     @Autowired private ConnectivityNotificationService notifService;
     @Autowired private ConnectivityRepository connectivityRepository;
     @Autowired private ProviderRepository providerRepository;
     @Autowired private UserRepository userRepository;
+    @Autowired private PlatformTransactionManager transactionManager;
 
     // ── Location lookup endpoints ─────────────────────────────────────────────
 
@@ -107,34 +118,49 @@ public class PostalOfficeInsertController {
     // ── INSERT ────────────────────────────────────────────────────────────────
 
     @PostMapping("/postal-office/insert")
-    @Transactional
     public ResponseEntity<Map<String, Object>> insertPostalOffice(
             @RequestBody Map<String, Object> requestData, Authentication auth) {
         try {
+            String name = strVal(requestData.get("name"));
+            if (name == null) {
+                return insertError("Post office name is required.");
+            }
+
+            // Location lookups outside a DB write transaction (keeps connection hold short)
             PostalOffice office = buildPostalOfficeFromRequest(requestData);
-            PostalOffice saved  = postalOfficeRepository.save(office);
+            if (office.getName() == null || office.getName().isBlank()) {
+                office.setName(name);
+            }
 
-            // Save connectivity record with plan/billing details
-            saveConnectivityRecord(saved, requestData);
+            PostalOffice saved = persistOffice(office);
+            saveConnectivityAfterOffice(saved, requestData);
 
-            String actor  = actor(auth);
-            Integer actorRoleId = ConnectivityNotificationService.roleIdFromAuthorities(
-                    auth != null ? auth.getAuthorities() : null
-            );
-            boolean hasConn = Boolean.TRUE.equals(saved.getConnectionStatus());
-
-            notifService.pushAudit(
-                    hasConn ? ConnectivityNotification.Type.CONNECTED : ConnectivityNotification.Type.NEW,
-                    saved.getName(),
-                    saved.getId(),
-                    actor,
-                    actorRoleId,
-                    buildInsertDetail(saved, requestData),
-                    null,
-                    "CONNECTIVITY",
-                    "PostalOffice",
-                    saved.getId() != null ? saved.getId().longValue() : null
-            );
+            // Notification after commit — avoids holding insert connection during SSE broadcast
+            try {
+                String actor = actor(auth);
+                Integer actorRoleId = ConnectivityNotificationService.roleIdFromAuthorities(
+                        auth != null ? auth.getAuthorities() : null
+                );
+                boolean hasConn = Boolean.TRUE.equals(saved.getConnectionStatus());
+                String notifyName = saved.getName();
+                if (notifyName != null && notifyName.length() > 512) {
+                    notifyName = notifyName.substring(0, 512);
+                }
+                notifService.pushAudit(
+                        hasConn ? ConnectivityNotification.Type.CONNECTED : ConnectivityNotification.Type.NEW,
+                        notifyName != null ? notifyName : name,
+                        saved.getId(),
+                        actor,
+                        actorRoleId,
+                        buildInsertDetail(saved, requestData),
+                        null,
+                        "CONNECTIVITY",
+                        "PostalOffice",
+                        saved.getId() != null ? saved.getId().longValue() : null
+                );
+            } catch (Exception notifEx) {
+                log.warn("Insert office {}: notification not sent: {}", saved.getId(), notifEx.getMessage());
+            }
 
             Map<String, Object> response = new HashMap<>();
             response.put("success", true);
@@ -143,44 +169,172 @@ public class PostalOfficeInsertController {
             return ResponseEntity.ok(response);
 
         } catch (Exception e) {
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("success", false);
-            errorResponse.put("message", "Failed to add postal office: " + e.getMessage());
-            return ResponseEntity.badRequest().body(errorResponse);
+            log.error("Insert postal office failed", e);
+            String msg = rootMessage(e);
+            if (isLockTimeout(e)) {
+                msg = "Database is busy (lock timeout). Stop the app, restart MySQL, then try again. (" + msg + ")";
+            }
+            return insertError("Failed to add postal office: " + msg);
         }
+    }
+
+    /** Save office only — short transaction, releases locks quickly. */
+    private PostalOffice persistOffice(PostalOffice office) {
+        try {
+            return doPersistOffice(office);
+        } catch (Exception e) {
+            if (isLockTimeout(e)) {
+                log.warn("Lock wait on postal_offices insert — retrying once");
+                try {
+                    Thread.sleep(400);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                }
+                return doPersistOffice(office);
+            }
+            throw e;
+        }
+    }
+
+    private PostalOffice doPersistOffice(PostalOffice office) {
+        TransactionTemplate tx = newTransaction(INSERT_TX_TIMEOUT_SEC);
+        PostalOffice saved = tx.execute(status -> postalOfficeRepository.save(office));
+        if (saved == null) {
+            throw new IllegalStateException("Failed to save postal office");
+        }
+        return saved;
+    }
+
+    private static boolean isLockTimeout(Throwable t) {
+        for (Throwable c = t; c != null; c = c.getCause()) {
+            String msg = c.getMessage();
+            if (msg != null && msg.toLowerCase().contains("lock wait timeout")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Connectivity/plan data in a separate transaction so office insert is not blocked. */
+    private void saveConnectivityAfterOffice(PostalOffice saved, Map<String, Object> requestData) {
+        TransactionTemplate tx = newTransaction(INSERT_TX_TIMEOUT_SEC);
+        tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        try {
+            tx.executeWithoutResult(status -> {
+                PostalOffice managed = postalOfficeRepository.findById(saved.getId())
+                        .orElseThrow(() -> new IllegalStateException("Office not found after save: " + saved.getId()));
+                saveConnectivityRecord(managed, requestData);
+            });
+        } catch (Exception connEx) {
+            log.warn("Insert office {}: connectivity row not saved: {}", saved.getId(), connEx.getMessage());
+        }
+    }
+
+    private TransactionTemplate newTransaction(int timeoutSec) {
+        TransactionTemplate tx = new TransactionTemplate(transactionManager);
+        tx.setTimeout(timeoutSec);
+        return tx;
+    }
+
+    private ResponseEntity<Map<String, Object>> insertError(String message) {
+        Map<String, Object> errorResponse = new HashMap<>();
+        errorResponse.put("success", false);
+        errorResponse.put("message", message);
+        return ResponseEntity.badRequest().body(errorResponse);
+    }
+
+    private static String rootMessage(Throwable t) {
+        if (t == null) return "Unknown error";
+        Throwable root = t;
+        while (root.getCause() != null && root.getCause() != root) {
+            root = root.getCause();
+        }
+        String msg = root.getMessage();
+        return (msg != null && !msg.isBlank()) ? msg : root.getClass().getSimpleName();
     }
 
     // ── Connectivity record with plan/billing ─────────────────────────────────
 
     private void saveConnectivityRecord(PostalOffice savedOffice, Map<String, Object> req) {
-        String planName    = strVal(req.get("planName"));
-        String accountNum  = strVal(req.get("accountNumber"));
+        String planName     = strVal(req.get("planName"));
+        String accountNum   = strVal(req.get("accountNumber"));
+        String planContract = strVal(req.get("planContract"));
         Object planPriceRaw = req.get("planPrice");
-        String ownedShared = strVal(req.get("ownedOrShared"));
+        String ownedShared  = strVal(req.get("ownedOrShared"));
+        boolean hasPlanPrice = planPriceRaw != null && !planPriceRaw.toString().trim().isEmpty();
 
         boolean hasConnData = Boolean.TRUE.equals(savedOffice.getConnectionStatus())
-                || planName != null || accountNum != null || planPriceRaw != null;
+                || planName != null || accountNum != null || hasPlanPrice || planContract != null;
         if (!hasConnData) return;
 
-        Provider provider = providerRepository.findAll().stream().findFirst().orElseGet(() -> {
-            Provider p = new Provider(); p.setName("Default Provider"); return providerRepository.save(p);
-        });
+        Provider provider = getOrCreateDefaultProvider();
 
         Connectivity conn = new Connectivity();
         conn.setPostalOffice(savedOffice);
         conn.setProvider(provider);
-        if (planName   != null) conn.setPlanName(planName);
+        conn.setIsWired(parseBool(req.get("isWired"), false));
+        conn.setIsFree(parseBool(req.get("isFree"), false));
+        if (planName != null) conn.setPlanName(planName);
         if (accountNum != null) conn.setAccountNumber(accountNum);
-        if (planPriceRaw != null) {
-            try { conn.setPlanPrice(new BigDecimal(planPriceRaw.toString())); } catch (Exception ignored) {}
+        if (planContract != null) conn.setPlanContract(planContract);
+        if (hasPlanPrice) {
+            try { conn.setPlanPrice(new BigDecimal(planPriceRaw.toString().trim())); } catch (Exception ignored) {}
         }
         if (ownedShared != null) conn.setIsShared("Shared".equalsIgnoreCase(ownedShared));
+
+        LocalDateTime connected = parseDateTime(req.get("dateConnected"));
+        LocalDateTime disconnected = parseDateTime(req.get("dateDisconnected"));
+        if (connected != null) conn.setDateConnected(connected);
+        if (disconnected != null) conn.setDateDisconnected(disconnected);
 
         Connectivity savedConn = connectivityRepository.save(conn);
 
         if (Boolean.TRUE.equals(savedOffice.getConnectionStatus())) {
             savedOffice.setActiveConnectivity(savedConn);
             postalOfficeRepository.save(savedOffice);
+        }
+    }
+
+    private Provider resolveDefaultProvider() {
+        return providerRepository.findByName("Default Provider");
+    }
+
+    private Provider getOrCreateDefaultProvider() {
+        Provider existing = resolveDefaultProvider();
+        if (existing != null) {
+            return existing;
+        }
+        TransactionTemplate tx = newTransaction(10);
+        tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+        return tx.execute(status -> {
+            Provider again = resolveDefaultProvider();
+            if (again != null) {
+                return again;
+            }
+            Provider p = new Provider();
+            p.setName("Default Provider");
+            p.setCreatedBy(1L);
+            return providerRepository.save(p);
+        });
+    }
+
+    private static boolean parseBool(Object value, boolean defaultVal) {
+        if (value == null) return defaultVal;
+        if (value instanceof Boolean b) return b;
+        return "true".equalsIgnoreCase(value.toString().trim());
+    }
+
+    private static LocalDateTime parseDateTime(Object value) {
+        String s = value == null ? null : value.toString().trim();
+        if (s == null || s.isEmpty()) return null;
+        try {
+            return LocalDate.parse(s).atStartOfDay();
+        } catch (DateTimeParseException e) {
+            try {
+                return LocalDateTime.parse(s);
+            } catch (DateTimeParseException ignored) {
+                return null;
+            }
         }
     }
 
@@ -248,7 +402,10 @@ public class PostalOfficeInsertController {
         PostalOffice office = new PostalOffice();
 
         // Basic Info
-        if (requestData.get("name")                   != null) office.setName(requestData.get("name").toString());
+        if (requestData.get("name") != null) {
+            String officeName = strVal(requestData.get("name"));
+            if (officeName != null) office.setName(officeName);
+        }
         if (requestData.get("postmaster")             != null) office.setPostmaster(requestData.get("postmaster").toString());
         if (requestData.get("address")                != null) office.setAddress(requestData.get("address").toString());
         if (requestData.get("zipCode")                != null) office.setZipCode(requestData.get("zipCode").toString());
@@ -293,8 +450,17 @@ public class PostalOfficeInsertController {
         if (requestData.get("provinceId") != null) {
             Integer provinceId = parseInteger(requestData.get("provinceId"));
             Integer areaId     = parseInteger(requestData.get("areaId"));
-            if (provinceId != null && areaId != null)
-                locationService.getProvincesByArea(areaId).stream().filter(p -> p.getId().equals(provinceId)).findFirst().ifPresent(office::setProvince);
+            if (provinceId != null && areaId != null) {
+                locationService.getProvincesByArea(areaId).stream()
+                        .filter(p -> p.getId().equals(provinceId))
+                        .findFirst()
+                        .ifPresent(p -> {
+                            office.setProvince(p);
+                            if (p.getRegions() != null) {
+                                office.setRegion(p.getRegions());
+                            }
+                        });
+            }
         }
         if (requestData.get("cityMunId") != null) {
             Integer cityMunId  = parseInteger(requestData.get("cityMunId"));

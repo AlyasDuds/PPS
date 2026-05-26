@@ -94,6 +94,63 @@
             </div>
         </div>
 
+        <!-- ===== STATS CARDS ===== -->
+        <div class="row mb-4">
+            <!-- Connected Card -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-bottom-success shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                                    Active (Connected)</div>
+                                <h2 class="h5 mb-0 font-weight-bold text-gray-800" th:text="${connectivityStats != null ? connectivityStats.totalConnected : 0}">0</h2>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-wifi fa-2x text-success"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Disconnected Card -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-bottom-danger shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
+                                    Inactive (Disconnected)</div>
+                                <h2 class="h5 mb-0 font-weight-bold text-gray-800" th:text="${connectivityStats != null ? connectivityStats.totalDisconnected : 0}">0</h2>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-wifi-slash fa-2x text-danger"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Total Card -->
+            <div class="col-xl-4 col-md-6 mb-4">
+                <div class="card border-bottom-primary shadow h-100 py-2">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                                    Total Offices</div>
+                                <h2 class="h5 mb-0 font-weight-bold text-gray-800" th:text="${connectivityStats != null ? connectivityStats.totalOffices : 0}">0</h2>
+                            </div>
+                            <div class="col-auto">
+                                <i class="fas fa-building fa-2x text-primary"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ===== QUARTERLY BREAKDOWN ===== -->
         <div class="row mb-4">
             <div class="col-12">
@@ -267,7 +324,7 @@
                                         <span th:if="${quarter.isFuture}" class="text-muted">—</span>
                                         <span th:unless="${quarter.isFuture}"
                                               class="font-weight-bold text-primary"
-                                              th:text="${(quarter.connected != null ? quarter.connected : 0) + (quarter.disconnected != null ? quarter.disconnected : 0)}">0</span>
+                                              th:text="${quarter.total != null ? quarter.total : 0}">0</span>
                                     </td>
 
                                     <!-- Status -->

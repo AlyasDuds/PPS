@@ -39,20 +39,27 @@
                                 <div class="col-md-12">
                                     <div class="form-group">
                                         <label for="officeName">Post Office Name <span class="text-danger">*</span></label>
-                                        <div class="input-group">
+                                        <div class="input-group" id="officeNameGroup">
                                             <input type="text" class="form-control" id="officeName" name="name"
-                                                   placeholder="e.g., Manila Central" autocomplete="off">
+                                                   placeholder="e.g., Manila Central" autocomplete="off"
+                                                   aria-describedby="officeNameHelp officeNameError">
                                             <div class="input-group-append">
                                                 <span class="input-group-text font-weight-bold text-primary"
                                                       style="background:#f0f4ff;border-color:#ced4da;letter-spacing:0.03em;">
                                                     POST OFFICE
                                                 </span>
                                             </div>
-                                            <div class="invalid-feedback">
-                                                <i class="fas fa-exclamation-circle"></i> Post Office Name is required.
-                                            </div>
                                         </div>
-                                        <small class="form-text text-muted">Official name of the post office</small>
+                                        <div class="invalid-feedback" id="officeNameError">
+                                            <i class="fas fa-exclamation-circle"></i> Post Office Name is required.
+                                        </div>
+                                        <div id="officeNamePreview" class="office-name-preview" hidden>
+                                            <span class="office-name-preview-label">Full name:</span>
+                                            <span id="officeNamePreviewText" class="office-name-preview-value"></span>
+                                        </div>
+                                        <small class="form-text text-muted" id="officeNameHelp">
+                                            Type the office name only — <strong>POST OFFICE</strong> is added automatically.
+                                        </small>
                                     </div>
                                 </div>
                             </div>
@@ -349,6 +356,13 @@
                                             <option value="DITO">DITO</option>
                                             <option value="Other">Other</option>
                                         </select>
+                                        <div id="ispOtherWrap" class="mt-2" style="display:none;">
+                                            <input type="text" class="form-control" id="internetServiceProviderOther"
+                                                   placeholder="Specify ISP name..."
+                                                   style="text-transform:uppercase;"
+                                                   autocomplete="off">
+                                            <small class="form-text text-muted">Enter the ISP name to be saved</small>
+                                        </div>
                                     </div>
                                 </div>
                                 <div class="col-md-6">

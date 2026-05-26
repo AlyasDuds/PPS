@@ -3,12 +3,13 @@
  *
  * Handles all archive / restore interactions:
  *   - Archive button on table.html  (opens reason modal → POST /api/archive/{id})
- *   - Restore button on archive.html (POST /api/restore/{id})
- *   - Bulk restore on archive.html   (POST /api/restore/bulk)
+ *   - Archive inbox on archive.html   (DataTable + restore / bulk restore)
  *   - Select-all checkbox on archive.html
  *
- * Requires: jQuery, SweetAlert2, Bootstrap 4
+ * Requires: jQuery, SweetAlert2, Bootstrap 4, DataTables 2.x
  */
+let archiveTable = null;
+
 $(document).ready(function () {
     console.log('Archive.js loaded and ready!');
 
@@ -31,13 +32,6 @@ $(document).ready(function () {
     }
 
     // ── ARCHIVE from table.html ───────────────────────────────────────────────
-    // Attach this button in table.html:
-    //   <button class="btn btn-sm btn-warning btn-archive"
-    //           th:data-office-id="${office.id}"
-    //           th:data-office-name="${office.name}"
-    //           title="Archive Office">
-    //       <i class="fas fa-archive"></i>
-    //   </button>
 
     let pendingArchiveId   = null;
     let pendingArchiveRow  = null;
@@ -45,46 +39,31 @@ $(document).ready(function () {
     $(document).on('click', '.btn-archive', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        console.log('Archive button clicked!', this);
-        console.log('Office ID:', $(this).data('office-id'));
-        console.log('Office Name:', $(this).data('office-name'));
-        
+
         pendingArchiveId  = $(this).data('office-id');
         pendingArchiveRow = $(this).closest('tr');
         const name        = $(this).data('office-name');
 
-        console.log('Setting up modal with name:', name);
-        
-        // Check if modal element exists
         const $modal = $('#archiveReasonModal');
-        console.log('Modal element found:', $modal.length > 0);
-        console.log('Bootstrap modal available:', typeof $.fn.modal === 'function');
-        
         if ($modal.length === 0) {
             console.error('Archive modal not found in DOM!');
             alert('Error: Archive modal not found. Please refresh the page.');
             return;
         }
-        
+
         $('#archiveOfficeName').text(name);
         $('#archiveReasonInput').val('');
-        
-        // Try to show modal
+
         try {
-            // Try Bootstrap 4/5 modal syntax
             if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
                 const modal = new bootstrap.Modal($modal[0]);
                 modal.show();
-                console.log('Bootstrap 5 modal shown successfully');
             } else if (typeof $.fn.modal === 'function') {
                 $modal.modal('show');
-                console.log('Bootstrap 4 modal shown successfully');
             } else {
-                // Fallback: force show using direct DOM manipulation
                 $modal.addClass('show').css('display', 'block');
                 $('body').addClass('modal-open');
                 $('<div class="modal-backdrop fade show"></div>').insertAfter($modal);
-                console.log('Fallback modal show method used');
             }
         } catch (error) {
             console.error('Error showing modal:', error);
@@ -92,11 +71,9 @@ $(document).ready(function () {
         }
     });
 
-    // Fallback: Also try to catch clicks on the archive icon
     $(document).on('click', '.btn-archive i', function (e) {
         e.preventDefault();
         e.stopPropagation();
-        console.log('Archive icon clicked!', this);
         const $button = $(this).parent('.btn-archive');
         if ($button.length) {
             $button.trigger('click');
@@ -121,12 +98,11 @@ $(document).ready(function () {
                 $btn.prop('disabled', false).html('<i class="fas fa-archive mr-1"></i> Archive');
 
                 if (res.success) {
-                    // Check if we're on dashboard page - if so, reload the page
-                    if (window.location.pathname.includes('/dashboard')) {
+                    const path = window.location.pathname;
+                    if (path.includes('/dashboard') || path.includes('/table') || path.includes('/quarters')) {
                         showSuccess(res.message);
-                        setTimeout(() => location.reload(), 1500);
+                        setTimeout(() => location.reload(), 1200);
                     } else {
-                        // Remove the row from the active table
                         if (pendingArchiveRow) pendingArchiveRow.fadeOut(400, function () { $(this).remove(); });
                         showSuccess(res.message);
                     }
@@ -165,7 +141,7 @@ $(document).ready(function () {
                 method: 'POST',
                 success: function (res) {
                     if (res.success) {
-                        $row.fadeOut(400, function () { $(this).remove(); updateArchivedCount(-1); });
+                        removeArchiveRows($row, 1);
                         showSuccess(res.message);
                     } else {
                         showError(res.message || 'Restore failed.');
@@ -181,20 +157,41 @@ $(document).ready(function () {
     // ── SELECT ALL (archive.html) ─────────────────────────────────────────────
 
     $('#selectAll').on('change', function () {
-        $('.row-checkbox').prop('checked', this.checked);
+        const checked = this.checked;
+        setAllRowCheckboxes(checked);
+        $('#selectAll').prop('indeterminate', false);
         refreshBulkBar();
     });
 
     $(document).on('change', '.row-checkbox', function () {
-        const total    = $('.row-checkbox').length;
-        const checked  = $('.row-checkbox:checked').length;
-        $('#selectAll').prop('indeterminate', checked > 0 && checked < total);
-        $('#selectAll').prop('checked', checked === total);
+        syncSelectAllState();
         refreshBulkBar();
     });
 
+    function setAllRowCheckboxes(checked) {
+        if (archiveTable) {
+            archiveTable.rows({ search: 'applied' }).every(function () {
+                $(this.node()).find('.row-checkbox').prop('checked', checked);
+            });
+        } else {
+            $('.row-checkbox').prop('checked', checked);
+        }
+    }
+
+    function syncSelectAllState() {
+        const boxes = archiveTable
+            ? archiveTable.rows({ search: 'applied' }).nodes().to$().find('.row-checkbox')
+            : $('.row-checkbox');
+        const total   = boxes.length;
+        const checked = boxes.filter(':checked').length;
+        $('#selectAll').prop('indeterminate', checked > 0 && checked < total);
+        $('#selectAll').prop('checked', total > 0 && checked === total);
+    }
+
     function refreshBulkBar() {
-        const count = $('.row-checkbox:checked').length;
+        const count = archiveTable
+            ? archiveTable.rows({ search: 'applied' }).nodes().to$().find('.row-checkbox:checked').length
+            : $('.row-checkbox:checked').length;
         if (count > 0) {
             $('#selectedCount').text(count);
             $('#bulkActionBar').show();
@@ -204,17 +201,15 @@ $(document).ready(function () {
     }
 
     $('#btnClearSelection').on('click', function () {
-        $('.row-checkbox, #selectAll').prop('checked', false);
+        setAllRowCheckboxes(false);
+        $('#selectAll').prop({ checked: false, indeterminate: false });
         refreshBulkBar();
     });
 
     // ── BULK RESTORE (archive.html) ───────────────────────────────────────────
 
     $('#btnBulkRestore').on('click', function () {
-        const ids = $('.row-checkbox:checked').map(function () {
-            return parseInt($(this).data('id'));
-        }).get();
-
+        const ids = getCheckedOfficeIds();
         if (ids.length === 0) return;
 
         Swal.fire({
@@ -234,12 +229,12 @@ $(document).ready(function () {
                 data: JSON.stringify({ ids: ids }),
                 success: function (res) {
                     if (res.success) {
-                        // Remove restored rows from the table
-                        $('.row-checkbox:checked').closest('tr').fadeOut(400, function () {
-                            $(this).remove();
-                            updateArchivedCount(-ids.length);
-                        });
+                        const $rows = archiveTable
+                            ? archiveTable.rows().nodes().to$().find('.row-checkbox:checked').closest('tr')
+                            : $('.row-checkbox:checked').closest('tr');
+                        removeArchiveRows($rows, ids.length);
                         $('#bulkActionBar').hide();
+                        $('#selectAll').prop({ checked: false, indeterminate: false });
                         showSuccess(res.message);
                     } else {
                         showError(res.message || 'Bulk restore failed.');
@@ -252,15 +247,113 @@ $(document).ready(function () {
         });
     });
 
-    // ── Helpers ───────────────────────────────────────────────────────────────
+    function getCheckedOfficeIds() {
+        const source = archiveTable
+            ? archiveTable.rows({ search: 'applied' }).nodes().to$().find('.row-checkbox:checked')
+            : $('.row-checkbox:checked');
+        return source.map(function () {
+            return parseInt($(this).data('id'), 10);
+        }).get().filter(id => !isNaN(id));
+    }
+
+    function removeArchiveRows($rows, delta) {
+        if (archiveTable && $rows.length) {
+            archiveTable.rows($rows).remove().draw(false);
+            syncArchiveSummary();
+        } else if ($rows.length) {
+            $rows.fadeOut(400, function () { $(this).remove(); });
+        }
+        updateArchivedCount(-delta);
+    }
 
     function updateArchivedCount(delta) {
-        // Update the stats card on archive.html
-        const $counter = $('.text-warning.mb-0');
-        if ($counter.length) {
-            const current = parseInt($counter.text()) || 0;
-            $counter.text(Math.max(0, current + delta));
+        const selectors = ['#archivedCountStat', '#archivedCountDisplay'];
+        selectors.forEach(sel => {
+            const $el = $(sel);
+            if ($el.length) {
+                const current = parseInt($el.text(), 10) || 0;
+                $el.text(Math.max(0, current + delta));
+            }
+        });
+        syncArchiveSummary();
+    }
+
+    function syncArchiveSummary() {
+        const $summary = $('#archiveSummary');
+        if (!$summary.length) return;
+        const total = archiveTable
+            ? archiveTable.rows().count()
+            : $('#archiveTable tbody tr').length;
+        if (total === 0) {
+            $summary.text('Inbox is empty');
+        } else {
+            $summary.text(total + (total === 1 ? ' office' : ' offices'));
         }
     }
 
+    // ── Archive inbox DataTable (after deferred DataTables script loads) ───
+
+    if (document.getElementById('archiveTable')) {
+        $(window).on('load', initArchiveInbox);
+    }
 });
+
+function initArchiveInbox() {
+    const tableEl = document.getElementById('archiveTable');
+    if (!tableEl || archiveTable) return;
+
+    if (typeof DataTable === 'undefined') {
+        console.warn('DataTables not available; archive inbox table not initialized.');
+        syncArchiveSummaryStatic();
+        return;
+    }
+
+    if ($.fn.DataTable && $.fn.DataTable.isDataTable('#archiveTable')) {
+        $('#archiveTable').DataTable().destroy();
+    }
+
+    archiveTable = new DataTable('#archiveTable', {
+        pageLength: 10,
+        lengthMenu: [10, 25, 50, 100],
+        order: [[6, 'desc']],
+        language: {
+            emptyTable: 'No archived post offices found.',
+            search: 'Search inbox:',
+            lengthMenu: 'Show _MENU_ entries',
+            info: 'Showing _START_ to _END_ of _TOTAL_ archived offices',
+            infoEmpty: 'No archived offices',
+            zeroRecords: 'No matching archived offices'
+        },
+        columnDefs: [
+            { orderable: false, targets: [0, 9] }
+        ],
+        drawCallback: function () {
+            syncArchiveSummaryStatic();
+            $('#selectAll').prop({ checked: false, indeterminate: false });
+            refreshBulkBarStatic();
+        }
+    });
+
+    syncArchiveSummaryStatic();
+}
+
+function syncArchiveSummaryStatic() {
+    const $summary = $('#archiveSummary');
+    if (!$summary.length) return;
+    const total = archiveTable
+        ? archiveTable.rows().count()
+        : document.querySelectorAll('#archiveTable tbody tr').length;
+    $summary.text(total === 0 ? 'Inbox is empty' : total + (total === 1 ? ' office' : ' offices'));
+}
+
+function refreshBulkBarStatic() {
+    const count = archiveTable
+        ? archiveTable.rows({ search: 'applied' }).nodes().to$().find('.row-checkbox:checked').length
+        : document.querySelectorAll('.row-checkbox:checked').length;
+    if (count > 0) {
+        $('#selectedCount').text(count);
+        $('#bulkActionBar').show();
+    } else {
+        $('#bulkActionBar').hide();
+    }
+}

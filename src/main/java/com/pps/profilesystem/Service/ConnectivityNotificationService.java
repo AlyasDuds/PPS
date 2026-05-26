@@ -225,15 +225,22 @@ public class ConnectivityNotificationService {
 
     /** Ensures SSE subscribers see updates only after the DB transaction commits. */
     private void scheduleBroadcastAfterCommit() {
+        Runnable task = () -> {
+            try {
+                broadcastToAll();
+            } catch (Exception ex) {
+                log.warning("[SSE] Broadcast failed: " + ex.getMessage());
+            }
+        };
         if (TransactionSynchronizationManager.isSynchronizationActive()) {
             TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
                 @Override
                 public void afterCommit() {
-                    broadcastToAll();
+                    flushExecutor.execute(task);
                 }
             });
         } else {
-            broadcastToAll();
+            flushExecutor.execute(task);
         }
     }
 

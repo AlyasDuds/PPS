@@ -41,13 +41,17 @@ public class QuarterConnectivityService {
         Long newlyDisconnected = connectivityRepository.countNewlyDisconnectedInQuarter(quarterStart, quarterEnd);
         stats.setNewlyDisconnected(newlyDisconnected != null ? newlyDisconnected.intValue() : 0);
 
-        // Count total active at end of quarter
         List<Connectivity> activeAtQuarterEnd = connectivityRepository.findActiveAtDate(quarterEnd);
-        stats.setTotalConnected(activeAtQuarterEnd.size());
+        stats.setTotalConnected((int) activeAtQuarterEnd.stream()
+                .map(c -> c.getPostalOffice().getId())
+                .distinct()
+                .count());
 
-        // Count total inactive (all connectivity records that are disconnected)
         List<Connectivity> allInactive = connectivityRepository.findAllInactive();
-        stats.setTotalDisconnected(allInactive.size());
+        stats.setTotalDisconnected((int) allInactive.stream()
+                .map(c -> c.getPostalOffice().getId())
+                .distinct()
+                .count());
 
         return stats;
     }

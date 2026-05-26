@@ -62,28 +62,46 @@ public interface ConnectivityRepository extends JpaRepository<Connectivity, Inte
            ")")
     List<Connectivity> findInactiveAtDate(@Param("checkDate") LocalDateTime checkDate);
 
-    @Query("SELECT c FROM Connectivity c WHERE c.dateConnected IS NOT NULL AND c.dateDisconnected IS NULL")
+    @Query("SELECT c FROM Connectivity c JOIN c.postalOffice po " +
+           "WHERE c.dateConnected IS NOT NULL AND c.dateDisconnected IS NULL " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     List<Connectivity> findAllActive();
 
-    @Query("SELECT c FROM Connectivity c WHERE c.dateConnected IS NOT NULL AND c.dateDisconnected IS NOT NULL")
+    @Query("SELECT c FROM Connectivity c JOIN c.postalOffice po " +
+           "WHERE c.dateConnected IS NOT NULL AND c.dateDisconnected IS NOT NULL " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     List<Connectivity> findAllInactive();
 
-    @Query("SELECT COUNT(c) FROM Connectivity c WHERE YEAR(c.dateConnected) = :year AND QUARTER(c.dateConnected) = :quarter")
+    @Query("SELECT COUNT(c) FROM Connectivity c JOIN c.postalOffice po " +
+           "WHERE YEAR(c.dateConnected) = :year AND QUARTER(c.dateConnected) = :quarter " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     Long countConnectionsInQuarter(@Param("year") Integer year, @Param("quarter") Integer quarter);
 
-    @Query("SELECT COUNT(c) FROM Connectivity c WHERE YEAR(c.dateDisconnected) = :year AND QUARTER(c.dateDisconnected) = :quarter")
+    @Query("SELECT COUNT(c) FROM Connectivity c JOIN c.postalOffice po " +
+           "WHERE YEAR(c.dateDisconnected) = :year AND QUARTER(c.dateDisconnected) = :quarter " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     Long countDisconnectionsInQuarter(@Param("year") Integer year, @Param("quarter") Integer quarter);
 
-    @Query("SELECT c FROM Connectivity c WHERE YEAR(c.dateConnected) = :year AND QUARTER(c.dateConnected) = :quarter ORDER BY c.dateConnected DESC")
+    @Query("SELECT c FROM Connectivity c JOIN FETCH c.postalOffice po " +
+           "WHERE YEAR(c.dateConnected) = :year AND QUARTER(c.dateConnected) = :quarter " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po) " +
+           "ORDER BY c.dateConnected DESC")
     List<Connectivity> findConnectionsInQuarter(@Param("year") Integer year, @Param("quarter") Integer quarter);
 
-    @Query("SELECT c FROM Connectivity c WHERE YEAR(c.dateDisconnected) = :year AND QUARTER(c.dateDisconnected) = :quarter ORDER BY c.dateDisconnected DESC")
+    @Query("SELECT c FROM Connectivity c JOIN FETCH c.postalOffice po " +
+           "WHERE YEAR(c.dateDisconnected) = :year AND QUARTER(c.dateDisconnected) = :quarter " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po) " +
+           "ORDER BY c.dateDisconnected DESC")
     List<Connectivity> findDisconnectionsInQuarter(@Param("year") Integer year, @Param("quarter") Integer quarter);
 
-    @Query("SELECT COUNT(DISTINCT c.postalOffice.id) FROM Connectivity c WHERE c.dateConnected >= :quarterStart AND c.dateConnected < :quarterEnd")
+    @Query("SELECT COUNT(DISTINCT c.postalOffice.id) FROM Connectivity c JOIN c.postalOffice po " +
+           "WHERE c.dateConnected >= :quarterStart AND c.dateConnected < :quarterEnd " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     Long countNewlyConnectedInQuarter(@Param("quarterStart") LocalDateTime quarterStart, @Param("quarterEnd") LocalDateTime quarterEnd);
 
-    @Query("SELECT COUNT(DISTINCT c.postalOffice.id) FROM Connectivity c WHERE c.dateDisconnected >= :quarterStart AND c.dateDisconnected < :quarterEnd")
+    @Query("SELECT COUNT(DISTINCT c.postalOffice.id) FROM Connectivity c JOIN c.postalOffice po " +
+           "WHERE c.dateDisconnected >= :quarterStart AND c.dateDisconnected < :quarterEnd " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     Long countNewlyDisconnectedInQuarter(@Param("quarterStart") LocalDateTime quarterStart, @Param("quarterEnd") LocalDateTime quarterEnd);
 
     @Query("SELECT c FROM Connectivity c WHERE c.postalOffice.id = :officeId ORDER BY c.dateConnected DESC")

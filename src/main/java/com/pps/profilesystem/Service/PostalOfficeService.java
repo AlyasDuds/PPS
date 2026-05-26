@@ -342,8 +342,7 @@ public class PostalOfficeService {
             // Filter by disconnection date
             offices = postalOfficeRepository.findByDateDisconnectedBetween(startDate, endDate);
         } else {
-            // Default to all offices if no specific date type
-            offices = postalOfficeRepository.findAll();
+            offices = postalOfficeRepository.findByIsArchivedFalse();
         }
         
         // Apply additional status filter if specified (but not newly_connected/disconnected which are already handled)

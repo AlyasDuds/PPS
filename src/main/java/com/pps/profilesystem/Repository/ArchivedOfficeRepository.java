@@ -15,15 +15,31 @@ public interface ArchivedOfficeRepository extends JpaRepository<ArchivedOffice, 
 
     Optional<ArchivedOffice> findByPostalOffice(PostalOffice postalOffice);
 
-    Optional<ArchivedOffice> findByPostalOfficeId(Integer officeId);
+    @Query("SELECT a FROM ArchivedOffice a " +
+           "JOIN FETCH a.postalOffice po " +
+           "LEFT JOIN FETCH po.area " +
+           "LEFT JOIN FETCH po.cityMunicipality " +
+           "WHERE po.id = :officeId")
+    Optional<ArchivedOffice> findByPostalOfficeId(@Param("officeId") Integer officeId);
 
     boolean existsByPostalOfficeId(Integer officeId);
 
-    @Query("SELECT a FROM ArchivedOffice a JOIN FETCH a.postalOffice po LEFT JOIN FETCH po.area")
+    @Query("SELECT ao.postalOffice.id FROM ArchivedOffice ao")
+    List<Integer> findAllArchivedPostalOfficeIds();
+
+    @Query("SELECT a FROM ArchivedOffice a " +
+           "JOIN FETCH a.postalOffice po " +
+           "LEFT JOIN FETCH po.area " +
+           "LEFT JOIN FETCH po.cityMunicipality " +
+           "ORDER BY a.archivedAt DESC")
     List<ArchivedOffice> findAllWithOffice();
 
-    @Query("SELECT a FROM ArchivedOffice a JOIN FETCH a.postalOffice po LEFT JOIN FETCH po.area " +
-           "WHERE po.area.id = :areaId")
+    @Query("SELECT a FROM ArchivedOffice a " +
+           "JOIN FETCH a.postalOffice po " +
+           "LEFT JOIN FETCH po.area " +
+           "LEFT JOIN FETCH po.cityMunicipality " +
+           "WHERE po.area.id = :areaId " +
+           "ORDER BY a.archivedAt DESC")
     List<ArchivedOffice> findAllWithOfficeByArea(@Param("areaId") Integer areaId);
 
     void deleteByPostalOfficeId(Integer officeId);

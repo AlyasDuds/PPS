@@ -26,6 +26,24 @@ function syncConnectionStatus(select) {
     }
 }
 
+const POST_OFFICE_SUFFIX = ' POST OFFICE';
+
+/** Strip trailing " POST OFFICE"; only used on save/summary, not while typing. */
+function officeNameBase(raw) {
+    let v = (raw || '').trim().toUpperCase();
+    if (!v) return '';
+    while (v.endsWith(POST_OFFICE_SUFFIX)) {
+        v = v.slice(0, -POST_OFFICE_SUFFIX.length).trimEnd();
+    }
+    return v;
+}
+
+function getFullOfficeName() {
+    const base = officeNameBase(document.getElementById('officeName')?.value);
+    if (!base) return null;
+    return base + POST_OFFICE_SUFFIX;
+}
+
 document.addEventListener('DOMContentLoaded', function () {
 
     console.log('Insert Office Wizard initializing...');
@@ -47,9 +65,28 @@ document.addEventListener('DOMContentLoaded', function () {
     };
 
     // ─── Validation helpers ─────────────────────────────────────────────────
-    function markInvalid(el) { if (!el) return; el.classList.add('is-invalid'); el.classList.remove('is-valid'); }
-    function markValid(el)   { if (!el) return; el.classList.remove('is-invalid'); el.classList.add('is-valid'); }
-    function clearMark(el)   { if (!el) return; el.classList.remove('is-invalid', 'is-valid'); }
+    function setOfficeNameErrorVisible(show) {
+        const fb = document.getElementById('officeNameError');
+        if (fb) fb.style.display = show ? 'block' : 'none';
+    }
+
+    function markInvalid(el) {
+        if (!el) return;
+        el.classList.add('is-invalid');
+        el.classList.remove('is-valid');
+        if (el.id === 'officeName') setOfficeNameErrorVisible(true);
+    }
+    function markValid(el) {
+        if (!el) return;
+        el.classList.remove('is-invalid');
+        el.classList.add('is-valid');
+        if (el.id === 'officeName') setOfficeNameErrorVisible(false);
+    }
+    function clearMark(el) {
+        if (!el) return;
+        el.classList.remove('is-invalid', 'is-valid');
+        if (el.id === 'officeName') setOfficeNameErrorVisible(false);
+    }
 
     const touched = new Set();
 
@@ -250,6 +287,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     initStatusDropdowns();
+    initIspOtherField();
+    initOfficeNameAutoType();
 
     // ─── Field value getters ─────────────────────────────────────────────────
 
@@ -289,12 +328,82 @@ document.addEventListener('DOMContentLoaded', function () {
         return isNaN(num) ? null : num + ' Mbps';
     }
 
+    function getIsp() {
+        const sel = document.getElementById('internetServiceProvider');
+        if (sel?.value === 'Other') {
+            return getStr('internetServiceProviderOther');
+        }
+        return getStr('internetServiceProvider');
+    }
+
+    /** Uppercase while typing + live "NAME POST OFFICE" preview (no trim on keystroke). */
+    function initOfficeNameAutoType() {
+        const input = document.getElementById('officeName');
+        const preview = document.getElementById('officeNamePreview');
+        const previewText = document.getElementById('officeNamePreviewText');
+        if (!input) return;
+
+        function syncPreview() {
+            const full = getFullOfficeName();
+            if (previewText) previewText.textContent = full || '';
+            if (preview) preview.hidden = !officeNameBase(input.value);
+        }
+
+        function normalizeInputValue() {
+            if (!input.value) {
+                syncPreview();
+                return;
+            }
+            const start = input.selectionStart;
+            const end = input.selectionEnd;
+            let v = input.value.toUpperCase();
+            while (v.endsWith(POST_OFFICE_SUFFIX)) {
+                v = v.slice(0, -POST_OFFICE_SUFFIX.length);
+            }
+            if (input.value !== v) {
+                input.value = v;
+                const len = v.length;
+                const caretStart = start != null ? Math.min(start, len) : len;
+                const caretEnd = end != null ? Math.min(end, len) : len;
+                input.setSelectionRange(caretStart, caretEnd);
+            }
+            syncPreview();
+        }
+
+        input.addEventListener('input', normalizeInputValue);
+        input.addEventListener('paste', () => setTimeout(normalizeInputValue, 0));
+        syncPreview();
+    }
+
+    function initIspOtherField() {
+        const sel  = document.getElementById('internetServiceProvider');
+        const wrap = document.getElementById('ispOtherWrap');
+        const other = document.getElementById('internetServiceProviderOther');
+        if (!sel || !wrap) return;
+
+        function toggle() {
+            const isOther = sel.value === 'Other';
+            wrap.style.display = isOther ? 'block' : 'none';
+            if (other) {
+                if (!isOther) {
+                    other.value = '';
+                    other.classList.remove('is-invalid', 'is-valid');
+                } else {
+                    other.focus();
+                }
+            }
+        }
+
+        sel.addEventListener('change', toggle);
+        toggle();
+    }
+
     // ─── Form submit ─────────────────────────────────────────────────────────
     form?.addEventListener('submit', function (e) {
         e.preventDefault();
         if (!validateAll()) return;
 
-        const officeName = document.getElementById('officeName')?.value?.trim() || '';
+        const officeName = getFullOfficeName() || '';
 
         Swal.fire({
             icon: 'question',
@@ -320,7 +429,7 @@ document.addEventListener('DOMContentLoaded', function () {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 // Basic Info
-                name:                           getStr('officeName'),
+                name:                           getFullOfficeName(),
                 postmaster:                     getStr('postmaster'),
                 address:                        getStr('address'),
                 zipCode:                        getStr('zipCode'),
@@ -338,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 // Connectivity
                 connectionStatus:               getBool('connectionStatus'),
-                internetServiceProvider:        getStr('internetServiceProvider'),
+                internetServiceProvider:        getIsp(),
                 classification:                 getStr('classification'),
                 ownedOrShared:                  getStr('ownedOrShared'),
                 typeOfConnection:               getStr('typeOfConnection'),
@@ -369,7 +478,19 @@ document.addEventListener('DOMContentLoaded', function () {
                 remarks:                        getStr('remarks')
             })
         })
-        .then(r => r.json())
+        .then(async r => {
+            const text = await r.text();
+            let data = {};
+            try {
+                data = text ? JSON.parse(text) : {};
+            } catch (e) {
+                data = { success: false, message: text ? text.substring(0, 300) : ('HTTP ' + r.status) };
+            }
+            if (!r.ok || data.success === false) {
+                throw new Error(data.message || ('Save failed (HTTP ' + r.status + ')'));
+            }
+            return data;
+        })
         .then(data => {
             // Restore button either way
             btn.disabled = false;
@@ -423,21 +544,31 @@ document.addEventListener('DOMContentLoaded', function () {
             return el.value?.trim() || '—';
         }
 
+        function getIspSummaryText() {
+            const sel = document.getElementById('internetServiceProvider');
+            if (sel?.value === 'Other') {
+                return document.getElementById('internetServiceProviderOther')?.value?.trim() || '—';
+            }
+            return getSelectedText('internetServiceProvider');
+        }
+
         function updateSummary() {
             const nameEl = document.getElementById('summaryName');
-            if (nameEl) nameEl.textContent = document.getElementById('officeName')?.value?.trim() || '—';
+            if (nameEl) nameEl.textContent = getFullOfficeName() || '—';
 
             const fieldMap = {
                 summaryArea:           'areaId',
                 summaryProvince:       'provinceId',
                 summaryCity:           'cityMunId',
-                summaryISP:            'internetServiceProvider',
                 summaryClassification: 'classification'
             };
             Object.entries(fieldMap).forEach(([sid, srcId]) => {
                 const el = document.getElementById(sid);
                 if (el) el.textContent = getSelectedText(srcId);
             });
+
+            const ispEl = document.getElementById('summaryISP');
+            if (ispEl) ispEl.textContent = getIspSummaryText();
 
             const statusEl  = document.getElementById('summaryStatus');
             const connCheck = document.getElementById('connectionStatus');

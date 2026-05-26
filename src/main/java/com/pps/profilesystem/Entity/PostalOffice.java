@@ -172,7 +172,22 @@ public class PostalOffice {
     }
 
     public boolean isConnected() {
-        return Boolean.TRUE.equals(connectionStatus) && activeConnectivity != null;
+        return isEffectivelyConnected();
+    }
+
+    /**
+     * Live connectivity: open activeConnectivity record, else connection_status flag.
+     * Fixes stale "Inactive" when connection_status=false but ISP link is still open.
+     */
+    public boolean isEffectivelyConnected() {
+        try {
+            if (activeConnectivity != null) {
+                return activeConnectivity.getDateDisconnected() == null;
+            }
+        } catch (Exception ignored) {
+            // Lazy proxy edge case — fall back to column flag
+        }
+        return Boolean.TRUE.equals(connectionStatus);
     }
 
     public String getCurrentProviderName() {

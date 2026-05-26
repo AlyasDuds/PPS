@@ -40,7 +40,7 @@ public class ArchiveService {
      * Archive a single postal office.
      * Also disconnects its active connectivity if present.
      */
-    public PostalOffice archiveOffice(Integer id, String reason) {
+    public PostalOffice archiveOffice(Integer id, String reason, String archivedBy) {
         PostalOffice office = postalOfficeRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Postal office not found with ID: " + id));
 
@@ -58,11 +58,11 @@ public class ArchiveService {
             office.setConnectionStatus(false);
         }
 
-        // Create archived record
-        ArchivedOffice archivedOffice = new ArchivedOffice();
-        archivedOffice.setPostalOffice(office);
-        archivedOffice.setArchivedAt(LocalDateTime.now());
-        archivedOffice.setArchiveReason(reason != null ? reason.trim() : "No reason provided");
+        String trimmedReason = (reason != null && !reason.trim().isEmpty())
+                ? reason.trim()
+                : "No reason provided";
+        String by = (archivedBy != null && !archivedBy.isBlank()) ? archivedBy.trim() : "unknown";
+        ArchivedOffice archivedOffice = new ArchivedOffice(office, trimmedReason, by);
         archivedOfficeRepository.save(archivedOffice);
 
         return postalOfficeRepository.save(office);
@@ -71,11 +71,11 @@ public class ArchiveService {
     /**
      * Bulk archive a list of postal offices.
      */
-    public int bulkArchive(List<Integer> ids, String reason) {
+    public int bulkArchive(List<Integer> ids, String reason, String archivedBy) {
         int count = 0;
         for (Integer id : ids) {
             try {
-                archiveOffice(id, reason);
+                archiveOffice(id, reason, archivedBy);
                 count++;
             } catch (Exception ignored) {
                 // Skip offices that fail (e.g. already archived)

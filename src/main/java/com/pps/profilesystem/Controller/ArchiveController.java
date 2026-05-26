@@ -32,8 +32,19 @@ public class ArchiveController {
     }
 
     private boolean isSystemAdmin(User user) {
-        return user != null && (Integer.valueOf(1).equals(user.getRole()) 
+        return user != null && (Integer.valueOf(1).equals(user.getRole())
                              || Integer.valueOf(4).equals(user.getRole()));
+    }
+
+    private String actorLabel(User user) {
+        if (user == null) return "unknown";
+        if (user.getUsername() != null && !user.getUsername().isBlank()) {
+            return user.getUsername().trim();
+        }
+        if (user.getEmail() != null && !user.getEmail().isBlank()) {
+            return user.getEmail().trim();
+        }
+        return "unknown";
     }
 
     // ── Page ─────────────────────────────────────────────────────────────────
@@ -80,7 +91,7 @@ public class ArchiveController {
 
         String reason = body != null ? body.getOrDefault("reason", "") : "";
         try {
-            PostalOffice office = archiveService.archiveOffice(id, reason);
+            PostalOffice office = archiveService.archiveOffice(id, reason, actorLabel(user));
             return ok(true, "'" + office.getName() + "' has been archived.", null);
         } catch (Exception e) {
             return err(e.getMessage());
@@ -103,7 +114,7 @@ public class ArchiveController {
         }
 
         try {
-            int count = archiveService.bulkArchive(ids, reason);
+            int count = archiveService.bulkArchive(ids, reason, actorLabel(user));
             return ok(true, count + " office(s) archived successfully.", Map.of("archivedCount", count));
         } catch (Exception e) {
             return err(e.getMessage());
@@ -153,9 +164,7 @@ public class ArchiveController {
 
     private String checkAreaAccess(Integer officeId, User user) {
         if (user == null || user.getAreaId() == null) return "Access denied — no area assigned.";
-        return archivedOfficeRepository.findAllWithOffice().stream()
-            .filter(a -> officeId.equals(a.getPostalOffice().getId()))
-            .findFirst()
+        return archivedOfficeRepository.findByPostalOfficeId(officeId)
             .map(a -> {
                 PostalOffice po = a.getPostalOffice();
                 if (po.getArea() == null || !user.getAreaId().equals(po.getArea().getId())) {
@@ -163,7 +172,7 @@ public class ArchiveController {
                 }
                 return null;
             })
-            .orElse("Office not found.");
+            .orElse("Office not found in archive.");
     }
 
     private List<Integer> filterByArea(List<Integer> ids, User user) {

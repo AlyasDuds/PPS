@@ -15,21 +15,22 @@ public class LocationService {
     private PostalOfficeRepository poRepo;
 
     public List<PostalOffice> getAllOffices() {
-        return poRepo.findAll();
+        return poRepo.findByIsArchivedFalse();
     }
 
     public long countAll() {
-        return poRepo.count();
+        return poRepo.countNonArchived();
     }
 
     public long countActive() {
-        return poRepo.countByConnectionStatus(true);
+        return poRepo.countNonArchivedByConnectionStatus(true);
     }
 
     public long countInactive() {
-        return poRepo.countByConnectionStatus(false);
+        return poRepo.countNonArchivedByConnectionStatus(false);
     }
+
     public long countAreas() {
-        return poRepo.countDistinctAreas();
+        return poRepo.countDistinctAreasNonArchived();
     }
 }
