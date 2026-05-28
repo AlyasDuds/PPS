@@ -37,6 +37,8 @@ public class ApprovalService {
     @Autowired private CityMunicipalityRepository cityMunicipalityRepository;
     @Autowired private BarangayRepository         barangayRepository;
     @Autowired private ConnectivityNotificationService notifService;
+    @Autowired private ConnectivityRepository     connectivityRepository;
+    @Autowired private ProviderRepository             providerRepository;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -352,6 +354,7 @@ public class ApprovalService {
         if (opt.isEmpty()) throw new RuntimeException("Office not found: " + officeId);
 
         PostalOffice o = opt.get();
+        Boolean oldStatus = o.getConnectionStatus();
 
         applyStr(values, "name",                      o::setName);
         applyStr(values, "postmaster",                o::setPostmaster);
@@ -386,6 +389,9 @@ public class ApprovalService {
         applyFk(values, "cityMunId",  id -> cityMunicipalityRepository.findById(id).ifPresent(o::setCityMunicipality));
         applyFk(values, "barangayId", id -> barangayRepository.findById(id).ifPresent(o::setBarangay));
 
+        Boolean newStatus = o.getConnectionStatus();
+        handleConnectivityStatusChange(o, oldStatus, newStatus);
+
         postalOfficeRepository.save(o);
     }
 
@@ -406,7 +412,48 @@ public class ApprovalService {
             Object v = values.get("connectionStatus");
             o.setConnectionStatus(v instanceof Boolean ? (Boolean) v : Boolean.parseBoolean(String.valueOf(v)));
         }
-        postalOfficeRepository.save(o);
+        PostalOffice savedOffice = postalOfficeRepository.save(o);
+        if (Boolean.TRUE.equals(savedOffice.getConnectionStatus())) {
+            handleConnectivityStatusChange(savedOffice, null, true);
+            postalOfficeRepository.save(savedOffice);
+        }
+    }
+
+    private void handleConnectivityStatusChange(PostalOffice office, Boolean oldStatus, Boolean newStatus) {
+        if (!Boolean.TRUE.equals(oldStatus) && Boolean.TRUE.equals(newStatus)) {
+            // Switching to active → create a new Connectivity record
+            Connectivity connectivity = createConnectivityRecord(office);
+            Connectivity savedConnectivity = connectivityRepository.save(connectivity);
+            office.setActiveConnectivity(savedConnectivity);
+        }
+        else if (Boolean.TRUE.equals(oldStatus) && !Boolean.TRUE.equals(newStatus)) {
+            // Switching to inactive
+            if (office.getActiveConnectivity() != null) {
+                // Close the active connectivity record
+                Connectivity conn = office.getActiveConnectivity();
+                conn.setDateDisconnected(LocalDateTime.now());
+                connectivityRepository.save(conn);
+                office.setActiveConnectivity(null);
+            }
+            // If no activeConnectivity (e.g. legacy data), the connectionStatus boolean
+            // change is sufficient — isEffectivelyConnected() will return false.
+        }
+    }
+
+    private Connectivity createConnectivityRecord(PostalOffice office) {
+        Provider defaultProvider = providerRepository.findAll().stream()
+            .findFirst()
+            .orElseGet(() -> {
+                Provider newProvider = new Provider();
+                newProvider.setName("Default Provider");
+                return providerRepository.save(newProvider);
+            });
+        
+        Connectivity connectivity = new Connectivity();
+        connectivity.setPostalOffice(office);
+        connectivity.setProvider(defaultProvider);
+        connectivity.setDateConnected(LocalDateTime.now());
+        return connectivity;
     }
 
     // ── Value applicators ─────────────────────────────────────────────────────

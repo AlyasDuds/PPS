@@ -354,32 +354,30 @@ public class ReportController {
         if (areaId != null && areaId == -1) {
             return 0;
         }
-        return connectivityRepository.findActiveAtDate(snap).stream()
-            .filter(c -> c.getPostalOffice() != null
-                && !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
-            .filter(c -> areaId == null
-                || (c.getPostalOffice().getArea() != null
-                    && areaId.equals(c.getPostalOffice().getArea().getId())))
-            .map(c -> c.getPostalOffice().getId())
-            .distinct()
+        // Use current real-time status
+        if (areaId == null) {
+            return postalOfficeRepository.countNonArchivedByConnectionStatus(true);
+        }
+        return postalOfficeRepository.findByIsArchivedFalse().stream()
+            .filter(po -> Boolean.TRUE.equals(po.getConnectionStatus()))
+            .filter(po -> po.getArea() != null && areaId.equals(po.getArea().getId()))
             .count();
     }
 
     // Count offices that were DISCONNECTED at the given snapshot date.
-    // Uses distinct postalOffice IDs from inactive records at that date.
+    // Modified to use current real-time status
     private long countInactiveAt(LocalDateTime snap, Integer areaId) {
         // If areaId is -1, return 0 (no access)
         if (areaId != null && areaId == -1) {
             return 0;
         }
-        return connectivityRepository.findInactiveAtDate(snap).stream()
-            .filter(c -> c.getPostalOffice() != null
-                && !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
-            .filter(c -> areaId == null
-                || (c.getPostalOffice().getArea() != null
-                    && areaId.equals(c.getPostalOffice().getArea().getId())))
-            .map(c -> c.getPostalOffice().getId())
-            .distinct()
+        // Use current real-time status
+        if (areaId == null) {
+            return postalOfficeRepository.countNonArchivedByConnectionStatus(false);
+        }
+        return postalOfficeRepository.findByIsArchivedFalse().stream()
+            .filter(po -> !Boolean.TRUE.equals(po.getConnectionStatus()))
+            .filter(po -> po.getArea() != null && areaId.equals(po.getArea().getId()))
             .count();
     }
 
@@ -541,47 +539,39 @@ public class ReportController {
     }
 
     // ── All active offices at a snapshot date ─────────────────────────────────
+    // Modified to use current real-time status
     private List<String> getConnectedNames(LocalDateTime snap, Integer areaId) {
         // If areaId is -1, return empty list (no access)
         if (areaId != null && areaId == -1) {
             return new ArrayList<>();
         }
-        return connectivityRepository.findActiveAtDate(snap).stream()
-            .filter(c -> c.getPostalOffice() != null
-                && !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
-            .filter(c -> areaId == null
-                || (c.getPostalOffice().getArea() != null
-                    && areaId.equals(c.getPostalOffice().getArea().getId())))
-            .collect(java.util.stream.Collectors.toMap(
-                c -> c.getPostalOffice().getId(),
-                this::toNameEntry,
-                (a, b) -> a
-            ))
-            .values().stream()
-            .filter(entry -> !entry.isEmpty())
+        return postalOfficeRepository.findByIsArchivedFalse().stream()
+            .filter(po -> Boolean.TRUE.equals(po.getConnectionStatus()))
+            .filter(po -> areaId == null || (po.getArea() != null && areaId.equals(po.getArea().getId())))
+            .map(po -> {
+                String area = po.getArea() != null ? po.getArea().getAreaName() : "N/A";
+                String name = po.getName() != null ? po.getName() : "";
+                return po.getId() + "::" + area + " | " + name;
+            })
             .sorted(java.util.Comparator.comparing(e -> e.contains("::") ? e.substring(e.indexOf("::") + 2) : e))
             .collect(java.util.stream.Collectors.toList());
     }
 
     // ── All inactive offices at a snapshot date ───────────────────────────────
+    // Modified to use current real-time status
     private List<String> getDisconnectedNames(LocalDateTime snap, Integer areaId) {
         // If areaId is -1, return empty list (no access)
         if (areaId != null && areaId == -1) {
             return new ArrayList<>();
         }
-        return connectivityRepository.findInactiveAtDate(snap).stream()
-            .filter(c -> c.getPostalOffice() != null
-                && !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
-            .filter(c -> areaId == null
-                || (c.getPostalOffice().getArea() != null
-                    && areaId.equals(c.getPostalOffice().getArea().getId())))
-            .collect(java.util.stream.Collectors.toMap(
-                c -> c.getPostalOffice().getId(),
-                this::toNameEntry,
-                (a, b) -> a
-            ))
-            .values().stream()
-            .filter(entry -> !entry.isEmpty())
+        return postalOfficeRepository.findByIsArchivedFalse().stream()
+            .filter(po -> !Boolean.TRUE.equals(po.getConnectionStatus()))
+            .filter(po -> areaId == null || (po.getArea() != null && areaId.equals(po.getArea().getId())))
+            .map(po -> {
+                String area = po.getArea() != null ? po.getArea().getAreaName() : "N/A";
+                String name = po.getName() != null ? po.getName() : "";
+                return po.getId() + "::" + area + " | " + name;
+            })
             .sorted(java.util.Comparator.comparing(e -> e.contains("::") ? e.substring(e.indexOf("::") + 2) : e))
             .collect(java.util.stream.Collectors.toList());
     }

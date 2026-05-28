@@ -131,8 +131,9 @@ public class ProfileController {
         data.put("addressLine",  office.getAddress());
         data.put("latitude",     office.getLatitude());
         data.put("longitude",    office.getLongitude());
-        data.put("connectivityStatus", office.getConnectionStatus() ? "Active" : "Inactive");
-        data.put("status",             office.getConnectionStatus() ? "Active" : "Inactive");
+        boolean isConnected = office.isEffectivelyConnected();
+        data.put("connectivityStatus", isConnected ? "Active" : "Inactive");
+        data.put("status",             isConnected ? "Active" : "Inactive");
         data.put("officeStatus",       office.getOfficeStatus());
         data.put("internetServiceProvider", office.getInternetServiceProvider());
         data.put("typeOfConnection",        office.getTypeOfConnection());

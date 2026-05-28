@@ -323,15 +323,16 @@ public class QuartersController {
         if (areaId != null && areaId == -1) {
             return 0;
         }
-        // Use connectivity snapshot at date (same logic as ReportController)
-        return connectivityRepository.findActiveAtDate(snap).stream()
-                .filter(c -> c.getPostalOffice() != null
-                        && !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
-                .filter(c -> areaId == null
-                        || (c.getPostalOffice().getArea() != null
-                        && areaId.equals(c.getPostalOffice().getArea().getId())))
-                .map(c -> c.getPostalOffice().getId())
-                .distinct()
+        
+        // Use current connection status from PostalOffice as the source of truth,
+        // which matches how the QuartersApiController filters the data table.
+        if (areaId == null) {
+            return postalOfficeRepository.countNonArchivedByConnectionStatus(true);
+        }
+        
+        return postalOfficeRepository.findByIsArchivedFalse().stream()
+                .filter(po -> Boolean.TRUE.equals(po.getConnectionStatus()))
+                .filter(po -> po.getArea() != null && areaId.equals(po.getArea().getId()))
                 .count();
     }
 

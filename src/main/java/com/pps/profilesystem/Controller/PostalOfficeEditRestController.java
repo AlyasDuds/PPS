@@ -10,7 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
-
+import java.time.LocalDateTime;
 import java.util.*;
 
 /**
@@ -31,6 +31,8 @@ public class PostalOfficeEditRestController {
     @Autowired private ProvinceRepository             provinceRepository;
     @Autowired private CityMunicipalityRepository     cityMunicipalityRepository;
     @Autowired private BarangayRepository             barangayRepository;
+    @Autowired private ConnectivityRepository         connectivityRepository;
+    @Autowired private ProviderRepository             providerRepository;
 
     // -- GET --
 
@@ -38,7 +40,7 @@ public class PostalOfficeEditRestController {
     @Transactional(readOnly = true)
     public ResponseEntity<?> getOffice(@PathVariable Integer id) {
         try {
-            return postalOfficeRepository.findById(id)
+            return postalOfficeRepository.findByIdWithAllAssociations(id)
                 .<ResponseEntity<?>>map(o -> {
                     Map<String, Object> d = new LinkedHashMap<>();
 
@@ -122,7 +124,8 @@ public class PostalOfficeEditRestController {
             String actor = actor(auth);
 
             boolean isSystemAdmin = auth.getAuthorities().stream()
-                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+                    .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")
+                                || a.getAuthority().equals("ROLE_SRD_OPERATION"));
             boolean isAreaAdmin = auth.getAuthorities().stream()
                     .anyMatch(a -> a.getAuthority().equals("ROLE_AREA_ADMIN"));
 
@@ -132,7 +135,10 @@ public class PostalOfficeEditRestController {
 
             if (isSystemAdmin) {
                 // System admin can directly update
+                Boolean oldStatus = o.getConnectionStatus();
                 applyChanges(o, body);
+                Boolean newStatus = o.getConnectionStatus();
+                handleConnectivityStatusChange(o, oldStatus, newStatus);
                 postalOfficeRepository.save(o);
 
                 // Diff + notify
@@ -413,6 +419,43 @@ public class PostalOfficeEditRestController {
     }
     private ResponseEntity<?> error(int status, String msg) {
         return ResponseEntity.status(status).body(Map.of("success", false, "message", msg));
+    }
+
+    private void handleConnectivityStatusChange(PostalOffice office, Boolean oldStatus, Boolean newStatus) {
+        if (!Boolean.TRUE.equals(oldStatus) && Boolean.TRUE.equals(newStatus)) {
+            // Switching to active → create a new Connectivity record
+            Connectivity connectivity = createConnectivityRecord(office);
+            Connectivity savedConnectivity = connectivityRepository.save(connectivity);
+            office.setActiveConnectivity(savedConnectivity);
+        }
+        else if (Boolean.TRUE.equals(oldStatus) && !Boolean.TRUE.equals(newStatus)) {
+            // Switching to inactive
+            if (office.getActiveConnectivity() != null) {
+                // Close the active connectivity record
+                Connectivity conn = office.getActiveConnectivity();
+                conn.setDateDisconnected(LocalDateTime.now());
+                connectivityRepository.save(conn);
+                office.setActiveConnectivity(null);
+            }
+            // If no activeConnectivity (e.g. legacy data), the connectionStatus boolean
+            // change is sufficient — isEffectivelyConnected() will return false.
+        }
+    }
+
+    private Connectivity createConnectivityRecord(PostalOffice office) {
+        Provider defaultProvider = providerRepository.findAll().stream()
+            .findFirst()
+            .orElseGet(() -> {
+                Provider newProvider = new Provider();
+                newProvider.setName("Default Provider");
+                return providerRepository.save(newProvider);
+            });
+        
+        Connectivity connectivity = new Connectivity();
+        connectivity.setPostalOffice(office);
+        connectivity.setProvider(defaultProvider);
+        connectivity.setDateConnected(LocalDateTime.now());
+        return connectivity;
     }
 
     private String activeRequestBlockMessage(Integer officeId) {

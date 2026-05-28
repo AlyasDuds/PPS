@@ -2,6 +2,7 @@ package com.pps.profilesystem.Service;
 
 import com.pps.profilesystem.Entity.Connectivity;
 import com.pps.profilesystem.Repository.ConnectivityRepository;
+import com.pps.profilesystem.Repository.PostalOfficeRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +20,9 @@ public class QuarterConnectivityService {
 
     @Autowired
     private ConnectivityRepository connectivityRepository;
+
+    @Autowired
+    private PostalOfficeRepository postalOfficeRepository;
 
     /**
      * Get connectivity statistics for a specific quarter
@@ -47,11 +51,11 @@ public class QuarterConnectivityService {
                 .distinct()
                 .count());
 
-        List<Connectivity> allInactive = connectivityRepository.findAllInactive();
-        stats.setTotalDisconnected((int) allInactive.stream()
-                .map(c -> c.getPostalOffice().getId())
-                .distinct()
-                .count());
+        // Compute total offices
+        long totalOffices = postalOfficeRepository.count();
+        // Total disconnected (inactive) offices at quarter end
+        int totalDisconnected = (int) (totalOffices - stats.getTotalConnected());
+        stats.setTotalDisconnected(totalDisconnected);
 
         return stats;
     }

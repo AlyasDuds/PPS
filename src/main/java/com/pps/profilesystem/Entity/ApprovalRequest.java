@@ -75,6 +75,7 @@ public class ApprovalRequest {
     @Column(columnDefinition = "TEXT")
     private String newValues;
 
+    @com.fasterxml.jackson.annotation.JsonIgnore
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "area_id")
     private Area area;
