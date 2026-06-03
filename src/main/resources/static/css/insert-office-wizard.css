@@ -199,10 +199,45 @@ textarea.form-control {
     line-height: 1;
 }
 
-/* invalid-feedback inside input-group */
-.input-group .invalid-feedback {
+/* Post office name validation (feedback sits below input-group) */
+#officeNameError {
+    display: none;
     width: 100%;
     margin-top: 4px;
+}
+
+#officeName.is-invalid {
+    border-color: #dc3545;
+    z-index: 3;
+}
+
+#officeName.is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.15rem rgba(220, 53, 69, 0.25);
+}
+
+.office-name-preview {
+    margin-top: 6px;
+    padding: 8px 12px;
+    background: #f0f4ff;
+    border: 1px solid #d0dff8;
+    border-radius: 6px;
+    font-size: 0.9rem;
+}
+
+.office-name-preview-label {
+    color: #6c757d;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    display: block;
+    margin-bottom: 2px;
+}
+
+.office-name-preview-value {
+    color: #002868;
+    font-weight: 700;
+    letter-spacing: 0.02em;
 }
 
 /* ── Select Dropdown ─────────────────────────────────────────── */
@@ -317,9 +352,13 @@ button[type="submit"].btn-success {
 }
 
 /* ── Auto-uppercase text inputs & textareas ──────────────────── */
-#insertPostalOfficeForm input[type="text"],
+#insertPostalOfficeForm input[type="text"]:not(#officeName),
 #insertPostalOfficeForm input[type="email"],
 #insertPostalOfficeForm textarea {
+    text-transform: uppercase;
+}
+
+#officeName {
     text-transform: uppercase;
 }
 

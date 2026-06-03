@@ -49,6 +49,12 @@ function openPrintTagModal(inventoryId) {
             if (tagEl) {
                 tagEl.style.margin = '0 auto';
 
+                // Fix tracking number centering in preview
+                const trackingNumber = tagEl.querySelector('.tracking-number');
+                if (trackingNumber) {
+                    trackingNumber.style.textAlign = 'center';
+                }
+
                 // Fix flexbox on tag-bottom so QR shows in preview
                 const tagBottom = tagEl.querySelector('.tag-bottom');
                 if (tagBottom) {
@@ -184,7 +190,7 @@ function printTagFromModal() {
     }, 2000);
 }
 
-/* Close on overlay click */
+/* Close on overlay click and handle button clicks */
 document.addEventListener('DOMContentLoaded', () => {
     const overlay = document.getElementById('printTagModal');
     if (overlay) {
@@ -192,4 +198,27 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target === overlay) closePrintTagModal();
         });
     }
+
+    // Handle modal close button
+    const closeBtn = overlay?.querySelector('.modal-x');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', closePrintTagModal);
+    }
+
+    // Handle cancel button
+    const cancelBtn = overlay?.querySelector('.btn-outline');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', closePrintTagModal);
+    }
+
+    // Handle print button
+    const printBtn = overlay?.querySelector('.btn-primary');
+    if (printBtn) {
+        printBtn.addEventListener('click', printTagFromModal);
+    }
 });
+
+// Export functions for global access
+window.openPrintTagModal = openPrintTagModal;
+window.closePrintTagModal = closePrintTagModal;
+window.printTagFromModal = printTagFromModal;

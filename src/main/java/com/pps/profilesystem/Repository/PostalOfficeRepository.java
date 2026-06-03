@@ -19,36 +19,56 @@ import java.util.Optional;
 @Repository
 public interface PostalOfficeRepository extends JpaRepository<PostalOffice, Integer> {
 
-    List<PostalOffice> findByConnectionStatus(Boolean status);
-    List<PostalOffice> findByNameContainingIgnoreCase(String name);
-    List<PostalOffice> findByCityMunicipalityId(Integer cityMunId);
-    long countByConnectionStatus(Boolean status);
+    @Query("SELECT po FROM PostalOffice po WHERE po.connectionStatus = :status " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
+    List<PostalOffice> findByConnectionStatus(@Param("status") Boolean status);
 
-    @Query("SELECT COUNT(DISTINCT po.area.id) FROM PostalOffice po WHERE po.area IS NOT NULL")
+    @Query("SELECT po FROM PostalOffice po WHERE LOWER(po.name) LIKE LOWER(CONCAT('%', :name, '%')) " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
+    List<PostalOffice> findByNameContainingIgnoreCase(@Param("name") String name);
+
+    @Query("SELECT po FROM PostalOffice po WHERE po.cityMunicipality.id = :cityMunId " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
+    List<PostalOffice> findByCityMunicipalityId(@Param("cityMunId") Integer cityMunId);
+
+    @Query(value = "SELECT COUNT(*) FROM postal_offices WHERE connection_status = :status " +
+                   "AND id NOT IN (SELECT postal_office_id FROM archived_offices)",
+           nativeQuery = true)
+    long countByConnectionStatus(@Param("status") Boolean status);
+
+    @Query(value = "SELECT COUNT(DISTINCT area_id) FROM postal_offices " +
+                   "WHERE area_id IS NOT NULL AND id NOT IN (SELECT postal_office_id FROM archived_offices)",
+           nativeQuery = true)
     long countDistinctAreas();
 
     @Query("SELECT po FROM PostalOffice po LEFT JOIN FETCH po.area " +
-           "WHERE po.latitude IS NOT NULL AND po.longitude IS NOT NULL")
+           "WHERE po.latitude IS NOT NULL AND po.longitude IS NOT NULL " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     List<PostalOffice> findAllWithAreaForMap();
 
-    @Query("SELECT COUNT(DISTINCT c.postalOffice) FROM Connectivity c WHERE " +
-           "YEAR(c.dateConnected) = :year AND MONTH(c.dateConnected) BETWEEN :startMonth AND :endMonth")
+    @Query("SELECT COUNT(DISTINCT c.postalOffice) FROM Connectivity c JOIN c.postalOffice po WHERE " +
+           "YEAR(c.dateConnected) = :year AND MONTH(c.dateConnected) BETWEEN :startMonth AND :endMonth " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     long countConnectedInQuarter(@Param("year") int year, @Param("startMonth") int startMonth, @Param("endMonth") int endMonth);
 
-    @Query("SELECT COUNT(DISTINCT c.postalOffice) FROM Connectivity c WHERE " +
-           "YEAR(c.dateDisconnected) = :year AND MONTH(c.dateDisconnected) BETWEEN :startMonth AND :endMonth")
+    @Query("SELECT COUNT(DISTINCT c.postalOffice) FROM Connectivity c JOIN c.postalOffice po WHERE " +
+           "YEAR(c.dateDisconnected) = :year AND MONTH(c.dateDisconnected) BETWEEN :startMonth AND :endMonth " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     long countDisconnectedInQuarter(@Param("year") int year, @Param("startMonth") int startMonth, @Param("endMonth") int endMonth);
 
-    @Query("SELECT COUNT(DISTINCT c.postalOffice) FROM Connectivity c WHERE " +
-           "c.dateConnected <= :quarterEnd AND (c.dateDisconnected IS NULL OR c.dateDisconnected > :quarterEnd)")
+    @Query("SELECT COUNT(DISTINCT c.postalOffice) FROM Connectivity c JOIN c.postalOffice po WHERE " +
+           "c.dateConnected <= :quarterEnd AND (c.dateDisconnected IS NULL OR c.dateDisconnected > :quarterEnd) " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     long countActiveAtQuarterEnd(@Param("quarterEnd") LocalDateTime quarterEnd);
 
     @Query("SELECT DISTINCT po FROM PostalOffice po JOIN Connectivity c ON po.id = c.postalOffice.id " +
-           "WHERE c.dateConnected BETWEEN :startDate AND :endDate")
+           "WHERE c.dateConnected BETWEEN :startDate AND :endDate " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     List<PostalOffice> findByDateConnectedBetween(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 
     @Query("SELECT DISTINCT po FROM PostalOffice po JOIN Connectivity c ON po.id = c.postalOffice.id " +
-           "WHERE c.dateDisconnected BETWEEN :startDate AND :endDate")
+           "WHERE c.dateDisconnected BETWEEN :startDate AND :endDate " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     List<PostalOffice> findByDateDisconnectedBetween(@Param("startDate") LocalDateTime startDate, @Param("endDate") LocalDateTime endDate);
 
     // ── Non-archived queries ──────────────────────────────────────────────────
@@ -88,6 +108,7 @@ public interface PostalOfficeRepository extends JpaRepository<PostalOffice, Inte
      * connectionStatus is read directly from the postal_offices column.
      */
     @Query("SELECT DISTINCT po FROM PostalOffice po " +
+           "LEFT JOIN FETCH po.activeConnectivity " +
            "LEFT JOIN FETCH po.area " +
            "LEFT JOIN FETCH po.region " +
            "LEFT JOIN FETCH po.province " +

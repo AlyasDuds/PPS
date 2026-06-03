@@ -213,6 +213,8 @@ function saveOfficeChanges() {
     _setIfExists(candidate, 'latitude', '#editLatitude', function () { return _numOrNull('#editLatitude'); });
     _setIfExists(candidate, 'longitude', '#editLongitude', function () { return _numOrNull('#editLongitude'); });
     _setIfExists(candidate, 'connectionStatus', '#editStatus', function () { return $('#editStatus').val() === 'true'; });
+    _setIfExists(candidate, 'dateConnected', '#editDateConnected', function () { return _trimOrNull('#editDateConnected'); });
+    _setIfExists(candidate, 'dateDisconnected', '#editDateDisconnected', function () { return _trimOrNull('#editDateDisconnected'); });
     _setIfExists(candidate, 'officeStatus', '#editOfficeStatus', function () { return _trimOrNull('#editOfficeStatus'); });
     _setIfExists(candidate, 'internetServiceProvider', '#editISP', function () { return _trimOrNull('#editISP'); });
     _setIfExists(candidate, 'typeOfConnection', '#editTypeOfConnection', function () { return _trimOrNull('#editTypeOfConnection'); });
@@ -302,6 +304,8 @@ function _fillModal(d) {
     $('#editStatus').val(
         (d.connectionStatus === true || d.connectionStatus === 'true') ? 'true' : 'false'
     );
+    _setField('#editDateConnected', d.dateConnected);
+    _setField('#editDateDisconnected', d.dateDisconnected);
     $('#editOfficeStatus').val(d.officeStatus || '');
     $('#editIsActive').val(d.isActive || '');
     $('#editIsConnected').val(d.isConnected || '');
@@ -435,6 +439,8 @@ function _snapshotOriginal(d) {
         longitude: _normNum(d.longitude),
         connectionStatus: d.connectionStatus === true || d.connectionStatus === 'true',
         officeStatus: _norm(d.officeStatus),
+        dateConnected: _norm(d.dateConnected),
+        dateDisconnected: _norm(d.dateDisconnected),
         internetServiceProvider: _norm(d.internetServiceProvider),
         typeOfConnection: _norm(d.typeOfConnection),
         speed: _norm(d.speed),

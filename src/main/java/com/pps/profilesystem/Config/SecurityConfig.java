@@ -46,12 +46,19 @@ public class SecurityConfig {
                 response.setStatus(HttpServletResponse.SC_FORBIDDEN);
                 response.setCharacterEncoding("UTF-8");
                 response.setContentType("application/json;charset=UTF-8");
-                try (var writer = response.getWriter()) {
-                    writer.write("{\"error\":\"Access denied\",\"status\":403}");
+                try {
+                    response.getWriter().write("{\"error\":\"Access denied\",\"status\":403}");
+                    response.flushBuffer();
+                } catch (Exception e) {
+                    System.err.println("Error writing JSON response: " + e.getMessage());
                 }
             } else {
                 // For regular requests, redirect to access denied page
-                response.sendRedirect("/access-denied");
+                try {
+                    response.sendRedirect("/access-denied");
+                } catch (Exception e) {
+                    System.err.println("Error redirecting: " + e.getMessage());
+                }
             }
         };
     }

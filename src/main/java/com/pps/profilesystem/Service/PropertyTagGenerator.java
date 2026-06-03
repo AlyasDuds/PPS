@@ -194,10 +194,13 @@ public class PropertyTagGenerator {
         content.append("    <div class=\"tag-header\">\n");
         content.append("      <img src=\"/images/asd.jpg\" alt=\"PHLPOST\" style=\"width:120px;height:auto;display:block;margin:0 auto;\"/>\n");
 
-        content.append("      <div class=\"tracking-number\" style=\"font-size:14px;font-weight:700;color:#1a1a18;margin-top:4px;\">").append(barcode.getRefNum() != null ? barcode.getRefNum() : "N/A").append("</div>\n");
-        content.append("    </div>\n");
+        content.append("      <div class=\"tracking-number\" style=\"font-size:8px;letter-spacing:1px;text-transform:uppercase;color:#888;text-align:center;\">").append(barcode.getRefNum() != null ? barcode.getRefNum() : "N/A").append("</div>\n");
 
+        content.append("    </div>\n");
+        content.append("      <hr style=\"border:none;border-top:1px solid #ddd;margin:8px auto;width:100%;\"/>\n");
+        content.append("      <div style=\"font-size:14px;font-weight:700;color:#1a1a18;margin-top:2px;text-align:center;\">PROPERTY TAG</div>\n");
         content.append("    <div class=\"tag-bottom\" style=\"display:flex;align-items:flex-end;gap:0;padding:12px 16px 14px;border-top:1px solid #ddd;\">\n");
+
         content.append("      <div class=\"tag-qr\">\n");
         if (qrBase64 != null && !qrBase64.isEmpty()) {
             content.append("        <img src=\"data:image/png;base64,").append(qrBase64).append("\" alt=\"QR Code\" style=\"display:block;width:120px;height:120px;border:1px solid #ddd;border-radius:4px;\"/>");

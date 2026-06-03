@@ -111,7 +111,7 @@
             </a>
 
             <a th:href="@{/archive}" class="sidebar-link" th:classappend="${activePage == 'archive'} ? 'active' : ''"
-                data-page="archive" sec:authorize="hasRole('ADMIN')">
+                data-page="archive" sec:authorize="hasRole('ADMIN') or hasRole('AREA_ADMIN') or hasRole('SRD_OPERATION')">
                 <i class="fas fa-archive"></i>
                 <span>Archive</span>
             </a>
