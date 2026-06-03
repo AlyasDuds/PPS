@@ -1,6 +1,5 @@
 <!DOCTYPE html>
-<html xmlns:th="http://www.thymeleaf.org"
-      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
 <div th:fragment="header">
 
     <nav class="navbar navbar-expand navbar-light bg-white border-bottom shadow-sm sticky-top">
@@ -32,8 +31,7 @@
                             <i class="fas fa-wifi"></i> Connectivity
                         </a>
                     </li>
-                    <li class="breadcrumb-item active breadcrumb-current" aria-current="page" 
-                        th:text="${activePage == 'dashboard' ? 'Dashboard' : 
+                    <li class="breadcrumb-item active breadcrumb-current" aria-current="page" th:text="${activePage == 'dashboard' ? 'Dashboard' : 
                                 activePage == 'table' ? 'Postal Office Locator' :
                                 activePage == 'quarters' ? 'Connectivity' :
                                 activePage == 'report' ? 'Report' :
@@ -42,7 +40,7 @@
                                 activePage == 'notifications' ? 'Notifications' :
                                 activePage == 'archive' ? 'Archive' :
                                 activePage == 'profile' ? 'Profile' : 'Page'}">
-                       
+
                     </li>
                 </ol>
             </nav>
@@ -51,24 +49,16 @@
             <ul class="navbar-nav ml-auto align-items-center">
 
                 <!-- Notification Bell -->
-                <li class="nav-item dropdown mr-3 position-relative"
-                    id="notifBellLi"
+                <li class="nav-item dropdown mr-3 position-relative" id="notifBellLi"
                     sec:authorize="hasAnyRole('ADMIN','AREA_ADMIN','USER','SRD_OPERATION')">
 
                     <!-- Bell button -->
-                    <a class="nav-link text-muted p-2"
-                       href="#"
-                       id="alertsDropdown"
-                       role="button"
-                       data-toggle="dropdown"
-                       aria-haspopup="true"
-                       aria-expanded="false"
-                       style="position:relative;display:inline-block;">
+                    <a class="nav-link text-muted p-2" href="#" id="alertsDropdown" role="button" data-toggle="dropdown"
+                        aria-haspopup="true" aria-expanded="false" style="position:relative;display:inline-block;">
 
                         <i class="fas fa-bell fa-fw" style="font-size:17px;"></i>
 
-                        <span id="notifBadge"
-                              style="display:none;
+                        <span id="notifBadge" style="display:none;
                                      position:absolute;top:2px;right:0;
                                      font-size:9px;padding:2px 5px;
                                      border-radius:10px;min-width:18px;
@@ -79,8 +69,7 @@
                     </a>
 
                     <div class="dropdown-menu dropdown-menu-right shadow notification-dropdown"
-                         aria-labelledby="alertsDropdown"
-                         style="min-width:360px;padding:0;border:none;
+                        aria-labelledby="alertsDropdown" style="min-width:340px;padding:0;border:none;
                                 border-radius:10px;overflow:hidden;">
 
                         <div id="notifContent">
@@ -92,7 +81,7 @@
 
                         <!-- Divider -->
                         <div class="dropdown-divider"></div>
-                        
+
                         <!-- View All Notifications Button -->
                         <div class="px-3 py-2">
                             <a href="/notifications" class="btn btn-primary btn-sm btn-block">
@@ -107,21 +96,20 @@
 
                 <!-- User Dropdown -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle d-flex align-items-center pl-3 border-left"
-                       href="#" id="userDropdown" role="button" data-toggle="dropdown"
-                       aria-haspopup="true" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle d-flex align-items-center pl-3 border-left" href="#"
+                        id="userDropdown" role="button" data-toggle="dropdown" aria-haspopup="true"
+                        aria-expanded="false">
 
                         <div class="text-right mr-2 d-none d-md-block">
                             <div style="font-size:13px;font-weight:normal;color:#333;"
-                                 th:text="${loggedInUsername ?: 'User'}">User</div>
-                            <div style="font-size:11px;color:#777;"
-                                 th:text="${loggedInRole ?: 'User'}">User</div>
+                                th:text="${loggedInUsername ?: 'User'}">User</div>
+                            <div style="font-size:11px;color:#777;" th:text="${loggedInRole ?: 'User'}">User</div>
                         </div>
 
                         <div class="bg-primary text-white rounded-circle
                                     d-flex align-items-center justify-content-center"
-                             style="width:35px;height:35px;font-weight:normal;border:2px solid #eef2f7;"
-                             th:text="${loggedInInitial ?: 'U'}">U</div>
+                            style="width:35px;height:35px;font-weight:normal;border:2px solid #eef2f7;"
+                            th:text="${loggedInInitial ?: 'U'}">U</div>
                     </a>
 
                     <div class="dropdown-menu dropdown-menu-right shadow" aria-labelledby="userDropdown">
@@ -158,7 +146,7 @@
             white-space: nowrap;
         }
 
-        .breadcrumb-modern .breadcrumb-item + .breadcrumb-item::before {
+        .breadcrumb-modern .breadcrumb-item+.breadcrumb-item::before {
             content: "\f105";
             font-family: "Font Awesome 5 Free";
             font-weight: 900;
@@ -223,36 +211,65 @@
                 height: 28px;
             }
 
-            .breadcrumb-modern .breadcrumb-item + .breadcrumb-item::before {
+            .breadcrumb-modern .breadcrumb-item+.breadcrumb-item::before {
                 font-size: 14px;
                 padding: 0 6px 0 3px;
             }
         }
 
-        #notifBadge { transition: transform .15s ease, opacity .15s ease; }
+        #notifBadge {
+            transition: transform .15s ease, opacity .15s ease;
+        }
 
-        .notification-dropdown { max-height: 420px; }
+        .notification-dropdown {
+            max-height: 420px;
+        }
 
         .notification-dropdown #notifContent {
             max-height: 380px;
             overflow-y: auto;
         }
 
-        .notification-dropdown #notifContent::-webkit-scrollbar { width: 4px; }
-        .notification-dropdown #notifContent::-webkit-scrollbar-thumb {
-            background: #ccc; border-radius: 4px;
+        .notification-dropdown #notifContent::-webkit-scrollbar {
+            width: 4px;
         }
 
-        .notif-item:hover { background: #eef4ff !important; }
+        .notification-dropdown #notifContent::-webkit-scrollbar-thumb {
+            background: #ccc;
+            border-radius: 4px;
+        }
+
+        .notif-item:hover {
+            background: #eef4ff !important;
+        }
 
         @keyframes bellShake {
-            0%,100% { transform: rotate(0); }
-            20%      { transform: rotate(-15deg); }
-            40%      { transform: rotate(15deg); }
-            60%      { transform: rotate(-10deg); }
-            80%      { transform: rotate(10deg); }
+
+            0%,
+            100% {
+                transform: rotate(0);
+            }
+
+            20% {
+                transform: rotate(-15deg);
+            }
+
+            40% {
+                transform: rotate(15deg);
+            }
+
+            60% {
+                transform: rotate(-10deg);
+            }
+
+            80% {
+                transform: rotate(10deg);
+            }
         }
-        .bell-shake .fa-bell { animation: bellShake .5s ease; }
+
+        .bell-shake .fa-bell {
+            animation: bellShake .5s ease;
+        }
     </style>
 
     <script>
@@ -265,7 +282,7 @@
                     console.warn('[Logout] Error closing SSE:', e);
                 }
             }
-            
+
             // Clear storage
             try {
                 localStorage.clear();
@@ -273,7 +290,7 @@
             } catch (e) {
                 console.warn('[Logout] Error clearing storage:', e);
             }
-            
+
             // Show confirmation dialog
             Swal.fire({
                 title: 'Logout',
@@ -305,4 +322,5 @@
     </script>
 
 </div>
+
 </html>

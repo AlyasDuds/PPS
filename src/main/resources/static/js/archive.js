@@ -312,13 +312,31 @@ function initArchiveInbox() {
         $('#archiveTable').DataTable().destroy();
     }
 
+    // ── Custom date-range filter ───────────────────────────────────────────
+    $.fn.dataTable.ext.search.push(function (settings, data) {
+        if (settings.nTable.id !== 'archiveTable') return true;
+        const from = $('#archiveDateFrom').val();
+        const to   = $('#archiveDateTo').val();
+        if (!from && !to) return true;
+
+        // Column 6 = "Archived On" — format: "Jan 01, 2025"
+        const raw = data[6] || '';
+        if (!raw) return false;
+        const rowDate = new Date(raw);
+        if (isNaN(rowDate.getTime())) return true;
+
+        if (from && rowDate < new Date(from))  return false;
+        if (to   && rowDate > new Date(to + 'T23:59:59')) return false;
+        return true;
+    });
+
     archiveTable = new DataTable('#archiveTable', {
         pageLength: 10,
         lengthMenu: [10, 25, 50, 100],
         order: [[6, 'desc']],
+        dom: 'tip',           // hide default search box — we use our own
         language: {
             emptyTable: 'No archived post offices found.',
-            search: 'Search inbox:',
             lengthMenu: 'Show _MENU_ entries',
             info: 'Showing _START_ to _END_ of _TOTAL_ archived offices',
             infoEmpty: 'No archived offices',
@@ -332,6 +350,38 @@ function initArchiveInbox() {
             $('#selectAll').prop({ checked: false, indeterminate: false });
             refreshBulkBarStatic();
         }
+    });
+
+    // ── Wire up filter inputs ─────────────────────────────────────────────
+    $('#archiveSearchInput').on('input', function () {
+        archiveTable.search(this.value).draw();
+    });
+
+    // Area filter — column 3
+    $('#archiveAreaFilter').on('change', function () {
+        archiveTable.column(3).search(this.value).draw();
+    });
+
+    // Date range
+    $('#archiveDateFrom, #archiveDateTo').on('change', function () {
+        archiveTable.draw();
+    });
+
+    // Clear all filters
+    $('#archiveClearFilters').on('click', function () {
+        $('#archiveSearchInput').val('');
+        $('#archiveAreaFilter').val('');
+        $('#archiveDateFrom').val('');
+        $('#archiveDateTo').val('');
+        archiveTable.search('').columns().search('').draw();
+    });
+
+    // ── Populate Area dropdown from API ───────────────────────────────────
+    $.getJSON('/api/postal/areas').done(function (areas) {
+        const $sel = $('#archiveAreaFilter');
+        (areas || []).sort((a, b) => a.name.localeCompare(b.name)).forEach(function (area) {
+            $sel.append($('<option>').val(area.name).text(area.name));
+        });
     });
 
     syncArchiveSummaryStatic();

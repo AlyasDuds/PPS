@@ -74,6 +74,13 @@ public class PostalOfficeEditRestController {
                     // Connectivity
                     d.put("connectionStatus",           o.getConnectionStatus());
                     d.put("officeStatus",               o.getOfficeStatus());
+                    
+                    // Fetch latest connectivity record to populate dates
+                    connectivityRepository.findTopByPostalOfficeIdOrderByDateConnectedDesc(o.getId())
+                        .ifPresent(conn -> {
+                            d.put("dateConnected", conn.getDateConnected() != null ? conn.getDateConnected().toLocalDate().toString() : null);
+                            d.put("dateDisconnected", conn.getDateDisconnected() != null ? conn.getDateDisconnected().toLocalDate().toString() : null);
+                        });
                     d.put("internetServiceProvider",    o.getInternetServiceProvider());
                     d.put("typeOfConnection",           o.getTypeOfConnection());
                     d.put("speed",                      o.getSpeed());
@@ -139,6 +146,43 @@ public class PostalOfficeEditRestController {
                 applyChanges(o, body);
                 Boolean newStatus = o.getConnectionStatus();
                 handleConnectivityStatusChange(o, oldStatus, newStatus);
+                
+                // System admin can edit dates of the latest connectivity record
+                if (body.containsKey("dateConnected") || body.containsKey("dateDisconnected")) {
+                    connectivityRepository.findTopByPostalOfficeIdOrderByDateConnectedDesc(o.getId())
+                        .ifPresent(conn -> {
+                            boolean changed = false;
+                            if (body.containsKey("dateConnected")) {
+                                String dConStr = str(body.get("dateConnected"));
+                                if (dConStr != null && !dConStr.isBlank()) {
+                                    LocalDateTime dCon = java.time.LocalDate.parse(dConStr).atStartOfDay();
+                                    if (conn.getDateConnected() == null || !conn.getDateConnected().toLocalDate().equals(dCon.toLocalDate())) {
+                                        conn.setDateConnected(dCon);
+                                        changed = true;
+                                    }
+                                }
+                            }
+                            if (body.containsKey("dateDisconnected")) {
+                                String dDisStr = str(body.get("dateDisconnected"));
+                                if (dDisStr != null && !dDisStr.isBlank()) {
+                                    LocalDateTime dDis = java.time.LocalDate.parse(dDisStr).atTime(23, 59, 59);
+                                    if (conn.getDateDisconnected() == null || !conn.getDateDisconnected().toLocalDate().equals(dDis.toLocalDate())) {
+                                        conn.setDateDisconnected(dDis);
+                                        changed = true;
+                                    }
+                                } else if (body.containsKey("dateDisconnected") && String.valueOf(body.get("dateDisconnected")).trim().isEmpty()) {
+                                    if (conn.getDateDisconnected() != null) {
+                                        conn.setDateDisconnected(null);
+                                        changed = true;
+                                    }
+                                }
+                            }
+                            if (changed) {
+                                connectivityRepository.save(conn);
+                            }
+                        });
+                }
+
                 postalOfficeRepository.save(o);
 
                 // Diff + notify
@@ -423,22 +467,49 @@ public class PostalOfficeEditRestController {
 
     private void handleConnectivityStatusChange(PostalOffice office, Boolean oldStatus, Boolean newStatus) {
         if (!Boolean.TRUE.equals(oldStatus) && Boolean.TRUE.equals(newStatus)) {
-            // Switching to active → create a new Connectivity record
-            Connectivity connectivity = createConnectivityRecord(office);
-            Connectivity savedConnectivity = connectivityRepository.save(connectivity);
-            office.setActiveConnectivity(savedConnectivity);
+            // Switching to ACTIVE — reuse existing open record if available, else create new
+            // Check if the office already has an open connectivity record with no dateDisconnected
+            Optional<Connectivity> existingOpen = connectivityRepository
+                    .findByPostalOfficeIdAndDateDisconnectedIsNull(office.getId());
+
+            if (existingOpen.isPresent()) {
+                // Already has an open record — just point activeConnectivity at it (no new record)
+                office.setActiveConnectivity(existingOpen.get());
+            } else {
+                // Look for the most recent closed record — reopen it instead of creating a new one
+                // to preserve the original dateConnected (historical data)
+                Optional<Connectivity> latestClosed = connectivityRepository
+                        .findTopByPostalOfficeIdOrderByDateConnectedDesc(office.getId());
+
+                if (latestClosed.isPresent() && latestClosed.get().getDateDisconnected() != null) {
+                    // Reopen the latest closed record to preserve historical dateConnected
+                    Connectivity conn = latestClosed.get();
+                    conn.setDateDisconnected(null);
+                    Connectivity saved = connectivityRepository.save(conn);
+                    office.setActiveConnectivity(saved);
+                } else {
+                    // No existing record at all — create a fresh one
+                    Connectivity connectivity = createConnectivityRecord(office);
+                    Connectivity saved = connectivityRepository.save(connectivity);
+                    office.setActiveConnectivity(saved);
+                }
+            }
         }
         else if (Boolean.TRUE.equals(oldStatus) && !Boolean.TRUE.equals(newStatus)) {
-            // Switching to inactive
+            // Switching to INACTIVE — close the active connectivity record
             if (office.getActiveConnectivity() != null) {
-                // Close the active connectivity record
                 Connectivity conn = office.getActiveConnectivity();
                 conn.setDateDisconnected(LocalDateTime.now());
                 connectivityRepository.save(conn);
                 office.setActiveConnectivity(null);
+            } else {
+                // No activeConnectivity pointer — find and close the open record directly
+                connectivityRepository.findByPostalOfficeIdAndDateDisconnectedIsNull(office.getId())
+                        .ifPresent(conn -> {
+                            conn.setDateDisconnected(LocalDateTime.now());
+                            connectivityRepository.save(conn);
+                        });
             }
-            // If no activeConnectivity (e.g. legacy data), the connectionStatus boolean
-            // change is sufficient — isEffectivelyConnected() will return false.
         }
     }
 

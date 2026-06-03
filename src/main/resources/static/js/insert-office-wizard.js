@@ -26,14 +26,25 @@ function syncConnectionStatus(select) {
     }
 }
 
-const POST_OFFICE_SUFFIX = ' POST OFFICE';
+function getOfficeSuffix() {
+    const el = document.getElementById('officeTypeSuffix');
+    return el ? ' ' + el.value : ' POST OFFICE';
+}
 
-/** Strip trailing " POST OFFICE"; only used on save/summary, not while typing. */
+/** Strip trailing suffix; only used on save/summary, not while typing. */
 function officeNameBase(raw) {
     let v = (raw || '').trim().toUpperCase();
     if (!v) return '';
-    while (v.endsWith(POST_OFFICE_SUFFIX)) {
-        v = v.slice(0, -POST_OFFICE_SUFFIX.length).trimEnd();
+    const suffixes = [' POST OFFICE', ' SDC', ' MDC'];
+    let changed = true;
+    while (changed) {
+        changed = false;
+        for (let suffix of suffixes) {
+            if (v.endsWith(suffix)) {
+                v = v.slice(0, -suffix.length).trimEnd();
+                changed = true;
+            }
+        }
     }
     return v;
 }
@@ -41,7 +52,7 @@ function officeNameBase(raw) {
 function getFullOfficeName() {
     const base = officeNameBase(document.getElementById('officeName')?.value);
     if (!base) return null;
-    return base + POST_OFFICE_SUFFIX;
+    return base + getOfficeSuffix();
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -357,9 +368,19 @@ document.addEventListener('DOMContentLoaded', function () {
             const start = input.selectionStart;
             const end = input.selectionEnd;
             let v = input.value.toUpperCase();
-            while (v.endsWith(POST_OFFICE_SUFFIX)) {
-                v = v.slice(0, -POST_OFFICE_SUFFIX.length);
+            
+            const suffixes = [' POST OFFICE', ' SDC', ' MDC'];
+            let changed = true;
+            while (changed) {
+                changed = false;
+                for (let suffix of suffixes) {
+                    if (v.endsWith(suffix)) {
+                        v = v.slice(0, -suffix.length);
+                        changed = true;
+                    }
+                }
             }
+            
             if (input.value !== v) {
                 input.value = v;
                 const len = v.length;
@@ -372,6 +393,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
         input.addEventListener('input', normalizeInputValue);
         input.addEventListener('paste', () => setTimeout(normalizeInputValue, 0));
+        
+        const suffixSelect = document.getElementById('officeTypeSuffix');
+        if (suffixSelect) {
+            suffixSelect.addEventListener('change', syncPreview);
+        }
+        
         syncPreview();
     }
 

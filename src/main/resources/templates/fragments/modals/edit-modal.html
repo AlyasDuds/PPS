@@ -632,7 +632,25 @@
 
                         </div>
 
-
+                        <!-- Date Connected / Disconnected (System Admins Only) -->
+                        <div class="row mb-3" sec:authorize="hasAnyRole('ADMIN', 'SRD_OPERATION')">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="editDateConnected">
+                                        <i class="fas fa-calendar-alt mr-1 text-success"></i> Date Connected
+                                    </label>
+                                    <input type="date" class="form-control" id="editDateConnected">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="editDateDisconnected">
+                                        <i class="fas fa-calendar-times mr-1 text-danger"></i> Date Disconnected
+                                    </label>
+                                    <input type="date" class="form-control" id="editDateDisconnected">
+                                </div>
+                            </div>
+                        </div>
 
                         <!-- ISP + Connection details -->
 

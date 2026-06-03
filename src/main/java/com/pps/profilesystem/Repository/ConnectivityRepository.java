@@ -106,4 +106,10 @@ public interface ConnectivityRepository extends JpaRepository<Connectivity, Inte
 
     @Query("SELECT c FROM Connectivity c WHERE c.postalOffice.id = :officeId ORDER BY c.dateConnected DESC")
     List<Connectivity> findByOfficeIdOrderByDateConnectedDesc(@Param("officeId") Integer officeId);
+
+    /** Find the open (not yet disconnected) connectivity record for an office. */
+    java.util.Optional<Connectivity> findByPostalOfficeIdAndDateDisconnectedIsNull(Integer postalOfficeId);
+
+    /** Find the most recent connectivity record for an office (open or closed). */
+    java.util.Optional<Connectivity> findTopByPostalOfficeIdOrderByDateConnectedDesc(Integer postalOfficeId);
 }
