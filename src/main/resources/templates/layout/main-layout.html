@@ -95,6 +95,9 @@
     <!-- Storage Monitor Modal -->
     <div th:if="${activePage == 'dashboard'}" th:replace="~{fragments/modals/storage-monitor-modal :: storageMonitorModal}"></div>
 
+    <!-- Insert Office Modal (available on ALL pages) -->
+    <div th:replace="~{fragments/modals/insert-office-modal :: insertOfficeModal}"></div>
+
     <!-- ── Office Profile Popup Modal (used by table & quarters name links) ── -->
     <div class="modal fade" id="officeProfilePopupModal" tabindex="-1" role="dialog" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered" role="document">
@@ -118,7 +121,7 @@
                     </div>
                 </div>
                 <div class="modal-footer" style="background:#f8f9fa;">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
+                    <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">
                         <i class="fas fa-times mr-1"></i>Close
                     </button>
                     <a id="officeProfileOpenFull" href="#" class="btn btn-primary">
@@ -177,8 +180,8 @@
    <!-- 13. Archive JS -->
    <script th:if="${activePage == 'archive' or activePage == 'table' or activePage == 'dashboard'}" th:src="@{/js/archive.js}"></script>
 
-   <!-- 14. Insert Office Wizard JS -->
-   <script th:if="${activePage == 'insert'}" th:src="@{/js/insert-office-wizard.js}"></script>
+    <!-- 14. Insert Office Wizard JS (loaded on ALL pages — modal is global) -->
+    <script th:src="@{/js/insert-office-wizard.js}"></script>
 
    <!-- 15. Profile JS -->
    <script th:if="${activePage == 'profile'}" th:src="@{/js/profile.js}"></script>

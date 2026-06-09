@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<div th:fragment="insertOfficeModal"
+     class="modal fade" id="insertOfficeModal" tabindex="-1" role="dialog"
+     aria-labelledby="insertOfficeModalLabel" aria-hidden="true"
+     data-backdrop="static" data-keyboard="false">
+
+    <div class="modal-dialog modal-xl modal-dialog-scrollable" role="document">
+        <div class="modal-content" style="border-radius:10px;overflow:hidden;">
+
+            <!-- Modal Header -->
+            <div class="modal-header py-3 px-4"
+                 style="background:linear-gradient(135deg,#002868,#1a4a90);color:#fff;border:none;">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-plus-circle mr-2" style="font-size:20px;"></i>
+                    <div>
+                        <h5 class="modal-title mb-0" id="insertOfficeModalLabel">Add New Postal Office</h5>
+                        <small style="opacity:.8;font-size:11px;">Fill in all required fields to register a new office</small>
+                    </div>
+                </div>
+                <button type="button" class="close text-white ml-2" id="insertModalCloseBtn"
+                        style="opacity:1;" title="Close">
+                    <span>&times;</span>
+                </button>
+            </div>
+
+            <!-- Wizard Step Indicators -->
+            <div class="px-4 pt-3 pb-0" style="background:#f8f9fa;border-bottom:1px solid #dee2e6;">
+                <div class="wizard-steps d-flex align-items-center justify-content-between position-relative mb-3"
+                     style="--wizard-progress:0%;">
+                    <!-- progress line -->
+                    <div style="position:absolute;top:18px;left:0;right:0;height:3px;background:#dee2e6;z-index:0;"></div>
+                    <div style="position:absolute;top:18px;left:0;height:3px;background:#002868;z-index:1;
+                                width:var(--wizard-progress,0%);transition:width .3s;"></div>
+
+                    <div class="wizard-step-indicator active d-flex flex-column align-items-center" data-step="1"
+                         style="z-index:2;cursor:pointer;min-width:60px;">
+                        <div style="width:36px;height:36px;border-radius:50%;background:#002868;color:#fff;
+                                    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;
+                                    border:3px solid #fff;box-shadow:0 0 0 2px #002868;">1</div>
+                        <small class="mt-1 text-center" style="font-size:10px;font-weight:600;color:#002868;">Basic Info</small>
+                    </div>
+                    <div class="wizard-step-indicator d-flex flex-column align-items-center" data-step="2"
+                         style="z-index:2;cursor:pointer;min-width:60px;">
+                        <div style="width:36px;height:36px;border-radius:50%;background:#dee2e6;color:#555;
+                                    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;
+                                    border:3px solid #fff;box-shadow:0 0 0 2px #dee2e6;">2</div>
+                        <small class="mt-1 text-center" style="font-size:10px;font-weight:600;color:#888;">Location</small>
+                    </div>
+                    <div class="wizard-step-indicator d-flex flex-column align-items-center" data-step="3"
+                         style="z-index:2;cursor:pointer;min-width:60px;">
+                        <div style="width:36px;height:36px;border-radius:50%;background:#dee2e6;color:#555;
+                                    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;
+                                    border:3px solid #fff;box-shadow:0 0 0 2px #dee2e6;">3</div>
+                        <small class="mt-1 text-center" style="font-size:10px;font-weight:600;color:#888;">Connectivity</small>
+                    </div>
+                    <div class="wizard-step-indicator d-flex flex-column align-items-center" data-step="4"
+                         style="z-index:2;cursor:pointer;min-width:60px;">
+                        <div style="width:36px;height:36px;border-radius:50%;background:#dee2e6;color:#555;
+                                    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;
+                                    border:3px solid #fff;box-shadow:0 0 0 2px #dee2e6;">4</div>
+                        <small class="mt-1 text-center" style="font-size:10px;font-weight:600;color:#888;">Staff & Plan</small>
+                    </div>
+                    <div class="wizard-step-indicator d-flex flex-column align-items-center" data-step="5"
+                         style="z-index:2;cursor:pointer;min-width:60px;">
+                        <div style="width:36px;height:36px;border-radius:50%;background:#dee2e6;color:#555;
+                                    display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;
+                                    border:3px solid #fff;box-shadow:0 0 0 2px #dee2e6;">5</div>
+                        <small class="mt-1 text-center" style="font-size:10px;font-weight:600;color:#888;">Review</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Body / Form -->
+            <div class="modal-body p-0">
+                <form id="insertPostalOfficeForm" novalidate>
+
+                    <!-- ══ STEP 1: Basic Information ══ -->
+                    <div class="wizard-step active p-4" id="step-1">
+                        <h6 class="mb-3 text-primary"><i class="fas fa-info-circle mr-1"></i>Basic Information</h6>
+
+                        <div class="row">
+                            <!-- Office Name -->
+                            <div class="col-md-8">
+                                <div class="form-group">
+                                    <label for="officeName">Post Office Name <span class="text-danger">*</span></label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" id="officeName"
+                                               placeholder="e.g. MANILA" style="text-transform:uppercase;"
+                                               autocomplete="off" required>
+                                        <div class="input-group-append">
+                                            <select class="form-control" id="officeTypeSuffix"
+                                                    style="border-left:0;border-radius:0 4px 4px 0;min-width:150px;">
+                                                <option value=" POST OFFICE">POST OFFICE</option>
+                                                <option value=" SDC">SDC</option>
+                                                <option value=" MDC">MDC</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div id="officeNameError" class="invalid-feedback" style="display:none;">
+                                        Office name is required.
+                                    </div>
+                                    <div id="officeNamePreview" hidden>
+                                        <small class="text-muted">Will be saved as:
+                                            <strong id="officeNamePreviewText"></strong>
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Classification -->
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="classification">Classification</label>
+                                    <select class="form-control" id="classification">
+                                        <option value="">-- Select --</option>
+                                        <option value="Regular">Regular</option>
+                                        <option value="Extension">Extension</option>
+                                        <option value="Delivery">Delivery</option>
+                                        <option value="Non-Delivery">Non-Delivery</option>
+                                        <option value="Acceptance with Delivery">Acceptance with Delivery</option>
+                                        <option value="Acceptance">Acceptance</option>
+                                        <option value="Mother">Mother</option>
+                                        <option value="Personnel Handling Delivery">Personnel Handling Delivery</option>
+                                        <option value="Post Shop">Post Shop</option>
+                                        <option value="Campus">Campus</option>
+                                        <option value="Mall Based">Mall Based</option>
+                                        <option value="Postal Station - LGU">Postal Station - LGU</option>
+                                        <option value="Barangay Based">Barangay Based</option>
+                                        <option value="Private">Private</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="postmaster">Postmaster</label>
+                                    <input type="text" class="form-control" id="postmaster" placeholder="Postmaster name">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="serviceProvided">Service Provided</label>
+                                    <select class="form-control" id="serviceProvided">
+                                        <option value="">-- Select --</option>
+                                        <option value="Delivery">Delivery</option>
+                                        <option value="Acceptance">Acceptance</option>
+                                        <option value="Acceptance and Delivery">Acceptance and Delivery</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="postalOfficeContactPerson">Contact Person</label>
+                                    <input type="text" class="form-control" id="postalOfficeContactPerson">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="postalOfficeContactNumber">Contact Number</label>
+                                    <input type="text" class="form-control" id="postalOfficeContactNumber">
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="address">Complete Address</label>
+                                    <textarea class="form-control" id="address" rows="2" placeholder="Full address..."></textarea>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="officeStatus">Office Status</label>
+                                    <select class="form-control" id="officeStatus">
+                                        <option value="">-- Select --</option>
+                                        <option value="OPEN">OPEN</option>
+                                        <option value="CLOSED">CLOSED</option>
+                                        <option value="TBD">TBD</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-end mt-3">
+                            <button type="button" class="btn btn-primary btn-next">
+                                Next <i class="fas fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ══ STEP 2: Location ══ -->
+                    <div class="wizard-step p-4" id="step-2">
+                        <h6 class="mb-3 text-primary"><i class="fas fa-map-marker-alt mr-1"></i>Location</h6>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="areaId">Area <span class="text-danger">*</span></label>
+                                    <select class="form-control" id="areaId" required>
+                                        <option value="">-- Select Area --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="provinceId">Province <span class="text-danger">*</span></label>
+                                    <select class="form-control" id="provinceId" disabled required>
+                                        <option value="">-- Select Province --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="cityMunId">City / Municipality <span class="text-danger">*</span></label>
+                                    <select class="form-control" id="cityMunId" disabled required>
+                                        <option value="">-- Select City/Municipality --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="barangayId">Barangay</label>
+                                    <select class="form-control" id="barangayId" disabled>
+                                        <option value="">-- Select Barangay (Optional) --</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="zipCode">Zip Code</label>
+                                    <input type="text" class="form-control" id="zipCode" placeholder="e.g. 1000">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="latitude">Latitude</label>
+                                    <input type="number" class="form-control" id="latitude" step="0.000001"
+                                           placeholder="e.g. 14.5995">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="longitude">Longitude</label>
+                                    <input type="number" class="form-control" id="longitude" step="0.000001"
+                                           placeholder="e.g. 120.9842">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-3">
+                            <button type="button" class="btn btn-outline-secondary btn-prev">
+                                <i class="fas fa-arrow-left mr-1"></i> Back
+                            </button>
+                            <button type="button" class="btn btn-primary btn-next">
+                                Next <i class="fas fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ══ STEP 3: Connectivity ══ -->
+                    <div class="wizard-step p-4" id="step-3">
+                        <h6 class="mb-3 text-primary"><i class="fas fa-wifi mr-1"></i>Internet Connectivity</h6>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="connectionStatusSelect">Connection Status</label>
+                                    <select class="form-control" id="connectionStatusSelect"
+                                            onchange="syncConnectionStatus(this)">
+                                        <option value="inactive">Inactive</option>
+                                        <option value="active">Active</option>
+                                    </select>
+                                    <input type="hidden" id="connectionStatus" value="false">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="internetServiceProvider">Internet Service Provider</label>
+                                    <select class="form-control" id="internetServiceProvider">
+                                        <option value="">-- Select ISP --</option>
+                                        <option value="PLDT">PLDT</option>
+                                        <option value="Globe">Globe</option>
+                                        <option value="Smart">Smart</option>
+                                        <option value="Converge">Converge</option>
+                                        <option value="Sky Broadband">Sky Broadband</option>
+                                        <option value="Eastern Telecoms">Eastern Telecoms</option>
+                                        <option value="Radius Telecoms">Radius Telecoms</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                                <div id="ispOtherWrap" style="display:none;" class="mt-2">
+                                    <input type="text" class="form-control" id="internetServiceProviderOther"
+                                           placeholder="Specify ISP name...">
+                                </div>
+                            </div>
+                            <div class="col-md-6" sec:authorize="hasAnyRole('ADMIN', 'SRD_OPERATION')">
+                                <div class="form-group">
+                                    <label for="dateConnected">Date Connected</label>
+                                    <input type="date" class="form-control" id="dateConnected" disabled>
+                                </div>
+                            </div>
+                            <div class="col-md-6" sec:authorize="hasAnyRole('ADMIN', 'SRD_OPERATION')">
+                                <div class="form-group">
+                                    <label for="dateDisconnected">Date Disconnected</label>
+                                    <input type="date" class="form-control" id="dateDisconnected">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="typeOfConnection">Type of Connection</label>
+                                    <select class="form-control" id="typeOfConnection">
+                                        <option value="">-- Select --</option>
+                                        <option value="Fiber">Fiber Optic</option>
+                                        <option value="DSL">DSL</option>
+                                        <option value="Cable">Cable</option>
+                                        <option value="Wireless">Wireless</option>
+                                        <option value="Satellite">Satellite</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="speed">Speed (Mbps)</label>
+                                    <input type="number" class="form-control" id="speed"
+                                           placeholder="e.g. 100" min="0" step="0.1">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="ipAddressType">IP Address Type</label>
+                                    <select class="form-control" id="ipAddressType">
+                                        <option value="">-- Select --</option>
+                                        <option value="dynamic">Dynamic IP</option>
+                                        <option value="static">Static IP</option>
+                                        <option value="not_sure">Not Sure</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="ispContactPerson">ISP Contact Person</label>
+                                    <input type="text" class="form-control" id="ispContactPerson">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="ispContactNumber">ISP Contact Number</label>
+                                    <input type="text" class="form-control" id="ispContactNumber">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-3">
+                            <button type="button" class="btn btn-outline-secondary btn-prev">
+                                <i class="fas fa-arrow-left mr-1"></i> Back
+                            </button>
+                            <button type="button" class="btn btn-primary btn-next">
+                                Next <i class="fas fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ══ STEP 4: Staff & Plan ══ -->
+                    <div class="wizard-step p-4" id="step-4">
+                        <h6 class="mb-3 text-primary"><i class="fas fa-users mr-1"></i>Staff Information</h6>
+
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="noOfEmployees">No. of Employees</label>
+                                    <input type="number" class="form-control" id="noOfEmployees" min="0">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="noOfPostalTellers">No. of Postal Tellers</label>
+                                    <input type="number" class="form-control" id="noOfPostalTellers" min="0">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="noOfLetterCarriers">No. of Letter Carriers</label>
+                                    <input type="number" class="form-control" id="noOfLetterCarriers" min="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        <h6 class="mb-3 mt-2 text-primary"><i class="fas fa-file-invoice-dollar mr-1"></i>Plan & Billing</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="planName">Plan Name</label>
+                                    <input type="text" class="form-control" id="planName">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="planPrice">Plan Price</label>
+                                    <input type="number" class="form-control" id="planPrice" min="0" step="0.01">
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group">
+                                    <label for="accountNumber">Account Number</label>
+                                    <input type="text" class="form-control" id="accountNumber">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="planContract">Contract Type</label>
+                                    <input type="text" class="form-control" id="planContract" placeholder="e.g. 12 months">
+                                </div>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-center pt-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="isWired">
+                                    <label class="form-check-label" for="isWired">Wired</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-center pt-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="isFree">
+                                    <label class="form-check-label" for="isFree">Free</label>
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <div class="form-group">
+                                    <label for="remarks">Remarks</label>
+                                    <textarea class="form-control" id="remarks" rows="2"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between mt-3">
+                            <button type="button" class="btn btn-outline-secondary btn-prev">
+                                <i class="fas fa-arrow-left mr-1"></i> Back
+                            </button>
+                            <button type="button" class="btn btn-primary btn-next">
+                                Next <i class="fas fa-arrow-right ml-1"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- ══ STEP 5: Review & Submit ══ -->
+                    <div class="wizard-step p-4" id="step-5">
+                        <h6 class="mb-3 text-primary"><i class="fas fa-clipboard-check mr-1"></i>Review &amp; Confirm</h6>
+
+                        <div class="card bg-light border mb-3">
+                            <div class="card-body py-3">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <small class="text-muted d-block">Office Name</small>
+                                        <strong id="summaryName" class="text-primary">—</strong>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted d-block">Classification</small>
+                                        <span id="summaryClassification">—</span>
+                                    </div>
+                                    <div class="col-md-4 mt-2">
+                                        <small class="text-muted d-block">Area</small>
+                                        <span id="summaryArea">—</span>
+                                    </div>
+                                    <div class="col-md-4 mt-2">
+                                        <small class="text-muted d-block">Province</small>
+                                        <span id="summaryProvince">—</span>
+                                    </div>
+                                    <div class="col-md-4 mt-2">
+                                        <small class="text-muted d-block">City / Municipality</small>
+                                        <span id="summaryCity">—</span>
+                                    </div>
+                                    <div class="col-md-6 mt-2">
+                                        <small class="text-muted d-block">ISP</small>
+                                        <span id="summaryISP">—</span>
+                                    </div>
+                                    <div class="col-md-6 mt-2">
+                                        <small class="text-muted d-block">Connection Status</small>
+                                        <span id="summaryStatus">—</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info py-2 px-3 mb-3" style="font-size:13px;">
+                            <i class="fas fa-info-circle mr-1"></i>
+                            Please review the information above before saving.
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <button type="button" class="btn btn-outline-secondary btn-prev">
+                                <i class="fas fa-arrow-left mr-1"></i> Back
+                            </button>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-save mr-1"></i> Save Record
+                            </button>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scoped styles for the wizard inside modal -->
+    <style>
+        #insertOfficeModal .wizard-step { display: none; }
+        #insertOfficeModal .wizard-step.active { display: block; }
+
+        #insertOfficeModal .wizard-step-indicator .rounded-circle,
+        #insertOfficeModal .wizard-step-indicator > div {
+            transition: background .25s, color .25s, box-shadow .25s;
+        }
+        #insertOfficeModal .wizard-step-indicator.active > div {
+            background: #002868 !important;
+            color: #fff !important;
+            box-shadow: 0 0 0 3px rgba(0,40,104,.25) !important;
+        }
+        #insertOfficeModal .wizard-step-indicator.active small { color: #002868 !important; }
+
+        #insertOfficeModal .wizard-step-indicator.completed > div {
+            background: #28a745 !important;
+            color: #fff !important;
+            box-shadow: 0 0 0 2px #28a745 !important;
+        }
+        #insertOfficeModal .wizard-step-indicator.completed small { color: #28a745 !important; }
+    </style>
+
+</div>
+
+</html>

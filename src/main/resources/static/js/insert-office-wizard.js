@@ -55,11 +55,101 @@ function getFullOfficeName() {
     return base + getOfficeSuffix();
 }
 
+// ── Global: open the insert office modal from anywhere ────────────────────────
+function openInsertOfficeModal() {
+    const modal = document.getElementById('insertOfficeModal');
+    if (!modal) { console.warn('Insert office modal not found'); return; }
+
+    // Load areas into the dropdown if empty
+    const areaSel = document.getElementById('areaId');
+    if (areaSel && areaSel.options.length <= 1) {
+        fetch('/api/postal/areas')
+            .then(r => r.json())
+            .then(list => {
+                areaSel.innerHTML = '<option value="">-- Select Area --</option>';
+                list.forEach(a => {
+                    const o = document.createElement('option');
+                    o.value = a.id; o.textContent = a.name;
+                    areaSel.appendChild(o);
+                });
+            })
+            .catch(() => console.warn('Failed to load areas'));
+    }
+
+    // Reset the form & wizard to step 1
+    const form = document.getElementById('insertPostalOfficeForm');
+    if (form) form.reset();
+    // Reset cascading selects
+    ['provinceId','cityMunId','barangayId'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.innerHTML = '<option value="">-- Select --</option>'; el.disabled = true; }
+    });
+    // Reset validation marks
+    modal.querySelectorAll('.is-valid,.is-invalid').forEach(el => el.classList.remove('is-valid','is-invalid'));
+    const nameErr = document.getElementById('officeNameError');
+    if (nameErr) nameErr.style.display = 'none';
+    const preview = document.getElementById('officeNamePreview');
+    if (preview) preview.hidden = true;
+
+    // Reset wizard to step 1 (will be done by showStep inside DOMContentLoaded,
+    // but we trigger it here for re-opens)
+    modal.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+    const step1 = modal.querySelector('#step-1');
+    if (step1) step1.classList.add('active');
+    modal.querySelectorAll('.wizard-step-indicator').forEach(ind => {
+        ind.classList.remove('active','completed');
+        if (ind.getAttribute('data-step') === '1') ind.classList.add('active');
+    });
+    const wizSteps = modal.querySelector('.wizard-steps');
+    if (wizSteps) wizSteps.style.setProperty('--wizard-progress', '0%');
+
+    // Reset connectivity defaults
+    const connSel = document.getElementById('connectionStatusSelect');
+    if (connSel) connSel.value = 'inactive';
+    const connHidden = document.getElementById('connectionStatus');
+    if (connHidden) connHidden.checked = false;
+    const dc = document.getElementById('dateConnected');
+    const dd = document.getElementById('dateDisconnected');
+    if (dc) { dc.value = ''; dc.disabled = true; }
+    if (dd) { dd.value = ''; dd.disabled = false; }
+
+    $(modal).modal('show');
+}
+
+// ── Close button handler ──────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    const closeBtn = document.getElementById('insertModalCloseBtn');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            const form = document.getElementById('insertPostalOfficeForm');
+            const hasData = form ? Array.from(form.elements).some(el =>
+                el.type !== 'hidden' && el.type !== 'submit' && el.type !== 'button'
+                && el.value && el.value.trim() !== '' && el.tagName !== 'BUTTON'
+                && !el.disabled && el.id !== 'officeTypeSuffix' && el.id !== 'connectionStatusSelect'
+            ) : false;
+
+            if (hasData) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Discard Changes?',
+                    text: 'You have unsaved data. Are you sure you want to close?',
+                    showCancelButton: true,
+                    confirmButtonText: 'Yes, Discard',
+                    cancelButtonText: 'Keep Editing',
+                    confirmButtonColor: '#d33'
+                }).then(r => { if (r.isConfirmed) $('#insertOfficeModal').modal('hide'); });
+            } else {
+                $('#insertOfficeModal').modal('hide');
+            }
+        });
+    }
+});
+
 document.addEventListener('DOMContentLoaded', function () {
 
     console.log('Insert Office Wizard initializing...');
 
-    const steps = document.querySelectorAll('.wizard-step');
+    const steps = document.querySelectorAll('#insertOfficeModal .wizard-step');
     const form  = document.getElementById('insertPostalOfficeForm');
     let currentStep = 0;
 
@@ -203,13 +293,15 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // ─── Step navigation ────────────────────────────────────────────────────
+    const modalRoot = document.getElementById('insertOfficeModal');
     function showStep(index) {
-        document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+        if (!modalRoot) return;
+        modalRoot.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
         const target = document.getElementById('step-' + (index + 1));
         if (!target) return;
         target.classList.add('active');
 
-        document.querySelectorAll('.wizard-step-indicator').forEach(ind => {
+        modalRoot.querySelectorAll('.wizard-step-indicator').forEach(ind => {
             ind.classList.remove('active', 'completed');
             const n = parseInt(ind.getAttribute('data-step'));
             if (n === index + 1)    ind.classList.add('active');
@@ -217,24 +309,26 @@ document.addEventListener('DOMContentLoaded', function () {
         });
 
         currentStep = index;
-        const totalSteps = document.querySelectorAll('.wizard-step-indicator').length;
+        const totalSteps = modalRoot.querySelectorAll('.wizard-step-indicator').length;
         const pct = totalSteps > 1 ? (index / (totalSteps - 1)) * 100 : 0;
-        document.querySelector('.wizard-steps')?.style.setProperty('--wizard-progress', pct + '%');
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        modalRoot.querySelector('.wizard-steps')?.style.setProperty('--wizard-progress', pct + '%');
+        // Scroll modal body to top instead of window
+        const modalBody = modalRoot.querySelector('.modal-body');
+        if (modalBody) modalBody.scrollTop = 0;
     }
 
-    document.querySelectorAll('.btn-next').forEach(btn =>
+    modalRoot?.querySelectorAll('.btn-next').forEach(btn =>
         btn.addEventListener('click', () => {
             if (validateStep(currentStep) && currentStep < steps.length - 1)
                 showStep(currentStep + 1);
         })
     );
 
-    document.querySelectorAll('.btn-prev').forEach(btn =>
+    modalRoot?.querySelectorAll('.btn-prev').forEach(btn =>
         btn.addEventListener('click', () => { if (currentStep > 0) showStep(currentStep - 1); })
     );
 
-    document.querySelectorAll('.wizard-step-indicator').forEach((ind, i) =>
+    modalRoot?.querySelectorAll('.wizard-step-indicator').forEach((ind, i) =>
         ind.addEventListener('click', () => {
             if (i > currentStep) { if (validateStep(currentStep)) showStep(i); }
             else showStep(i);
@@ -540,7 +634,7 @@ document.addEventListener('DOMContentLoaded', function () {
                             icon: 'success', title: 'Saved!',
                             text: 'Post Office and photos added successfully.',
                             timer: 2000, showConfirmButton: false
-                        }).then(() => { window.location.href = '/table'; });
+                        }).then(() => { window.location.reload(); });
                     });
                 } else {
                     Swal.fire({
@@ -549,7 +643,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         text: 'Post Office added successfully.',
                         timer: 2000,
                         showConfirmButton: false
-                    }).then(() => { window.location.href = '/table'; });
+                    }).then(() => { window.location.reload(); });
                 }
             } else {
                 Swal.fire('Error', data.message || 'Save failed. Please try again.', 'error');

@@ -70,8 +70,8 @@
         <!-- Actions Section -->
         <div class="sidebar-heading">Actions</div>
 
-        <a th:href="@{/insert}" class="sidebar-link" th:classappend="${activePage == 'insert'} ? 'active' : ''"
-            data-page="insert">
+        <a href="#" class="sidebar-link" data-page="insert"
+            onclick="event.preventDefault(); openInsertOfficeModal();">
             <i class="fas fa-plus"></i>
             <span>Add New Postal Office</span>
         </a>
