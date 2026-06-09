@@ -49,8 +49,6 @@ document.addEventListener('DOMContentLoaded', function () {
         initializeOfficeTable();
     }
 
-    restoreClientFilters();
-
     // ── Initialize Map ─────────────────────────────────────────────────────
     if (document.getElementById('map')) {
         initializeMap();
@@ -83,8 +81,7 @@ function initializeFilterPanel() {
     // Apply filters
     if (applyFilters) {
         applyFilters.addEventListener('click', function() {
-            saveClientFilters();
-            navigateWithYearQuarterFilters();
+            applyTableFilters();
         });
     }
 
@@ -100,52 +97,9 @@ function initializeFilterPanel() {
     if (searchInput) {
         searchInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
-                saveClientFilters();
-                navigateWithYearQuarterFilters();
+                applyTableFilters();
             }
         });
-    }
-}
-
-function getCurrentQuarter() {
-    const month = new Date().getMonth() + 1;
-    if (month <= 3) return 'Q1';
-    if (month <= 6) return 'Q2';
-    if (month <= 9) return 'Q3';
-    return 'Q4';
-}
-
-function navigateWithYearQuarterFilters() {
-    const year = document.getElementById('filterYear')?.value || '';
-    const quarter = document.getElementById('filterQuarter')?.value || getCurrentQuarter();
-    const params = [];
-    if (year) params.push('year=' + encodeURIComponent(year));
-    if (quarter) params.push('quarterFilter=' + encodeURIComponent(quarter));
-    window.location.href = '/dashboard' + (params.length ? '?' + params.join('&') : '');
-}
-
-function saveClientFilters() {
-    sessionStorage.setItem('dashboardClientFilters', JSON.stringify({
-        search: document.getElementById('tableSearchInput')?.value || '',
-        area: document.getElementById('filterArea')?.value || '',
-        connectivity: document.getElementById('filterConnectivity')?.value || '',
-        officeStatus: document.getElementById('filterOfficeStatus')?.value || ''
-    }));
-}
-
-function restoreClientFilters() {
-    const raw = sessionStorage.getItem('dashboardClientFilters');
-    if (!raw) return;
-    sessionStorage.removeItem('dashboardClientFilters');
-    try {
-        const saved = JSON.parse(raw);
-        if (document.getElementById('tableSearchInput')) document.getElementById('tableSearchInput').value = saved.search || '';
-        if (document.getElementById('filterArea')) document.getElementById('filterArea').value = saved.area || '';
-        if (document.getElementById('filterConnectivity')) document.getElementById('filterConnectivity').value = saved.connectivity || '';
-        if (document.getElementById('filterOfficeStatus')) document.getElementById('filterOfficeStatus').value = saved.officeStatus || '';
-        applyTableFilters();
-    } catch (e) {
-        // ignore invalid session data
     }
 }
 
@@ -226,38 +180,28 @@ function applyTableFilters() {
 }
 
 function resetTableFilters() {
-    sessionStorage.removeItem('dashboardClientFilters');
-
     const tableId = IS_ADMIN ? '#systemAdminTable' : '#officeTable';
-    if ($.fn.DataTable.isDataTable(tableId)) {
-        const table = $(tableId).DataTable();
-        $.fn.dataTable.ext.search = [];
-        table.search('').columns().search('').draw();
-    }
+    if (!$.fn.DataTable.isDataTable(tableId)) return;
+    const table = $(tableId).DataTable();
+
+    $.fn.dataTable.ext.search = [];
+    table.search('').columns().search('').draw();
 
     if (document.getElementById('tableSearchInput')) document.getElementById('tableSearchInput').value = '';
     if (document.getElementById('filterArea')) document.getElementById('filterArea').value = '';
     if (document.getElementById('filterConnectivity')) document.getElementById('filterConnectivity').value = '';
     if (document.getElementById('filterOfficeStatus')) document.getElementById('filterOfficeStatus').value = '';
 
-    const yearEl = document.getElementById('filterYear');
-    const quarterEl = document.getElementById('filterQuarter');
-    if (yearEl) yearEl.value = String(new Date().getFullYear());
-    if (quarterEl) quarterEl.value = getCurrentQuarter();
-
-    window.location.href = '/dashboard?year=' + new Date().getFullYear() + '&quarterFilter=' + getCurrentQuarter();
+    updateActiveFilterCount();
 }
 
 function updateActiveFilterCount() {
-    const urlParams = new URLSearchParams(window.location.search);
     const searchInput = document.getElementById('tableSearchInput')?.value || '';
-    const yearValue = urlParams.has('year') ? (document.getElementById('filterYear')?.value || '') : '';
-    const quarterValue = urlParams.has('quarterFilter') ? (document.getElementById('filterQuarter')?.value || '') : '';
     const areaValue = document.getElementById('filterArea')?.value || '';
     const connectivityValue = document.getElementById('filterConnectivity')?.value || '';
     const officeStatusValue = document.getElementById('filterOfficeStatus')?.value || '';
 
-    const activeFilters = [searchInput, yearValue, quarterValue, areaValue, connectivityValue, officeStatusValue].filter(v => v !== '').length;
+    const activeFilters = [searchInput, areaValue, connectivityValue, officeStatusValue].filter(v => v !== '').length;
     const badge = document.getElementById('activeFilterCount');
     
     if (badge) {
