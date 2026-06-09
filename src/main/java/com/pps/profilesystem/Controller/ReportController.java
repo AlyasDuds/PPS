@@ -135,6 +135,15 @@ public class ReportController {
         return "report";
     }
 
+    /**
+     * Connectivity stats using the same logic as the Connectivity Report top cards.
+     * Keeps Dashboard totals in sync with /report for the same year and quarter.
+     */
+    public Map<String, Long> computeConnectivityStats(int year, String quarterFilter, Integer areaId) {
+        List<Map<String, Object>> quartersData = buildQuartersData(year, quarterFilter, areaId, null);
+        return deriveStatsFromQuarters(quartersData, quarterFilter, null);
+    }
+
     // ── Build per-quarter rows ────────────────────────────────────────────────
 
     private void sortNamesList(List<String> list) {

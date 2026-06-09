@@ -6,7 +6,6 @@ import com.pps.profilesystem.Entity.User;
 import com.pps.profilesystem.Repository.PostalOfficeRepository;
 import com.pps.profilesystem.Repository.UserRepository;
 import com.pps.profilesystem.Service.LocationHierarchyService;
-import com.pps.profilesystem.Service.QuarterConnectivityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -14,8 +13,11 @@ import org.springframework.stereotype.Controller;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -37,11 +39,14 @@ public class DashboardController {
     private UserRepository userRepository;
 
     @Autowired
-    private QuarterConnectivityService quarterConnectivityService;
+    private ReportController reportController;
 
     @GetMapping("/dashboard")
     @Transactional(readOnly = true)
-    public String dashboard(Model model) {
+    public String dashboard(
+            @RequestParam(required = false) Integer year,
+            @RequestParam(required = false) String quarterFilter,
+            Model model) {
 
         // Get the logged-in user
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
@@ -69,14 +74,25 @@ public class DashboardController {
                 .collect(Collectors.toList());
         }
 
-        // Stats — based on the current quarter snapshot, using the same
-        // carry-forward / area-override logic as the Quarters page.
-        java.util.Map<String, Object> qStats = quarterConnectivityService.getDashboardConnectivityStats();
-        long totalCount    = (Long) qStats.get("totalCount");
-        long activeCount   = (Long) qStats.get("activeCount");
-        long inactiveCount = (Long) qStats.get("inactiveCount");
-        String statQuarter = (String)  qStats.get("quarter");
-        int    statYear    = (Integer) qStats.get("year");
+        int currentYear = (year != null) ? year : LocalDate.now().getYear();
+        String currentQuarter = getCurrentQuarterLabel();
+        String selectedQuarter = (quarterFilter != null && !quarterFilter.isEmpty())
+                ? quarterFilter : currentQuarter;
+
+        Integer statsAreaId = null;
+        if (roleId != null && roleId != 1 && roleId != 4 && areaId != null) {
+            statsAreaId = areaId;
+        }
+
+        String statsQuarterFilter = (quarterFilter != null && !quarterFilter.isEmpty())
+                ? quarterFilter : null;
+        Map<String, Long> qStats = reportController.computeConnectivityStats(
+                currentYear, statsQuarterFilter, statsAreaId);
+        long totalCount    = qStats.getOrDefault("totalOffices", 0L);
+        long activeCount   = qStats.getOrDefault("totalConnected", 0L);
+        long inactiveCount = qStats.getOrDefault("totalDisconnected", 0L);
+        String statQuarter = selectedQuarter;
+        int    statYear    = currentYear;
         // Open / Closed still use direct DB counts (no quarterly override for these)
         long openCount  = postalOfficeRepository.countOpenOffices();
         long closedCount = postalOfficeRepository.countClosedOffices();
@@ -124,8 +140,18 @@ public class DashboardController {
                     .orElse(null);
         }
         model.addAttribute("assignedAreaName", assignedAreaName);
+        model.addAttribute("currentYear", currentYear);
+        model.addAttribute("selectedQuarterFilter", selectedQuarter);
 
         return "dashboard";
+    }
+
+    private String getCurrentQuarterLabel() {
+        int month = LocalDate.now().getMonthValue();
+        if (month <= 3) return "Q1";
+        if (month <= 6) return "Q2";
+        if (month <= 9) return "Q3";
+        return "Q4";
     }
 
     private java.util.Map<String, Object> convertToMapDTO(PostalOffice office) {
