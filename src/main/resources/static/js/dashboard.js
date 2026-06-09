@@ -57,8 +57,54 @@ document.addEventListener('DOMContentLoaded', function () {
 
 // ── Stats Cards Functionality ───────────────────────────────────────────
 function initializeStatsCards() {
-    // Stats cards are static from server, no additional JS needed initially
-    // Can add real-time updates here if needed
+    // Handled dynamically via DataTable draw event listeners to reflect search & filters
+}
+
+function updateStatsCards() {
+    const tableId = IS_ADMIN ? '#systemAdminTable' : '#officeTable';
+    if (!$.fn.DataTable.isDataTable(tableId)) return;
+    const table = $(tableId).DataTable();
+    
+    // Get currently filtered/searched row data arrays
+    const filteredRowsData = table.rows({ search: 'applied' }).data();
+    
+    let totalCount = filteredRowsData.length;
+    let activeCount = 0;
+    let inactiveCount = 0;
+    let openCount = 0;
+    let closedCount = 0;
+    
+    for (let i = 0; i < filteredRowsData.length; i++) {
+        const rowData = filteredRowsData[i];
+        if (!rowData) continue;
+        
+        // Join the cells of the row to search for badge class names
+        const rowHtml = rowData.join(' ');
+        
+        if (rowHtml.includes('badge-success')) {
+            activeCount++;
+        } else if (rowHtml.includes('badge-danger')) {
+            inactiveCount++;
+        }
+        
+        if (rowHtml.includes('badge-open')) {
+            openCount++;
+        } else if (rowHtml.includes('badge-closed')) {
+            closedCount++;
+        }
+    }
+    
+    const totalEl = document.getElementById('statTotalOffices');
+    const activeEl = document.getElementById('statConnected');
+    const inactiveEl = document.getElementById('statDisconnected');
+    const openEl = document.getElementById('statOpen');
+    const closedEl = document.getElementById('statClosed');
+    
+    if (totalEl) totalEl.textContent = totalCount;
+    if (activeEl) activeEl.textContent = activeCount;
+    if (inactiveEl) inactiveEl.textContent = inactiveCount;
+    if (openEl) openEl.textContent = openCount;
+    if (closedEl) closedEl.textContent = closedCount;
 }
 
 // ── Filter Panel Functionality ───────────────────────────────────────────
@@ -297,6 +343,11 @@ function initializeSystemAdminTable() {
             updateActiveFilterCount();
         }
     });
+
+    dashboardTable.on('draw', function() {
+        updateStatsCards();
+    });
+    updateStatsCards();
 }
 
 // ── Regular Office Table Functionality ───────────────────────────────────────
@@ -401,6 +452,11 @@ function initializeOfficeTable() {
             updateActiveFilterCount();
         }
     });
+
+    dashboardTable.on('draw', function() {
+        updateStatsCards();
+    });
+    updateStatsCards();
 }
 
 // ── Map Functionality ─────────────────────────────────────────────────────

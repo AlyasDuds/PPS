@@ -6,6 +6,7 @@ import com.pps.profilesystem.Entity.User;
 import com.pps.profilesystem.Repository.PostalOfficeRepository;
 import com.pps.profilesystem.Repository.UserRepository;
 import com.pps.profilesystem.Service.LocationHierarchyService;
+import com.pps.profilesystem.Service.QuarterConnectivityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -34,6 +35,9 @@ public class DashboardController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private QuarterConnectivityService quarterConnectivityService;
 
     @GetMapping("/dashboard")
     @Transactional(readOnly = true)
@@ -65,20 +69,24 @@ public class DashboardController {
                 .collect(Collectors.toList());
         }
 
-        // Stats — derived from the already-fetched list (no extra DB queries)
-        long totalCount    = offices.size();
-        long activeCount   = offices.stream()
-            .filter(PostalOffice::isEffectivelyConnected).count();
-        long inactiveCount = totalCount - activeCount;
-        long openCount     = offices.stream()
-            .filter(po -> "OPEN".equalsIgnoreCase(po.getOfficeStatus())).count();
-        long closedCount   = offices.stream()
-            .filter(po -> "CLOSED".equalsIgnoreCase(po.getOfficeStatus())).count();
+        // Stats — based on the current quarter snapshot, using the same
+        // carry-forward / area-override logic as the Quarters page.
+        java.util.Map<String, Object> qStats = quarterConnectivityService.getDashboardConnectivityStats();
+        long totalCount    = (Long) qStats.get("totalCount");
+        long activeCount   = (Long) qStats.get("activeCount");
+        long inactiveCount = (Long) qStats.get("inactiveCount");
+        String statQuarter = (String)  qStats.get("quarter");
+        int    statYear    = (Integer) qStats.get("year");
+        // Open / Closed still use direct DB counts (no quarterly override for these)
+        long openCount  = postalOfficeRepository.countOpenOffices();
+        long closedCount = postalOfficeRepository.countClosedOffices();
 
         model.addAttribute("offices",       offices.stream().map(this::convertToMapDTO).collect(Collectors.toList()));
         model.addAttribute("totalCount",    totalCount);
         model.addAttribute("activeCount",   activeCount);
         model.addAttribute("inactiveCount", inactiveCount);
+        model.addAttribute("statQuarter",   statQuarter);
+        model.addAttribute("statYear",      statYear);
         model.addAttribute("openCount",     openCount);
         model.addAttribute("closedCount",   closedCount);
         model.addAttribute("areaCount",     postalOfficeRepository.countDistinctAreasNonArchived());

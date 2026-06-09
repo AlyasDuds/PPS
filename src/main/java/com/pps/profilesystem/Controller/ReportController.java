@@ -137,6 +137,12 @@ public class ReportController {
 
     // ── Build per-quarter rows ────────────────────────────────────────────────
 
+    private void sortNamesList(List<String> list) {
+        if (list == null) return;
+        list.sort(java.util.Comparator.comparing(e -> e.contains("::") ? e.substring(e.indexOf("::") + 2) : e));
+    }
+
+    @SuppressWarnings("unchecked")
     private List<Map<String, Object>> buildQuartersData(
             int year, String quarterFilter, Integer areaId, String statusFilter) {
 
@@ -146,6 +152,138 @@ public class ReportController {
         LocalDate     today            = LocalDate.now();
         LocalDateTime now              = LocalDateTime.now();
         boolean       currentYearMatch = (today.getYear() == year);
+
+        // 1. If areaId is null (All Areas), build by summing all individual areas (1 to 9)
+        if (areaId == null) {
+            List<Area> allAreas = areaRepository.findAll();
+            List<Map<String, Object>> combined = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                String q = quarters[i];
+                if (quarterFilter != null && !quarterFilter.isEmpty() && !quarterFilter.equalsIgnoreCase(q)) {
+                    continue;
+                }
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("quarter", q);
+                row.put("year", year);
+                
+                int currentQIndex = (today.getMonthValue() - 1) / 3;
+                boolean isCurrent = currentYearMatch && (i == currentQIndex);
+                boolean isFuture = currentYearMatch && (i > currentQIndex);
+                row.put("isCurrent", isCurrent);
+                row.put("isFuture", isFuture);
+                
+                row.put("connected", 0L);
+                row.put("newlyConnected", 0L);
+                row.put("disconnected", 0L);
+                row.put("newlyDisconnected", 0L);
+                row.put("total", 0L);
+                row.put("totalHint", null);
+                row.put("connectedNames", new ArrayList<String>());
+                row.put("disconnectedNames", new ArrayList<String>());
+                row.put("newlyConnectedNames", new ArrayList<String>());
+                row.put("newlyDisconnectedNames", new ArrayList<String>());
+                combined.add(row);
+            }
+            
+            for (Area area : allAreas) {
+                Integer aId = area.getId();
+                List<Map<String, Object>> areaData = buildQuartersData(year, quarterFilter, aId, statusFilter);
+                for (int k = 0; k < combined.size(); k++) {
+                    Map<String, Object> combRow = combined.get(k);
+                    Map<String, Object> areaRow = areaData.get(k);
+                    
+                    if (Boolean.TRUE.equals(areaRow.get("isFuture"))) {
+                        continue;
+                    }
+                    
+                    combRow.put("connected", toLong(combRow.get("connected")) + toLong(areaRow.get("connected")));
+                    combRow.put("newlyConnected", toLong(combRow.get("newlyConnected")) + toLong(areaRow.get("newlyConnected")));
+                    combRow.put("disconnected", toLong(combRow.get("disconnected")) + toLong(areaRow.get("disconnected")));
+                    combRow.put("newlyDisconnected", toLong(combRow.get("newlyDisconnected")) + toLong(areaRow.get("newlyDisconnected")));
+                    combRow.put("total", toLong(combRow.get("total")) + toLong(areaRow.get("total")));
+                    
+                    ((List<String>) combRow.get("connectedNames")).addAll((List<String>) areaRow.get("connectedNames"));
+                    ((List<String>) combRow.get("disconnectedNames")).addAll((List<String>) areaRow.get("disconnectedNames"));
+                    ((List<String>) combRow.get("newlyConnectedNames")).addAll((List<String>) areaRow.get("newlyConnectedNames"));
+                    ((List<String>) combRow.get("newlyDisconnectedNames")).addAll((List<String>) areaRow.get("newlyDisconnectedNames"));
+                }
+            }
+            
+            for (Map<String, Object> combRow : combined) {
+                if (Boolean.TRUE.equals(combRow.get("isFuture"))) {
+                    combRow.put("connected", null);
+                    combRow.put("newlyConnected", null);
+                    combRow.put("disconnected", null);
+                    combRow.put("newlyDisconnected", null);
+                    combRow.put("total", null);
+                } else {
+                    sortNamesList((List<String>) combRow.get("connectedNames"));
+                    sortNamesList((List<String>) combRow.get("disconnectedNames"));
+                    sortNamesList((List<String>) combRow.get("newlyConnectedNames"));
+                    sortNamesList((List<String>) combRow.get("newlyDisconnectedNames"));
+                }
+            }
+            return combined;
+        }
+
+        // 2. Carry forward Q4 2025 for year >= 2026 for any non-null areaId
+        if (year >= 2026) {
+            List<Map<String, Object>> q4_2025_list = buildQuartersData(2025, "Q4", areaId, statusFilter);
+            Map<String, Object> q4_2025 = q4_2025_list.get(0);
+            
+            long baseConnected = toLong(q4_2025.get("connected")) + toLong(q4_2025.get("newlyConnected"));
+            long baseDisconnected = toLong(q4_2025.get("disconnected")) + toLong(q4_2025.get("newlyDisconnected"));
+            long baseTotal = baseConnected + baseDisconnected;
+            
+            List<String> connNames = new ArrayList<>((List<String>) q4_2025.get("connectedNames"));
+            connNames.addAll((List<String>) q4_2025.get("newlyConnectedNames"));
+            
+            List<String> discNames = new ArrayList<>((List<String>) q4_2025.get("disconnectedNames"));
+            discNames.addAll((List<String>) q4_2025.get("newlyDisconnectedNames"));
+            
+            List<Map<String, Object>> result = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                String q = quarters[i];
+                if (quarterFilter != null && !quarterFilter.isEmpty() && !quarterFilter.equalsIgnoreCase(q)) {
+                    continue;
+                }
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("quarter", q);
+                row.put("year", year);
+                
+                int currentQIndex = (today.getMonthValue() - 1) / 3;
+                boolean isCurrent = currentYearMatch && (i == currentQIndex);
+                boolean isFuture = currentYearMatch && (i > currentQIndex);
+                row.put("isCurrent", isCurrent);
+                row.put("isFuture", isFuture);
+                
+                if (isFuture) {
+                    row.put("connected", null);
+                    row.put("disconnected", null);
+                    row.put("newlyConnected", null);
+                    row.put("newlyDisconnected", null);
+                    row.put("total", null);
+                    row.put("totalHint", null);
+                    row.put("connectedNames", new ArrayList<String>());
+                    row.put("disconnectedNames", new ArrayList<String>());
+                    row.put("newlyConnectedNames", new ArrayList<String>());
+                    row.put("newlyDisconnectedNames", new ArrayList<String>());
+                } else {
+                    row.put("connected", baseConnected);
+                    row.put("newlyConnected", 0L);
+                    row.put("disconnected", baseDisconnected);
+                    row.put("newlyDisconnected", 0L);
+                    row.put("total", baseTotal);
+                    row.put("totalHint", null);
+                    row.put("connectedNames", connNames);
+                    row.put("disconnectedNames", discNames);
+                    row.put("newlyConnectedNames", new ArrayList<String>());
+                    row.put("newlyDisconnectedNames", new ArrayList<String>());
+                }
+                result.add(row);
+            }
+            return result;
+        }
 
         List<Map<String, Object>> list = new ArrayList<>();
 
@@ -228,16 +366,16 @@ public class ReportController {
             row.put("total", runningConnectedNames.size() + runningDisconnectedNames.size());
             row.put("totalHint", null);
 
-            // Area‑specific overrides for Area 1
-            if (areaId != null && areaId == 1) {
-                if ("Q4".equals(q)) {
-                    // Q4: 70 connected, 2 newly connected, no disconnected, total 72
+            // Area-specific overrides for Area 1 (2025+) per user request
+            if (areaId != null && areaId == 1 && year >= 2025) {
+                if (year == 2025 && "Q4".equals(q)) {
+                    // Q4 2025: 70 connected, 2 newly connected, no disconnected, total 72
                     row.put("connected", 70L);
                     row.put("newlyConnected", 2L);
                     row.put("disconnected", 0L);
                     row.put("newlyDisconnected", 0L);
                     row.put("total", 72L);
-                    
+
                     List<String> connList = new ArrayList<>(runningConnectedNames);
                     List<String> newlyList = new ArrayList<>();
                     if (connList.size() >= 2) {
@@ -248,14 +386,14 @@ public class ReportController {
                     row.put("newlyConnectedNames", newlyList);
                     row.put("disconnectedNames", new ArrayList<>());
                     row.put("newlyDisconnectedNames", new ArrayList<>());
-                } else {
-                    // Q1‑Q3: 70 connected, 0 newly, 0 disconnected, total 70
+                } else if (year == 2025) {
+                    // Q1-Q3 2025: 70 connected, 0 newly, 0 disconnected, total 70
                     row.put("connected", 70L);
                     row.put("newlyConnected", 0L);
                     row.put("disconnected", 0L);
                     row.put("newlyDisconnected", 0L);
                     row.put("total", 70L);
-                    
+
                     List<String> connList = new ArrayList<>(runningConnectedNames);
                     while (connList.size() > 70) {
                         connList.remove(connList.size() - 1);
@@ -264,12 +402,28 @@ public class ReportController {
                     row.put("newlyConnectedNames", new ArrayList<>());
                     row.put("disconnectedNames", new ArrayList<>());
                     row.put("newlyDisconnectedNames", new ArrayList<>());
+                } else {
+                    // 2026+: carry forward Q4-2025 final state (72 connected, 0 newly, total 72)
+                    row.put("connected", 72L);
+                    row.put("newlyConnected", 0L);
+                    row.put("disconnected", 0L);
+                    row.put("newlyDisconnected", 0L);
+                    row.put("total", 72L);
+
+                    List<String> connList = new ArrayList<>(runningConnectedNames);
+                    while (connList.size() > 72) {
+                        connList.remove(connList.size() - 1);
+                    }
+                    row.put("connectedNames", connList);
+                    row.put("newlyConnectedNames", new ArrayList<>());
+                    row.put("disconnectedNames", new ArrayList<>());
+                    row.put("newlyDisconnectedNames", new ArrayList<>());
                 }
             }
-            // Area‑specific overrides for Area 2 (2025) per user request
-            if (areaId != null && areaId == 2 && year == 2025) {
-                if ("Q1".equals(q)) {
-                    // Q1: 152 base connected, 2 newly, 31 disconnected, total offices 183 (excluding newly)
+            // Area-specific overrides for Area 2 (2025+) per user request
+            if (areaId != null && areaId == 2 && year >= 2025) {
+                if (year == 2025 && "Q1".equals(q)) {
+                    // Q1 2025: 152 base connected, 2 newly, 31 disconnected, total offices 183
                     row.put("connected", 152L);
                     row.put("newlyConnected", 2L);
                     row.put("disconnected", 31L);
@@ -291,8 +445,29 @@ public class ReportController {
                     }
                     row.put("disconnectedNames", discList);
                     row.put("newlyDisconnectedNames", new ArrayList<>());
+                } else if (year == 2025) {
+                    // Q2-Q4 2025: 154 connected, 0 newly, 31 disconnected, total offices 185
+                    row.put("connected", 154L);
+                    row.put("newlyConnected", 0L);
+                    row.put("disconnected", 31L);
+                    row.put("newlyDisconnected", 0L);
+                    row.put("total", 185L);
+
+                    List<String> connList = new ArrayList<>(runningConnectedNames);
+                    while (connList.size() > 154) {
+                        connList.remove(connList.size() - 1);
+                    }
+                    row.put("connectedNames", connList);
+                    row.put("newlyConnectedNames", new ArrayList<>());
+
+                    List<String> discList = new ArrayList<>(runningDisconnectedNames);
+                    while (discList.size() > 31) {
+                        discList.remove(discList.size() - 1);
+                    }
+                    row.put("disconnectedNames", discList);
+                    row.put("newlyDisconnectedNames", new ArrayList<>());
                 } else {
-                    // Q2‑Q4: 154 connected, 0 newly, 31 disconnected, total offices 185
+                    // 2026+: carry forward Q4-2025 final state (154 connected, 0 newly, 31 disconnected, total 185)
                     row.put("connected", 154L);
                     row.put("newlyConnected", 0L);
                     row.put("disconnected", 31L);
@@ -340,92 +515,7 @@ public class ReportController {
         return list;
     }
 
-    // ── Stats cards ───────────────────────────────────────────────────────────
 
-    private Map<String, Long> getConnectivityStats(
-            int year, String quarterFilter, Integer areaId, String statusFilter) {
-
-        Map<String, Long> stats = new HashMap<>();
-        try {
-            LocalDateTime snap   = resolveSnapshotDate(year, quarterFilter);
-            long active = countActiveAt(snap, areaId);
-            long total = countTotalNonArchived(areaId);
-            long inactive = total - active;
-            if (inactive < 0) inactive = 0;
-
-                        long newlyConnected = 0L;
-            long newlyDisconnected = 0L;
-            // Compute newly connected/disconnected if not overridden
-            if (quarterFilter != null && !quarterFilter.isEmpty()) {
-                LocalDateTime qStart;
-                switch (quarterFilter.toUpperCase()) {
-                    case "Q1": qStart = LocalDateTime.of(year, 1, 1, 0, 0, 0); break;
-                    case "Q2": qStart = LocalDateTime.of(year, 4, 1, 0, 0, 0); break;
-                    case "Q3": qStart = LocalDateTime.of(year, 7, 1, 0, 0, 0); break;
-                    case "Q4": qStart = LocalDateTime.of(year, 10, 1, 0, 0, 0); break;
-                    default: qStart = resolveSnapshotDate(year, null);
-                }
-                LocalDateTime qEnd = resolveSnapshotDate(year, quarterFilter);
-                newlyConnected = countNewlyConnected(qStart, qEnd, areaId);
-                newlyDisconnected = countNewlyDisconnected(qStart, qEnd, areaId);
-            }
-            // Area‑specific overrides for Area 1
-            if (areaId != null && areaId == 1) {
-                if ("Q4".equalsIgnoreCase(quarterFilter)) {
-                    stats.put("totalConnected", 70L);
-                    stats.put("totalDisconnected", 0L);
-                    stats.put("totalOffices", 72L);
-                    stats.put("newlyConnected", 2L);
-                } else {
-                    stats.put("totalConnected", 70L);
-                    stats.put("totalDisconnected", 0L);
-                    stats.put("totalOffices", 70L);
-                    stats.put("newlyConnected", 0L);
-                }
-            }
-            // Area‑specific overrides for Area 2 (2025) per user request
-            if (areaId != null && areaId == 2 && year == 2025) {
-                if ("Q1".equalsIgnoreCase(quarterFilter)) {
-                    stats.put("totalConnected", 152L);
-                    stats.put("totalDisconnected", 31L);
-                    stats.put("totalOffices", 183L);
-                    stats.put("newlyConnected", 2L);
-                } else {
-                    stats.put("totalConnected", 154L);
-                    stats.put("totalDisconnected", 31L);
-                    stats.put("totalOffices", 185L);
-                    stats.put("newlyConnected", 0L);
-                }
-            }
-
-            if ("active".equals(statusFilter)) {
-                stats.put("totalConnected", active);
-                stats.put("totalDisconnected", 0L);
-                stats.put("totalOffices", active);
-            } else if ("newly_connected".equals(statusFilter)) {
-                stats.put("totalConnected", newlyConnected);
-                stats.put("totalDisconnected", 0L);
-                stats.put("totalOffices", newlyConnected);
-            } else if ("inactive".equals(statusFilter)) {
-                stats.put("totalConnected", 0L);
-                stats.put("totalDisconnected", inactive);
-                stats.put("totalOffices", inactive);
-            } else if ("newly_disconnected".equals(statusFilter)) {
-                stats.put("totalConnected", 0L);
-                stats.put("totalDisconnected", newlyDisconnected);
-                stats.put("totalOffices", newlyDisconnected);
-            } else {
-                stats.put("totalConnected",    active);
-                stats.put("totalDisconnected", inactive);
-                stats.put("totalOffices",      total);
-            }
-        } catch (Exception e) {
-            stats.put("totalConnected",    0L);
-            stats.put("totalDisconnected", 0L);
-            stats.put("totalOffices",      0L);
-        }
-        return stats;
-    }
 
     /**
      * Derives the stats-card values directly from the already-built quartersData list
@@ -540,125 +630,7 @@ public class ReportController {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
 
-    private LocalDateTime resolveSnapshotDate(int year, String quarterFilter) {
-        LocalDateTime now   = LocalDateTime.now();
-        int           today = java.time.LocalDate.now().getYear();
 
-        // For the current year + current (or unspecified) quarter, snapshot at NOW
-        // so future quarters don't pull zero-data into the stats cards
-        String currentQ = getCurrentQuarterLabel(java.time.LocalDate.now().getMonthValue());
-        boolean isCurrentPeriod = (year == today)
-            && (quarterFilter == null || quarterFilter.isEmpty()
-                || quarterFilter.equalsIgnoreCase(currentQ));
-
-        if (isCurrentPeriod) return now;
-
-        if (quarterFilter == null || quarterFilter.isEmpty())
-            return LocalDateTime.of(year, 12, 31, 23, 59, 59);
-        switch (quarterFilter.toUpperCase()) {
-            case "Q1": return LocalDateTime.of(year,  3, 31, 23, 59, 59);
-            case "Q2": return LocalDateTime.of(year,  6, 30, 23, 59, 59);
-            case "Q3": return LocalDateTime.of(year,  9, 30, 23, 59, 59);
-            case "Q4": return LocalDateTime.of(year, 12, 31, 23, 59, 59);
-            default:   return LocalDateTime.of(year, 12, 31, 23, 59, 59);
-        }
-    }
-
-    private long countActiveAt(LocalDateTime snap, Integer areaId) {
-        // If areaId is -1, return 0 (no access)
-        if (areaId != null && areaId == -1) {
-            return 0;
-        }
-        return connectivityRepository.findActiveAtDate(snap).stream()
-            .filter(c -> c.getPostalOffice() != null)
-            .filter(c -> areaId == null || (c.getPostalOffice().getArea() != null && areaId.equals(c.getPostalOffice().getArea().getId())))
-            .map(c -> c.getPostalOffice().getId())
-            .distinct()
-            .filter(id -> !NEWLY_CONNECTED_IGNORE.contains(id))
-            .count();
-    }
-
-    // Count offices that were DISCONNECTED at the given snapshot date.
-    private long countInactiveAt(LocalDateTime snap, Integer areaId) {
-        // If areaId is -1, return 0 (no access)
-        if (areaId != null && areaId == -1) {
-            return 0;
-        }
-        java.util.Set<Integer> activeIds = connectivityRepository.findActiveAtDate(snap).stream()
-            .filter(c -> c.getPostalOffice() != null)
-            .map(c -> c.getPostalOffice().getId())
-            .filter(id -> !NEWLY_CONNECTED_IGNORE.contains(id))
-            .collect(java.util.stream.Collectors.toSet());
-
-        return postalOfficeRepository.findByIsArchivedFalse().stream()
-            .filter(po -> !activeIds.contains(po.getId()))
-            .filter(po -> areaId == null || (po.getArea() != null && areaId.equals(po.getArea().getId())))
-            .filter(po -> {
-                LocalDateTime firstConn = connectivityRepository.findByOfficeIdOrderByDateConnectedDesc(po.getId()).stream()
-                    .map(cc -> cc.getDateConnected())
-                    .filter(java.util.Objects::nonNull)
-                    .min(LocalDateTime::compareTo)
-                    .orElse(null);
-                return firstConn == null || !firstConn.isAfter(snap);
-            })
-            .count();
-    }
-
-    private long countNewlyConnected(LocalDateTime start, LocalDateTime end, Integer areaId) {
-        // If areaId is -1, return 0 (no access)
-        if (areaId != null && areaId == -1) {
-            return 0;
-        }
-        // Only count offices whose FIRST-known connectivity is inside the period.
-        // This avoids counting offices that already had an earlier connectivity record
-        // but also have a (possibly duplicate) record inside the quarter.
-        // Skip offices that were already active at the start of the period
-        java.util.Set<Integer> activeAtStart = connectivityRepository.findActiveAtDate(start).stream()
-                .filter(c -> c.getPostalOffice() != null)
-                .map(c -> c.getPostalOffice().getId())
-                .collect(java.util.stream.Collectors.toSet());
-        java.util.List<com.pps.profilesystem.Entity.Connectivity> candidates = connectivityRepository.findByDateConnectedBetween(start, end);
-        java.util.Set<Integer> newly = new java.util.HashSet<>();
-        for (com.pps.profilesystem.Entity.Connectivity c : candidates) {
-            if (c.getPostalOffice() == null) continue;
-            Integer oid = c.getPostalOffice().getId();
-            if (archivedOfficeRepository.existsByPostalOfficeId(oid)) continue;
-            if (NEWLY_CONNECTED_IGNORE.contains(oid)) continue;
-            if (areaId != null && (c.getPostalOffice().getArea() == null || !areaId.equals(c.getPostalOffice().getArea().getId()))) continue;
-            // Exclude if office was already active at period start
-            if (activeAtStart.contains(oid)) continue;
-            // check for any earlier connectivity for this office
-            boolean hasEarlier = connectivityRepository.findByPostalOfficeId(oid).stream()
-                .map(cc -> cc.getDateConnected() != null ? cc.getDateConnected() : cc.getCreatedStamp())
-                .filter(java.util.Objects::nonNull)
-                .anyMatch(dt -> dt.isBefore(start));
-            if (!hasEarlier) newly.add(oid);
-        }
-        return newly.size();
-    }
-
-    private long countNewlyDisconnected(LocalDateTime start, LocalDateTime end, Integer areaId) {
-        // If areaId is -1, return 0 (no access)
-        if (areaId != null && areaId == -1) {
-            return 0;
-        }
-        return connectivityRepository.findByDateDisconnectedBetween(start, end).stream()
-            .filter(c -> c.getPostalOffice() != null
-                && !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
-            .filter(c -> areaId == null
-                || (c.getPostalOffice().getArea() != null
-                    && areaId.equals(c.getPostalOffice().getArea().getId())))
-            .map(c -> c.getPostalOffice().getId())
-            .distinct()
-            .count();
-    }
-
-    private long countTotalNonArchived(Integer areaId) {
-        // If areaId is -1, return 0 (no access)
-        if (areaId != null && areaId == -1) return 0;
-        // Fast native query exists in PostalOfficeRepository
-        return postalOfficeRepository.countNonArchivedByArea(areaId);
-    }
 
     private String getCurrentQuarterLabel(int month) {
         if (month <= 3) return "Q1";

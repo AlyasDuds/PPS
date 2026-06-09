@@ -102,6 +102,28 @@ public class QuartersApiController {
 
             // Resolve year/quarter — default to current if not provided
             int resolvedYear = (yearInt != null) ? yearInt : LocalDateTime.now().getYear();
+            
+            // If year >= 2026, carry forward Q4 2025 offices
+            if (resolvedYear >= 2026) {
+                List<Map<String, Object>> q4_2025_offices = getQuartersPostOffices("2025", "4", area, null);
+                List<Map<String, Object>> result = new ArrayList<>();
+                for (Map<String, Object> office : q4_2025_offices) {
+                    Map<String, Object> copy = new HashMap<>(office);
+                    copy.put("newThisQuarter", false);
+                    
+                    boolean isActive = Boolean.TRUE.equals(copy.get("status"));
+                    if ("active".equals(status)) {
+                        if (isActive) result.add(copy);
+                    } else if ("inactive".equals(status)) {
+                        if (!isActive) result.add(copy);
+                    } else if ("newly_connected".equals(status) || "newly_disconnected".equals(status)) {
+                        // In 2026, newly connected and newly disconnected must be empty/0
+                    } else {
+                        result.add(copy);
+                    }
+                }
+                return result;
+            }
             int resolvedQuarter = (quarterInt != null) ? quarterInt
                     : (LocalDateTime.now().getMonthValue() - 1) / 3 + 1;
 
@@ -210,7 +232,7 @@ public class QuartersApiController {
             }
 
             // Area 1 overrides
-            if (areaInt != null && areaInt == 1) {
+            if (areaInt != null && areaInt == 1 && resolvedYear == 2025) {
                 List<PostalOffice> allArea1 = postalOfficeRepository.findAllNonArchivedByArea(1);
                 List<PostalOffice> activeArea1 = allArea1.stream().filter(po -> Boolean.TRUE.equals(po.getConnectionStatus())).sorted(Comparator.comparing(PostalOffice::getId)).collect(Collectors.toList());
 

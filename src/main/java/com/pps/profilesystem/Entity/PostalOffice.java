@@ -3,8 +3,6 @@ package com.pps.profilesystem.Entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import java.util.List;
 
 /**
