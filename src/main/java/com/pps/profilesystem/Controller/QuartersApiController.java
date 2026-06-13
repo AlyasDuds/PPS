@@ -134,8 +134,23 @@ public class QuartersApiController {
             // Area 2 overrides for year 2025
             if (areaInt != null && areaInt == 2 && resolvedYear == 2025) {
                 List<PostalOffice> allArea2 = postalOfficeRepository.findAllNonArchivedByArea(2);
-                List<PostalOffice> activeArea2 = allArea2.stream().filter(po -> Boolean.TRUE.equals(po.getConnectionStatus())).sorted(Comparator.comparing(PostalOffice::getId)).collect(Collectors.toList());
-                List<PostalOffice> inactiveArea2 = allArea2.stream().filter(po -> !Boolean.TRUE.equals(po.getConnectionStatus())).sorted(Comparator.comparing(PostalOffice::getId)).collect(Collectors.toList());
+                
+                // Use historical connectivity data for consistency with ReportController
+                Set<Integer> activeIdsAtQuarter = connectivityRepository.findActiveAtDate(qEnd)
+                        .stream()
+                        .filter(c -> c.getPostalOffice() != null)
+                        .filter(c -> c.getPostalOffice().getArea() != null && c.getPostalOffice().getArea().getId() == 2)
+                        .map(c -> c.getPostalOffice().getId())
+                        .collect(Collectors.toSet());
+                
+                List<PostalOffice> activeArea2 = allArea2.stream()
+                        .filter(po -> activeIdsAtQuarter.contains(po.getId()))
+                        .sorted(Comparator.comparing(PostalOffice::getId))
+                        .collect(Collectors.toList());
+                List<PostalOffice> inactiveArea2 = allArea2.stream()
+                        .filter(po -> !activeIdsAtQuarter.contains(po.getId()))
+                        .sorted(Comparator.comparing(PostalOffice::getId))
+                        .collect(Collectors.toList());
 
                 List<PostalOffice> baseConnectedOffices = new ArrayList<>(activeArea2);
                 List<PostalOffice> newlyConnectedOffices = new ArrayList<>();
@@ -234,7 +249,19 @@ public class QuartersApiController {
             // Area 1 overrides
             if (areaInt != null && areaInt == 1 && resolvedYear == 2025) {
                 List<PostalOffice> allArea1 = postalOfficeRepository.findAllNonArchivedByArea(1);
-                List<PostalOffice> activeArea1 = allArea1.stream().filter(po -> Boolean.TRUE.equals(po.getConnectionStatus())).sorted(Comparator.comparing(PostalOffice::getId)).collect(Collectors.toList());
+                
+                // Use historical connectivity data for consistency with ReportController
+                Set<Integer> activeIdsAtQuarter = connectivityRepository.findActiveAtDate(qEnd)
+                        .stream()
+                        .filter(c -> c.getPostalOffice() != null)
+                        .filter(c -> c.getPostalOffice().getArea() != null && c.getPostalOffice().getArea().getId() == 1)
+                        .map(c -> c.getPostalOffice().getId())
+                        .collect(Collectors.toSet());
+                
+                List<PostalOffice> activeArea1 = allArea1.stream()
+                        .filter(po -> activeIdsAtQuarter.contains(po.getId()))
+                        .sorted(Comparator.comparing(PostalOffice::getId))
+                        .collect(Collectors.toList());
 
                 List<PostalOffice> baseConnectedOffices = new ArrayList<>(activeArea1);
                 List<PostalOffice> newlyConnectedOffices = new ArrayList<>();
@@ -338,7 +365,8 @@ public class QuartersApiController {
                 offices = toUniqueDTOsWithFlag(records, false, false);
             } else {
                 // Show ALL non-archived offices (active + inactive)
-                // Use connectionStatus from PostalOffice as source of truth
+                // Use historical connectivity data from Connectivity table to match ReportController
+                // This ensures synchronization between Connectivity Report and Internet Connectivity
 
                 Set<Integer> newlyConnectedIds = connectivityRepository.findByDateConnectedBetween(qStart, qEnd)
                         .stream()
@@ -346,10 +374,19 @@ public class QuartersApiController {
                         .map(c -> c.getPostalOffice().getId())
                         .collect(Collectors.toSet());
 
+                // Get active offices at the end of the quarter using historical connectivity data
+                Set<Integer> activeIds = connectivityRepository.findActiveAtDate(qEnd)
+                        .stream()
+                        .filter(c -> c.getPostalOffice() != null)
+                        .map(c -> c.getPostalOffice().getId())
+                        .collect(Collectors.toSet());
+
                 offices = postalOfficeRepository.findAllNonArchivedWithConnectivity()
                         .stream()
                         .map(po -> {
                             Map<String, Object> dto = convertToDTO(po);
+                            // Use historical connectivity status instead of current connectionStatus
+                            dto.put("status", activeIds.contains(po.getId()));
                             dto.put("newThisQuarter", newlyConnectedIds.contains(po.getId()));
                             return dto;
                         })
@@ -437,7 +474,7 @@ public class QuartersApiController {
         dto.put("zipCode",  po.getZipCode());
         dto.put("postmaster", po.getPostmaster());
         dto.put("speed",    po.getSpeed());
-        dto.put("status",   po.getConnectionStatus());
+        dto.put("status",   po.getConnectionStatus() != null ? po.getConnectionStatus() : 0);
         dto.put("officeStatus", po.getOfficeStatus());
         dto.put("areaId",   po.getArea() != null ? po.getArea().getId() : null);
         dto.put("area",     po.getArea() != null ? po.getArea().getAreaName() : null);

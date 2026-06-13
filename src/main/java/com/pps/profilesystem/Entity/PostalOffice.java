@@ -68,16 +68,16 @@ public class PostalOffice {
 
     // --- Connection Status ---
     @Column(name = "connection_status")
-    private Boolean connectionStatus = false;
+    private Integer connectionStatus = 0;  // 0 = Disconnected, 1 = Connected (used by database trigger)
 
 
     // --- Office Open/Closed Status ---
     @Column(name = "office_status", nullable = true)
     private String officeStatus;  // "OPEN" or "CLOSED"
 
-    // CURRENT/ACTIVE CONNECTIVITY RECORD
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "connectivity_id", nullable = true)
+    // CURRENT/ACTIVE CONNECTIVITY RECORD (READ-ONLY - managed by database trigger)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "connectivity_id", nullable = true, insertable = false, updatable = false)
     private Connectivity activeConnectivity;
 
     // ALL CONNECTIVITY RECORDS (Historical + Current)

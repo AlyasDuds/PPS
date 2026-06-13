@@ -10,7 +10,7 @@ function syncConnectionStatus(select) {
         return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
     };
 
-    if (connCheck) connCheck.checked = isActive;
+    if (connCheck) connCheck.value = isActive ? 'true' : 'false';
     if (dateConn && dateDisconn) {
         if (isActive) {
             if (!dateConn.value) dateConn.value = nowLocal();
@@ -358,7 +358,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (connSelect) {
             connSelect.addEventListener('change', function () {
                 const isActive = this.value === 'active';
-                if (connCheck) connCheck.checked = isActive;
+                if (connCheck) connCheck.value = isActive ? 'true' : 'false';
 
                 if (dateConn && dateDisconn) {
                     if (isActive) {
@@ -567,7 +567,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 officeStatus:                   getStr('officeStatus'),
 
                 // Connectivity
-                connectionStatus:               getBool('connectionStatus'),
+                connectionStatus:               document.getElementById('connectionStatusSelect')?.value === 'active',
                 internetServiceProvider:        getIsp(),
                 classification:                 getStr('classification'),
                 ownedOrShared:                  getStr('ownedOrShared'),
@@ -692,9 +692,9 @@ document.addEventListener('DOMContentLoaded', function () {
             if (ispEl) ispEl.textContent = getIspSummaryText();
 
             const statusEl  = document.getElementById('summaryStatus');
-            const connCheck = document.getElementById('connectionStatus');
+            const connSelect = document.getElementById('connectionStatusSelect');
             if (statusEl) {
-                statusEl.innerHTML = connCheck?.checked
+                statusEl.innerHTML = connSelect?.value === 'active'
                     ? '<span class="badge badge-success">Active</span>'
                     : '<span class="badge badge-secondary">Inactive</span>';
             }

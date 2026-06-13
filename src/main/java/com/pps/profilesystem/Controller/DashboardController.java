@@ -77,9 +77,10 @@ public class DashboardController {
 
         int currentYear = LocalDate.now().getYear();
         Map<String, Long> qStats = reportController.computeConnectivityStats(currentYear, null, statsAreaId);
-        long totalCount    = qStats.getOrDefault("totalOffices", 0L);
         long activeCount   = qStats.getOrDefault("totalConnected", 0L);
         long inactiveCount = qStats.getOrDefault("totalDisconnected", 0L);
+        // Use actual total count from postal_offices table instead of connectivity-derived count
+        long totalCount = postalOfficeRepository.countNonArchived();
         // Open / Closed still use direct DB counts (no quarterly override for these)
         long openCount  = postalOfficeRepository.countOpenOffices();
         long closedCount = postalOfficeRepository.countClosedOffices();
