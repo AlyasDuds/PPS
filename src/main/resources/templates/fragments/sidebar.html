@@ -125,6 +125,13 @@
                              margin-left:auto;min-width:18px;text-align:center;
                              font-weight:700;line-height:1.2;"></span>
             </a>
+
+            <a th:href="@{/postal-offices/import}" class="sidebar-link" 
+                th:classappend="${activePage == 'import'} ? 'active' : ''" data-page="import"
+                sec:authorize="hasRole('ADMIN')">
+                <i class="fas fa-file-excel"></i>
+                <span>Import Excel</span>
+            </a>
         </div>
     </div>
 

@@ -121,8 +121,10 @@ public class PostalOfficeInsertController {
     public ResponseEntity<Map<String, Object>> insertPostalOffice(
             @RequestBody Map<String, Object> requestData, Authentication auth) {
         try {
+            log.info("Insert postal office request received: {}", requestData);
             String name = strVal(requestData.get("name"));
             if (name == null) {
+                log.warn("Post office name is missing from request");
                 return insertError("Post office name is required.");
             }
 
@@ -131,8 +133,10 @@ public class PostalOfficeInsertController {
             if (office.getName() == null || office.getName().isBlank()) {
                 office.setName(name);
             }
+            log.info("Built office from request: name={}, connectionStatus={}", office.getName(), office.getConnectionStatus());
 
             PostalOffice saved = persistOffice(office);
+            log.info("Office saved successfully: id={}", saved.getId());
             saveConnectivityAfterOffice(saved, requestData);
 
             // Notification after commit — avoids holding insert connection during SSE broadcast
@@ -141,7 +145,7 @@ public class PostalOfficeInsertController {
                 Integer actorRoleId = ConnectivityNotificationService.roleIdFromAuthorities(
                         auth != null ? auth.getAuthorities() : null
                 );
-                boolean hasConn = Boolean.TRUE.equals(saved.getConnectionStatus());
+                boolean hasConn = Integer.valueOf(1).equals(saved.getConnectionStatus());
                 String notifyName = saved.getName();
                 if (notifyName != null && notifyName.length() > 512) {
                     notifyName = notifyName.substring(0, 512);
@@ -179,6 +183,9 @@ public class PostalOfficeInsertController {
     }
 
     /** Save office only — short transaction, releases locks quickly. */
+    @Autowired
+    private com.pps.profilesystem.Service.UserCacheService userCacheService;
+    
     private PostalOffice persistOffice(PostalOffice office) {
         try {
             return doPersistOffice(office);
@@ -193,6 +200,9 @@ public class PostalOfficeInsertController {
                 return doPersistOffice(office);
             }
             throw e;
+        } finally {
+            // Evict user cache to ensure counts are recalculated
+            userCacheService.evictAll();
         }
     }
 
@@ -226,7 +236,8 @@ public class PostalOfficeInsertController {
                 saveConnectivityRecord(managed, requestData);
             });
         } catch (Exception connEx) {
-            log.warn("Insert office {}: connectivity row not saved: {}", saved.getId(), connEx.getMessage());
+            log.error("Insert office {}: connectivity row not saved", saved.getId(), connEx);
+            throw new IllegalStateException("Office saved but connectivity record failed: " + rootMessage(connEx), connEx);
         }
     }
 
@@ -263,10 +274,8 @@ public class PostalOfficeInsertController {
         String ownedShared  = strVal(req.get("ownedOrShared"));
         boolean hasPlanPrice = planPriceRaw != null && !planPriceRaw.toString().trim().isEmpty();
 
-        boolean hasConnData = Boolean.TRUE.equals(savedOffice.getConnectionStatus())
-                || planName != null || accountNum != null || hasPlanPrice || planContract != null;
-        if (!hasConnData) return;
-
+        // Always create a connectivity record for new offices to ensure they are counted
+        // in quarter and report pages, regardless of connectionStatus or plan data
         Provider provider = getOrCreateDefaultProvider();
 
         Connectivity conn = new Connectivity();
@@ -282,17 +291,26 @@ public class PostalOfficeInsertController {
         }
         if (ownedShared != null) conn.setIsShared("Shared".equalsIgnoreCase(ownedShared));
 
+        boolean isActive = Integer.valueOf(1).equals(savedOffice.getConnectionStatus());
         LocalDateTime connected = parseDateTime(req.get("dateConnected"));
         LocalDateTime disconnected = parseDateTime(req.get("dateDisconnected"));
-        if (connected != null) conn.setDateConnected(connected);
-        if (disconnected != null) conn.setDateDisconnected(disconnected);
+
+        if (isActive) {
+            conn.setDateConnected(connected != null ? connected : LocalDateTime.now());
+            conn.setDateDisconnected(null);
+        } else {
+            conn.setDateConnected(null);
+            conn.setDateDisconnected(disconnected != null ? disconnected : LocalDateTime.now());
+        }
 
         Connectivity savedConn = connectivityRepository.save(conn);
 
-        if (Boolean.TRUE.equals(savedOffice.getConnectionStatus())) {
+        if (isActive) {
             savedOffice.setActiveConnectivity(savedConn);
-            postalOfficeRepository.save(savedOffice);
+        } else {
+            savedOffice.setActiveConnectivity(null);
         }
+        postalOfficeRepository.save(savedOffice);
     }
 
     private Provider resolveDefaultProvider() {
@@ -350,7 +368,7 @@ public class PostalOfficeInsertController {
         if (typ   != null && !typ.isBlank())   sb.append(" · ").append(typ);
         String pln = strVal(req.get("planName"));
         if (pln   != null)                     sb.append(" · Plan: ").append(pln);
-        if (!Boolean.TRUE.equals(saved.getConnectionStatus())) sb.append(" · Status: Inactive");
+        if (!Integer.valueOf(1).equals(saved.getConnectionStatus())) sb.append(" · Status: Inactive");
         return sb.toString();
     }
 
@@ -487,9 +505,9 @@ public class PostalOfficeInsertController {
 
         // Connection Status
         Object statusVal = requestData.get("connectionStatus");
-        if (statusVal instanceof Boolean) office.setConnectionStatus((Boolean) statusVal);
-        else if (statusVal instanceof String) office.setConnectionStatus(Boolean.parseBoolean((String) statusVal));
-        else office.setConnectionStatus(false);
+        if (statusVal instanceof Boolean) office.setConnectionStatus((Boolean) statusVal ? 1 : 0);
+        else if (statusVal instanceof String) office.setConnectionStatus(Boolean.parseBoolean((String) statusVal) ? 1 : 0);
+        else office.setConnectionStatus(0);
 
         return office;
     }

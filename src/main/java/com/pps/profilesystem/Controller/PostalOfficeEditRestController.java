@@ -142,9 +142,9 @@ public class PostalOfficeEditRestController {
 
             if (isSystemAdmin) {
                 // System admin can directly update
-                Boolean oldStatus = o.getConnectionStatus();
+                Integer oldStatus = o.getConnectionStatus();
                 applyChanges(o, body);
-                Boolean newStatus = o.getConnectionStatus();
+                Integer newStatus = o.getConnectionStatus();
                 handleConnectivityStatusChange(o, oldStatus, newStatus);
                 
                 // System admin can edit dates of the latest connectivity record
@@ -342,7 +342,7 @@ public class PostalOfficeEditRestController {
         set(body, "barangayId", v -> { Integer x = num(v); if (x != null) barangayRepository.findById(x).ifPresent(o::setBarangay);                else o.setBarangay(null); });
 
         // Connectivity
-        set(body, "connectionStatus",         v -> o.setConnectionStatus(bool(v)));
+        set(body, "connectionStatus",         v -> o.setConnectionStatus(bool(v) ? 1 : 0));
         set(body, "officeStatus",             v -> o.setOfficeStatus(str(v)));
         set(body, "internetServiceProvider",  v -> o.setInternetServiceProvider(str(v)));
         set(body, "typeOfConnection",         v -> o.setTypeOfConnection(str(v)));
@@ -398,11 +398,11 @@ public class PostalOfficeEditRestController {
         if (!bv.equals(av)) out.add(lbl + ": " + bv + " -> " + av);
     }
     private String blank(String s) { return (s == null || s.isBlank()) ? "?" : s.trim(); }
-    private String label(Boolean b){ return Boolean.TRUE.equals(b) ? "Active" : "Inactive"; }
+    private String label(Integer b){ return Integer.valueOf(1).equals(b) ? "Active" : "Inactive"; }
 
     private ConnectivityNotification.Type resolveType(Snapshot b, PostalOffice a) {
         if (!Objects.equals(b.connectionStatus, a.getConnectionStatus()))
-            return Boolean.TRUE.equals(a.getConnectionStatus())
+            return Integer.valueOf(1).equals(a.getConnectionStatus())
                    ? ConnectivityNotification.Type.CONNECTED
                    : ConnectivityNotification.Type.DISCONNECTED;
         return ConnectivityNotification.Type.UPDATED;
@@ -412,7 +412,7 @@ public class PostalOfficeEditRestController {
 
     private static class Snapshot {
         String  name, postmaster, classification, serviceProvided, address, zipCode, officeStatus;
-        Boolean connectionStatus;
+        Integer connectionStatus;
         String  isp, connType, speed, staticIp;
         Integer employees, tellers, carriers;
         String  contactPerson, contactNumber, ispContactPerson, ispContactNumber, remarks;
@@ -465,8 +465,8 @@ public class PostalOfficeEditRestController {
         return ResponseEntity.status(status).body(Map.of("success", false, "message", msg));
     }
 
-    private void handleConnectivityStatusChange(PostalOffice office, Boolean oldStatus, Boolean newStatus) {
-        if (!Boolean.TRUE.equals(oldStatus) && Boolean.TRUE.equals(newStatus)) {
+    private void handleConnectivityStatusChange(PostalOffice office, Integer oldStatus, Integer newStatus) {
+        if (!Integer.valueOf(1).equals(oldStatus) && Integer.valueOf(1).equals(newStatus)) {
             // Switching to ACTIVE — reuse existing open record if available, else create new
             // Check if the office already has an open connectivity record with no dateDisconnected
             Optional<Connectivity> existingOpen = connectivityRepository
@@ -495,7 +495,7 @@ public class PostalOfficeEditRestController {
                 }
             }
         }
-        else if (Boolean.TRUE.equals(oldStatus) && !Boolean.TRUE.equals(newStatus)) {
+        else if (Integer.valueOf(1).equals(oldStatus) && !Integer.valueOf(1).equals(newStatus)) {
             // Switching to INACTIVE — close the active connectivity record
             if (office.getActiveConnectivity() != null) {
                 Connectivity conn = office.getActiveConnectivity();

@@ -1,6 +1,7 @@
 package com.pps.profilesystem.Controller;
 
 import com.pps.profilesystem.Entity.Area;
+import com.pps.profilesystem.Entity.Connectivity;
 import com.pps.profilesystem.Entity.User;
 import com.pps.profilesystem.Repository.ArchivedOfficeRepository;
 import com.pps.profilesystem.Repository.AreaRepository;
@@ -130,6 +131,25 @@ public class QuartersController {
     private Map<String, Long> getConnectivityStats(
             int year, String quarterFilter, Integer areaId, String statusFilter) {
 
+        // Check if there's any connectivity data for the requested year
+        boolean hasConnectivityDataForYear = connectivityRepository.findByDateConnectedBetween(
+            LocalDateTime.of(year, 1, 1, 0, 0, 0),
+            LocalDateTime.of(year, 12, 31, 23, 59, 59)
+        ).stream()
+        .filter(c -> c.getPostalOffice() != null)
+        .filter(c -> !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
+        .filter(c -> areaId == null || (c.getPostalOffice().getArea() != null && areaId.equals(c.getPostalOffice().getArea().getId())))
+        .count() > 0;
+
+        // If no connectivity data for the year, return all zeros
+        if (!hasConnectivityDataForYear) {
+            Map<String, Long> stats = new HashMap<>();
+            stats.put("totalConnected", 0L);
+            stats.put("totalDisconnected", 0L);
+            stats.put("totalOffices", 0L);
+            return stats;
+        }
+
         // 1. If areaId is null (All Areas), build by summing all individual areas (1 to 9)
         if (areaId == null) {
             List<Area> allAreas = areaRepository.findAll();
@@ -217,58 +237,7 @@ public class QuartersController {
                 stats.put("totalConnected", active);
                 stats.put("totalDisconnected", inactive);
                 stats.put("totalOffices", total);
-                // Area 1 overrides: 2025 per-quarter values; 2026+ carries forward Q4-2025 state
-                if (areaId != null && areaId == 1 && year >= 2025) {
-                    if (year == 2025 && "Q4".equalsIgnoreCase(quarterFilter)) {
-                        stats.put("totalConnected", 70L);
-                        stats.put("totalDisconnected", 0L);
-                        stats.put("totalOffices", 72L);
-                    } else if (year == 2025) {
-                        // Q1-Q3 2025
-                        stats.put("totalConnected", 70L);
-                        stats.put("totalDisconnected", 0L);
-                        stats.put("totalOffices", 70L);
-                    } else {
-                        // 2026+: carry forward end-of-2025 state (Q4 2025 final)
-                        stats.put("totalConnected", 72L);
-                        stats.put("totalDisconnected", 0L);
-                        stats.put("totalOffices", 72L);
-                    }
-                }
-                // Area 2 overrides: 2025 per-quarter values; 2026+ carries forward Q4-2025 state
-                if (areaId != null && areaId == 2 && year >= 2025) {
-                    if (year == 2025 && "Q1".equalsIgnoreCase(quarterFilter)) {
-                        stats.put("totalConnected", 152L);  // base only (newly shown separately)
-                        stats.put("totalDisconnected", 31L);
-                        stats.put("totalOffices", 183L);
-                    } else if (year == 2025) {
-                        // Q2-Q4 2025
-                        stats.put("totalConnected", 154L);
-                        stats.put("totalDisconnected", 31L);
-                        stats.put("totalOffices", 185L);
-                    } else {
-                        // 2026+: carry forward end-of-2025 state
-                        stats.put("totalConnected", 154L);
-                        stats.put("totalDisconnected", 31L);
-                        stats.put("totalOffices", 185L);
-                    }
-                }
-            // Generic carry‑forward for other areas (3‑9) when year >= 2025
-            if (year >= 2025 && (areaId == null || (areaId != 1 && areaId != 2))) {
-                // Use the 2025 Q4 snapshot as the baseline
-                LocalDateTime snap2025 = resolveSnapshotDate(2025, "Q4");
-                long active2025 = countActiveAt(snap2025, areaId);
-                long total2025 = countTotal(areaId);
-                long inactive2025 = total2025 - active2025;
-                if (inactive2025 < 0) inactive2025 = 0;
-                // Override stats for default view (no status filter)
-                if (statusFilter == null) {
-                    stats.put("totalConnected", active2025);
-                    stats.put("totalDisconnected", inactive2025);
-                    stats.put("totalOffices", total2025);
-                }
             }
-        }
         } catch (Exception e) {
             stats.put("totalConnected", 0L);
             stats.put("totalDisconnected", 0L);
@@ -289,6 +258,29 @@ public class QuartersController {
 
     private Map<String, Object> getLatestQuarterData(
             int year, String quarterFilter, Integer areaId, String statusFilter) {
+
+        // Check if there's any connectivity data for the requested year
+        boolean hasConnectivityDataForYear = connectivityRepository.findByDateConnectedBetween(
+            LocalDateTime.of(year, 1, 1, 0, 0, 0),
+            LocalDateTime.of(year, 12, 31, 23, 59, 59)
+        ).stream()
+        .filter(c -> c.getPostalOffice() != null)
+        .filter(c -> !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
+        .filter(c -> areaId == null || (c.getPostalOffice().getArea() != null && areaId.equals(c.getPostalOffice().getArea().getId())))
+        .count() > 0;
+
+        // If no connectivity data for the year, return all zeros
+        if (!hasConnectivityDataForYear) {
+            Map<String, Object> empty = new HashMap<>();
+            empty.put("quarter", quarterFilter != null ? quarterFilter : getCurrentQuarterInfo().get("quarter").toString());
+            empty.put("year", year);
+            empty.put("connected", 0L);
+            empty.put("disconnected", 0L);
+            empty.put("newlyConnected", 0L);
+            empty.put("newlyDisconnected", 0L);
+            empty.put("totalOffices", 0L);
+            return empty;
+        }
 
         // 1. If areaId is null (All Areas), build by summing all individual areas (1 to 9)
         if (areaId == null) {
@@ -382,73 +374,6 @@ public class QuartersController {
             long newlyDisconnected = countNewlyDisconnected(qRange[0], endForNew, areaId);
             long connectedWithoutNew = totalConnected - newlyConnected;
             if (connectedWithoutNew < 0) connectedWithoutNew = 0;
-
-            // Area 1 overrides: 2025 per-quarter values; 2026+ carries forward Q4-2025 state
-            if (areaId != null && areaId == 1 && year >= 2025) {
-                if (year == 2025 && "Q4".equalsIgnoreCase(targetQuarter)) {
-                    totalConnected = 72L; // 70 base + 2 newly
-                    newlyConnected = 2L;
-                    totalOffices = 72L;
-                    totalDisconnected = 0L;
-                } else if (year == 2025) {
-                    // Q1-Q3 2025
-                    totalConnected = 70L;
-                    newlyConnected = 0L;
-                    totalOffices = 70L;
-                    totalDisconnected = 0L;
-                } else {
-                    // 2026+: carry forward end-of-2025 state (the 2 newly are now regular connected)
-                    totalConnected = 72L;
-                    newlyConnected = 0L;
-                    totalOffices = 72L;
-                    totalDisconnected = 0L;
-                }
-                connectedWithoutNew = totalConnected - newlyConnected;
-                if (connectedWithoutNew < 0) connectedWithoutNew = 0;
-            }
-            // Area 2 overrides: 2025 per-quarter values; 2026+ carries forward Q4-2025 state
-                if (areaId != null && areaId == 2 && year >= 2025) {
-                    if (year == 2025 && "Q1".equalsIgnoreCase(quarterFilter)) {
-                        totalConnected = 154L;   // 152 base + 2 newly
-                        newlyConnected = 2L;
-                        totalOffices = 183L;
-                        totalDisconnected = 31L;
-                    } else if (year == 2025) {
-                        // Q2-Q4 2025
-                        totalConnected = 154L;
-                        newlyConnected = 0L;
-                        totalOffices = 185L;
-                        totalDisconnected = 31L;
-                    } else {
-                        // 2026+: carry forward end-of-2025 state
-                        totalConnected = 154L;
-                        newlyConnected = 0L;
-                        totalOffices = 185L;
-                        totalDisconnected = 31L;
-                    }
-                    connectedWithoutNew = totalConnected - newlyConnected;
-                    if (connectedWithoutNew < 0) connectedWithoutNew = 0;
-                }
-                // Generic carry‑forward for other areas (3‑9) when year >= 2025
-                // Generic carry‑forward for other areas (3‑9) when year >= 2025
-                if (year >= 2025 && (areaId == null || (areaId != 1 && areaId != 2))) {
-                    // Use the 2025 Q4 snapshot as the baseline
-                    LocalDateTime snap2025 = resolveSnapshotDate(2025, "Q4");
-                    long active2025 = countActiveAt(snap2025, areaId);
-                    long total2025 = countTotal(areaId);
-                    long inactive2025 = total2025 - active2025;
-                    if (inactive2025 < 0) inactive2025 = 0;
-                    // Override stats for default view (no status filter)
-                    if (statusFilter == null) {
-                        totalConnected = active2025;
-                        newlyConnected = 0L;
-                        totalOffices = total2025;
-                        totalDisconnected = inactive2025;
-                        connectedWithoutNew = totalConnected;
-                    }
-                    // Ensure newly disconnected is zero for these areas
-                    newlyDisconnected = 0L;
-                }
 
             Map<String, Object> latestData = new HashMap<>();
             latestData.put("quarter", targetQuarter);
@@ -545,7 +470,7 @@ public class QuartersController {
         return quarterFilter.equalsIgnoreCase(currentQuarter);
     }
 
-    // ── Helper: count active offices = offices with connectionStatus=true ────────
+    // ── Helper: count active offices using historical connectivity data ────────
 
     private long countActiveAt(LocalDateTime snap, Integer areaId) {
         // If areaId is -1, return 0 (no access)
@@ -553,15 +478,18 @@ public class QuartersController {
             return 0;
         }
         
-        // Use current connection status from PostalOffice as the source of truth,
-        // which matches how the QuartersApiController filters the data table.
-        if (areaId == null) {
-            return postalOfficeRepository.countNonArchivedByConnectionStatus(true);
-        }
+        // Use historical connectivity data from Connectivity table to match ReportController
+        // This ensures synchronization between Connectivity Report and Internet Connectivity
+        List<Connectivity> activeAtDate = connectivityRepository.findActiveAtDate(snap);
         
-        return postalOfficeRepository.findByIsArchivedFalse().stream()
-                .filter(po -> Boolean.TRUE.equals(po.getConnectionStatus()))
-                .filter(po -> po.getArea() != null && areaId.equals(po.getArea().getId()))
+        return activeAtDate.stream()
+                .filter(c -> c.getPostalOffice() != null)
+                .filter(c -> !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
+                .filter(c -> !NEWLY_CONNECTED_IGNORE.contains(c.getPostalOffice().getId()))
+                .filter(c -> areaId == null || (c.getPostalOffice().getArea() != null 
+                        && areaId.equals(c.getPostalOffice().getArea().getId())))
+                .map(c -> c.getPostalOffice().getId())
+                .distinct()
                 .count();
     }
 
@@ -577,9 +505,7 @@ public class QuartersController {
         if (areaId == null) {
             return postalOfficeRepository.countNonArchived();
         }
-        return postalOfficeRepository.findByIsArchivedFalse().stream()
-                .filter(po -> po.getArea() != null && areaId.equals(po.getArea().getId()))
-                .count();
+        return postalOfficeRepository.countNonArchivedByArea(areaId);
     }
 
     // ── Helper: count newly connected in date range, optionally by area ───────

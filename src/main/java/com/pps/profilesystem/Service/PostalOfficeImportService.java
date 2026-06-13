@@ -27,7 +27,6 @@ public class PostalOfficeImportService {
     @Autowired private CityMunicipalityRepository  cityMunicipalityRepository;
     @Autowired private BarangayRepository          barangayRepository;
     @Autowired private ConnectivityRepository      connectivityRepository;
-    @Autowired private ProviderRepository          providerRepository;
     @Autowired private ZipCodeRepository           zipCodeRepository;
 
     // ── Region alias map ──────────────────────────────────────────────────────
@@ -219,8 +218,6 @@ public class PostalOfficeImportService {
         Map<String, Barangay>         barangayMap = buildBarangayMap();
         Map<String, String>           zipMap      = buildZipToBarangayMap();
 
-        Provider defaultProvider = getOrCreateDefaultProvider();
-
         int inserted = 0, updated = 0;
         List<String> warnings = new ArrayList<>();
         List<String> errors   = new ArrayList<>();
@@ -289,10 +286,8 @@ public class PostalOfficeImportService {
                         office.setConnectionStatus(parseConnectionStatus(dto.getConnectivityStatus()));
                     }
 
-                    if (isNew) office.setActiveConnectivity(null);
+                    // Save the postal office - database trigger will automatically create connectivity record
                     PostalOffice savedOffice = postalOfficeRepository.save(office);
-
-                    handleConnectivity(savedOffice, dto, defaultProvider, rowNum, warnings);
 
                     if (isNew) inserted++; else updated++;
                 }
@@ -364,60 +359,6 @@ public class PostalOfficeImportService {
         }
 
         return null; // truly new office
-    }
-
-    // ── Connectivity handler ──────────────────────────────────────────────────
-
-    /**
-     * - Every connected office gets a connectivity record, date or no date.
-     * - Deduplication logic:
-     *     • If dateConnected is non-null  → deduplicate by matching dateConnected value.
-     *     • If dateConnected IS null      → deduplicate by any existing record that also
-     *                                       has null dateConnected (prevents duplicate
-     *                                       null-date rows on reimport).
-     * - dateConnected / dateDisconnected are stored as null when the Excel cell is empty.
-     */
-    private void handleConnectivity(
-            PostalOffice savedOffice,
-            PostalOfficeImportDTO dto,
-            Provider defaultProvider,
-            int rowNum,
-            List<String> warnings) {
-
-        boolean isConnected    = Boolean.TRUE.equals(savedOffice.getConnectionStatus());
-        LocalDateTime dateConn = dto.getDateConnected();
-        LocalDateTime dateDisc = dto.getDateDisconnected();
-
-        // Skip entirely if not connected and no dates provided
-        if (!isConnected && dateConn == null && dateDisc == null) return;
-
-        List<Connectivity> existing = connectivityRepository.findByPostalOfficeId(savedOffice.getId());
-
-        // Deduplicate:
-        //   - dateConn non-null → match by exact dateConn value
-        //   - dateConn null     → match any existing record that also has null dateConn
-        boolean alreadyExists = existing.stream().anyMatch(c ->
-                dateConn != null
-                    ? dateConn.equals(c.getDateConnected())
-                    : c.getDateConnected() == null
-        );
-        if (alreadyExists) return;
-
-        Connectivity conn = new Connectivity();
-        conn.setPostalOffice(savedOffice);
-        conn.setProvider(defaultProvider);
-        conn.setDateConnected(dateConn);     // stored as null when cell is empty
-        conn.setDateDisconnected(dateDisc);  // stored as null when cell is empty
-
-        Connectivity saved = connectivityRepository.save(conn);
-
-        if (isConnected && dateDisc == null) {
-            savedOffice.setActiveConnectivity(saved);
-            postalOfficeRepository.save(savedOffice);
-        } else if (!isConnected && savedOffice.getActiveConnectivity() != null) {
-            savedOffice.setActiveConnectivity(null);
-            postalOfficeRepository.save(savedOffice);
-        }
     }
 
     // ── Location resolver ─────────────────────────────────────────────────────
@@ -676,14 +617,6 @@ public class PostalOfficeImportService {
         return areaMap.get(normalize(converted));
     }
 
-    // ── Default provider ──────────────────────────────────────────────────────
-
-    private Provider getOrCreateDefaultProvider() {
-        return providerRepository.findAll().stream().findFirst().orElseGet(() -> {
-            Provider p = new Provider(); p.setName("Default Provider"); return providerRepository.save(p);
-        });
-    }
-
     // ── Value applicators ─────────────────────────────────────────────────────
 
     private void applyIfNotBlank(String value, java.util.function.Consumer<String> setter) {
@@ -737,10 +670,13 @@ public class PostalOfficeImportService {
 
     // ── Misc helpers ──────────────────────────────────────────────────────────
 
-    private boolean parseConnectionStatus(String raw) {
-        if (blank(raw)) return false;
+    private Integer parseConnectionStatus(String raw) {
+        if (blank(raw)) return 0;
         String v = raw.trim().toLowerCase();
-        return v.equals("connected") || v.equals("yes") || v.equals("true") || v.equals("1") || v.equals("active");
+        if (v.equals("connected") || v.equals("yes") || v.equals("true") || v.equals("1") || v.equals("active")) {
+            return 1;
+        }
+        return 0;
     }
 
     private String normalize(String s) { return s == null ? "" : s.trim().toLowerCase(); }
