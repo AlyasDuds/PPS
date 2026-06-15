@@ -1,11 +1,13 @@
 package com.pps.profilesystem.Entity;
 
+import jakarta.persistence.Index;
+
 import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "connectivity")
+@Table(name = "connectivity", indexes = {@Index(name = "idx_date_connected", columnList = "date_connected"), @Index(name = "idx_date_disconnected", columnList = "date_disconnected")})
 public class Connectivity {
 
     @Id

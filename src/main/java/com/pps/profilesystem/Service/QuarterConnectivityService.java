@@ -89,11 +89,12 @@ public class QuarterConnectivityService {
             return stats;
         }
 
-        // 2. year >= 2026: carry forward Q4 2025
-        if (year >= 2026) {
-            Map<String, Long> q4_2025 = getConnectivityStats(2025, "Q4", areaId, null);
-            long baseTotal        = q4_2025.getOrDefault("totalOffices",      0L);
-            long baseDisconnected = q4_2025.getOrDefault("totalDisconnected", 0L);
+        // 2. year > currentYear: carry forward currentYear Q4
+        int currentYear = LocalDate.now().getYear();
+        if (year > currentYear) {
+            Map<String, Long> lastQ = getConnectivityStats(currentYear, "Q4", areaId, null);
+            long baseTotal        = lastQ.getOrDefault("totalOffices",      0L);
+            long baseDisconnected = lastQ.getOrDefault("totalDisconnected", 0L);
             long baseConnected    = Math.max(0, baseTotal - baseDisconnected);
 
             Map<String, Long> stats = new HashMap<>();
@@ -151,52 +152,7 @@ public class QuarterConnectivityService {
                 stats.put("totalDisconnected", inactive);
                 stats.put("totalOffices",      total);
 
-                // Area 1 overrides
-                if (areaId == 1 && year >= 2025) {
-                    if (year == 2025 && "Q4".equalsIgnoreCase(quarterFilter)) {
-                        stats.put("totalConnected",    70L);
-                        stats.put("totalDisconnected", 0L);
-                        stats.put("totalOffices",      72L);
-                    } else if (year == 2025) {
-                        stats.put("totalConnected",    70L);
-                        stats.put("totalDisconnected", 0L);
-                        stats.put("totalOffices",      70L);
-                    } else {
-                        stats.put("totalConnected",    72L);
-                        stats.put("totalDisconnected", 0L);
-                        stats.put("totalOffices",      72L);
-                    }
-                }
 
-                // Area 2 overrides
-                if (areaId == 2 && year >= 2025) {
-                    if (year == 2025 && "Q1".equalsIgnoreCase(quarterFilter)) {
-                        stats.put("totalConnected",    152L);
-                        stats.put("totalDisconnected", 31L);
-                        stats.put("totalOffices",      183L);
-                    } else if (year == 2025) {
-                        stats.put("totalConnected",    154L);
-                        stats.put("totalDisconnected", 31L);
-                        stats.put("totalOffices",      185L);
-                    } else {
-                        stats.put("totalConnected",    154L);
-                        stats.put("totalDisconnected", 31L);
-                        stats.put("totalOffices",      185L);
-                    }
-                }
-
-                // Generic carry-forward for areas 3-9 when year >= 2025
-                if (year >= 2025 && areaId != 1 && areaId != 2) {
-                    LocalDateTime snap2025  = resolveSnapshotDate(2025, "Q4");
-                    long active2025  = countActiveAt(snap2025, areaId);
-                    long total2025   = countTotal(areaId);
-                    long inactive2025 = Math.max(0, total2025 - active2025);
-                    if (statusFilter == null) {
-                        stats.put("totalConnected",    active2025);
-                        stats.put("totalDisconnected", inactive2025);
-                        stats.put("totalOffices",      total2025);
-                    }
-                }
             }
         } catch (Exception e) {
             stats.put("totalConnected",    0L);

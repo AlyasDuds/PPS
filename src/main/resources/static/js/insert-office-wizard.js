@@ -10,7 +10,7 @@ function syncConnectionStatus(select) {
         return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
     };
 
-    if (connCheck) connCheck.checked = isActive;
+    if (connCheck) connCheck.value = isActive ? 'true' : 'false';
     if (dateConn && dateDisconn) {
         if (isActive) {
             if (!dateConn.value) dateConn.value = nowLocal();
@@ -358,7 +358,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (connSelect) {
             connSelect.addEventListener('change', function () {
                 const isActive = this.value === 'active';
-                if (connCheck) connCheck.checked = isActive;
+                if (connCheck) connCheck.value = isActive ? 'true' : 'false';
 
                 if (dateConn && dateDisconn) {
                     if (isActive) {
@@ -694,7 +694,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const statusEl  = document.getElementById('summaryStatus');
             const connCheck = document.getElementById('connectionStatus');
             if (statusEl) {
-                statusEl.innerHTML = connCheck?.checked
+                statusEl.innerHTML = connCheck?.value === 'true'
                     ? '<span class="badge badge-success">Active</span>'
                     : '<span class="badge badge-secondary">Inactive</span>';
             }

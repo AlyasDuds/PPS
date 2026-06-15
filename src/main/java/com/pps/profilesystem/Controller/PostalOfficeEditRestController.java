@@ -119,6 +119,7 @@ public class PostalOfficeEditRestController {
 
     @PutMapping("/{id}")
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "connectivityStats", allEntries = true)
     public ResponseEntity<?> updateOffice(@PathVariable Integer id,
                                           @RequestBody Map<String, Object> body,
                                           Authentication auth) {
@@ -152,31 +153,41 @@ public class PostalOfficeEditRestController {
                     connectivityRepository.findTopByPostalOfficeIdOrderByDateConnectedDesc(o.getId())
                         .ifPresent(conn -> {
                             boolean changed = false;
+                            
                             if (body.containsKey("dateConnected")) {
-                                String dConStr = str(body.get("dateConnected"));
-                                if (dConStr != null && !dConStr.isBlank()) {
-                                    LocalDateTime dCon = java.time.LocalDate.parse(dConStr).atStartOfDay();
-                                    if (conn.getDateConnected() == null || !conn.getDateConnected().toLocalDate().equals(dCon.toLocalDate())) {
-                                        conn.setDateConnected(dCon);
+                                Object val = body.get("dateConnected");
+                                if (val == null || String.valueOf(val).trim().isEmpty()) {
+                                    if (conn.getDateConnected() != null) {
+                                        conn.setDateConnected(null);
+                                        changed = true;
+                                    }
+                                } else {
+                                    String dConnStr = val.toString().trim();
+                                    LocalDateTime dConn = java.time.LocalDate.parse(dConnStr).atStartOfDay();
+                                    if (conn.getDateConnected() == null || !conn.getDateConnected().toLocalDate().equals(dConn.toLocalDate())) {
+                                        conn.setDateConnected(dConn);
                                         changed = true;
                                     }
                                 }
                             }
+
                             if (body.containsKey("dateDisconnected")) {
-                                String dDisStr = str(body.get("dateDisconnected"));
-                                if (dDisStr != null && !dDisStr.isBlank()) {
+                                Object val = body.get("dateDisconnected");
+                                if (val == null || String.valueOf(val).trim().isEmpty()) {
+                                    if (conn.getDateDisconnected() != null) {
+                                        conn.setDateDisconnected(null);
+                                        changed = true;
+                                    }
+                                } else {
+                                    String dDisStr = val.toString().trim();
                                     LocalDateTime dDis = java.time.LocalDate.parse(dDisStr).atTime(23, 59, 59);
                                     if (conn.getDateDisconnected() == null || !conn.getDateDisconnected().toLocalDate().equals(dDis.toLocalDate())) {
                                         conn.setDateDisconnected(dDis);
                                         changed = true;
                                     }
-                                } else if (body.containsKey("dateDisconnected") && String.valueOf(body.get("dateDisconnected")).trim().isEmpty()) {
-                                    if (conn.getDateDisconnected() != null) {
-                                        conn.setDateDisconnected(null);
-                                        changed = true;
-                                    }
                                 }
                             }
+                            
                             if (changed) {
                                 connectivityRepository.save(conn);
                             }

@@ -1,6 +1,7 @@
 package com.pps.profilesystem.Entity;
 
 import jakarta.persistence.*;
+import jakarta.persistence.Index;
 import lombok.Getter;
 import lombok.Setter;
 import java.util.List;
@@ -22,7 +23,7 @@ import java.util.List;
  *   coverPhoto3     → cover_photo_3    (col) — carousel slot 3
  */
 @Entity
-@Table(name = "postal_offices")
+@Table(name = "postal_offices", indexes = {@Index(name = "idx_area_id", columnList = "area_id")})
 @Getter
 @Setter
 public class PostalOffice {
