@@ -50,12 +50,12 @@ public class ArchiveService {
         }
 
         // Disconnect active connectivity before archiving
-        if (Boolean.TRUE.equals(office.getConnectionStatus()) && office.getActiveConnectivity() != null) {
+        if (Integer.valueOf(1).equals(office.getConnectionStatus()) && office.getActiveConnectivity() != null) {
             Connectivity conn = office.getActiveConnectivity();
             conn.setDateDisconnected(LocalDateTime.now());
             connectivityRepository.save(conn);
             office.setActiveConnectivity(null);
-            office.setConnectionStatus(false);
+            office.setConnectionStatus(0);
         }
 
         String trimmedReason = (reason != null && !reason.trim().isEmpty())

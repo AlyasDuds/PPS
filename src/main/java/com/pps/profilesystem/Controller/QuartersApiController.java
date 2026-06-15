@@ -226,7 +226,7 @@ public class QuartersApiController {
         dto.put("zipCode",  po.getZipCode());
         dto.put("postmaster", po.getPostmaster());
         dto.put("speed",    po.getSpeed());
-        dto.put("status",   po.getConnectionStatus());
+        dto.put("status",   po.getConnectionStatus() != null ? po.getConnectionStatus() : 0);
         dto.put("officeStatus", po.getOfficeStatus());
         dto.put("areaId",   po.getArea() != null ? po.getArea().getId() : null);
         dto.put("area",     po.getArea() != null ? po.getArea().getAreaName() : null);
