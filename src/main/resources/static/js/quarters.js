@@ -180,10 +180,12 @@ function buildTag(extraClass, iconClass, text, selectId) {
         if (target === 'searchBar') {
             highlightSearchBar('');
             performSearch('');
+            renderFilterTags();
         } else {
             highlightActiveSelects();
+            renderFilterTags();
+            applyFilters();
         }
-        renderFilterTags();
     });
 }
 
@@ -369,7 +371,7 @@ function initializeTable() {
                             if (isSrdOperation) return '';
                             let btns = '<div class="action-buttons">';
                             if (canQuarterEdit) {
-                                btns += '<button class="btn btn-sm btn-warning edit-btn" data-id="' + row.id + '" title="Edit"><i class="fas fa-edit"></i></button>';
+                                btns += '<button class="btn btn-sm btn-warning btn-edit" data-office-id="' + row.id + '" title="Edit"><i class="fas fa-edit"></i></button>';
                             }
                             btns += '</div>';
                             return btns;
@@ -418,9 +420,6 @@ function initializeTable() {
             }
         });
 
-        $('#postOfficeTable').on('click', '.edit-btn', function () {
-            editOffice($(this).data('id'));
-        });
         $('#postOfficeTable').on('click', '.btn-archive-quarter', function () {
             archiveOfficeFromQuarters($(this).data('id'), $(this).data('name'));
         });
@@ -639,117 +638,6 @@ function viewOffice(id, officeName) {
     setTimeout(() => { window.location.href = '/profile/' + id + '?source=quarters'; }, 500);
 }
 
-function editOffice(id) {
-    Swal.fire({ title: 'Loading Office Data...', allowOutsideClick: false, allowEscapeKey: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
-    $.ajax({
-        url: '/api/postal-office/' + id, method: 'GET',
-        success: function(o) {
-            Swal.close();
-            
-            // Clear any previous modal data
-            $('#editOfficeForm')[0].reset();
-            
-            // Set office ID
-            $('#editOfficeId').val(o.id);
-            
-            // Populate fields that are visible on quarters page (Connectivity section)
-            $('#editStatus').val(o.connectionStatus ? 'true' : 'false');
-            $('#editOfficeStatus').val(o.officeStatus || '');
-            $('#editClassification').val(o.classification || '');
-            $('#editServiceProvided').val(o.serviceProvided || '');
-            $('#editISP').val(o.internetServiceProvider || '');
-            
-            // Handle typeOfConnection - add to dropdown if not exists
-            var typeOfConn = o.typeOfConnection || '';
-            if (typeOfConn && $('#editTypeOfConnection option[value="' + typeOfConn + '"]').length === 0) {
-                $('#editTypeOfConnection').append('<option value="' + typeOfConn + '">' + typeOfConn + '</option>');
-            }
-            $('#editTypeOfConnection').val(typeOfConn);
-            
-            // Handle IP Address Type
-            if (o.staticIpAddress === 'Static') {
-                $('#editIPAddressType').val('static');
-            } else if (o.staticIpAddress === 'Dynamic' || o.staticIpAddress === null) {
-                $('#editIPAddressType').val('dynamic');
-            } else {
-                $('#editIPAddressType').val('');
-            }
-            
-            window._quartersEditOriginal = {
-                connectionStatus: !!o.connectionStatus,
-                officeStatus: o.officeStatus || null,
-                classification: o.classification || null,
-                serviceProvided: o.serviceProvided || null,
-                internetServiceProvider: o.internetServiceProvider || null,
-                typeOfConnection: o.typeOfConnection || null,
-                staticIpAddress: o.staticIpAddress || null
-            };
-            
-            // Handle IP Address Type
-            if (o.staticIpAddress === 'Static') {
-                $('#editIPAddressType').val('static');
-            } else if (o.staticIpAddress === 'Dynamic' || o.staticIpAddress === null) {
-                $('#editIPAddressType').val('dynamic');
-            } else {
-                $('#editIPAddressType').val('');
-            }
-            
-            // Show the modal
-            $('#editOfficeModal').modal('show');
-        },
-        error: function(xhr) { 
-            Swal.fire({ 
-                icon: 'error', 
-                title: 'Error', 
-                text: xhr.responseJSON?.message || 'Failed to load office data' 
-            }); 
-        }
-    });
-}
-
-function saveOfficeChanges() {
-    const id = $('#editOfficeId').val();
-    const candidate = {
-        connectionStatus: $('#editStatus').val() === 'true',
-        officeStatus: $('#editOfficeStatus').val() || null,
-        classification: $('#editClassification').val() || null,
-        serviceProvided: $('#editServiceProvided').val() || null,
-        internetServiceProvider: $('#editISP').val() || null,
-        typeOfConnection: $('#editTypeOfConnection').val() || null,
-        staticIpAddress: $('#editIPAddressType').val() === 'static'
-            ? 'Static'
-            : ($('#editIPAddressType').val() === 'dynamic' ? 'Dynamic' : null)
-    };
-    const original = window._quartersEditOriginal || {};
-    const data = {};
-    Object.keys(candidate).forEach((k) => {
-        if (String(candidate[k]) !== String(original[k])) {
-            data[k] = candidate[k];
-        }
-    });
-    if (Object.keys(data).length === 0) {
-        Swal.fire({ icon: 'info', title: 'No Changes', text: 'No field changes detected.' });
-        return;
-    }
-    Swal.fire({ title: 'Saving Changes...', allowOutsideClick: false, allowEscapeKey: false, showConfirmButton: false, didOpen: () => Swal.showLoading() });
-    $.ajax({
-        url: '/api/postal-office/' + id, method: 'PUT', contentType: 'application/json', data: JSON.stringify(data),
-        success: function(res) {
-            $('#editOfficeModal').modal('hide');
-            Swal.fire({
-                icon: 'success',
-                title: res && res.requiresApproval ? 'Submitted!' : 'Saved!',
-                text: (res && res.message) ? res.message : ((res && res.requiresApproval)
-                    ? 'Your changes were submitted for approval.'
-                    : 'Changes have been saved successfully'),
-                timer: 1800,
-                showConfirmButton: false
-            })
-                .then(() => location.reload());
-        },
-        error: function(xhr) { Swal.fire({ icon: 'error', title: 'Update Failed', text: xhr.responseJSON?.message || 'Failed to update post office' }); }
-    });
-}
 
 function archiveOfficeFromQuarters(id, officeName) {
     $('#quartersArchiveOfficeName').text(officeName);

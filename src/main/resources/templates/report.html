@@ -52,7 +52,7 @@
                                     <option value="Q4" th:selected="${selectedQuarterFilter == 'Q4'}">Q4 (Oct–Dec)</option>
                                 </select>
                             </div>
-                            <div class="col-md-3 col-sm-6 mb-2" th:if="${isAnyAdmin and isSystemAdmin}">
+                            <div class="col-md-3 col-sm-6 mb-2" th:if="${isSystemAdmin}">
                                 <label class="filter-label">
                                     <i class="fas fa-map-marker-alt text-danger mr-1"></i> Area
                                 </label>
@@ -95,98 +95,7 @@
         </div>
 
         <!-- ===== STATS CARDS ===== -->
-        <div class="row mb-4">
-            <!-- Connected Card -->
-            <div class="col-xl col-md-4 col-sm-6 mb-4">
-                <div class="card border-bottom-success shadow h-100 py-2">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                    Active (Connected)</div>
-                                <h2 class="h5 mb-0 font-weight-bold text-gray-800" th:text="${connectivityStats != null ? connectivityStats.totalConnected : 0}">0</h2>
-                            </div>
-                            <div class="col-auto">
-                                <i class="fas fa-wifi fa-2x text-success"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Newly Connected Card -->
-            <div class="col-xl col-md-4 col-sm-6 mb-4">
-                <div class="card border-bottom-success shadow h-100 py-2" style="border-bottom-color: #1cc88a !important; opacity: 0.85;">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
-                                    Newly Connected</div>
-                                <h2 class="h5 mb-0 font-weight-bold text-gray-800" th:text="${connectivityStats != null ? connectivityStats.totalNewlyConnected : 0}">0</h2>
-                            </div>
-                            <div class="col-auto">
-                                <i class="fas fa-plus-circle fa-2x text-success"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Disconnected Card -->
-            <div class="col-xl col-md-4 col-sm-6 mb-4">
-                <div class="card border-bottom-danger shadow h-100 py-2">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                    Inactive (Disconnected)</div>
-                                <h2 class="h5 mb-0 font-weight-bold text-gray-800" th:text="${connectivityStats != null ? connectivityStats.totalDisconnected : 0}">0</h2>
-                            </div>
-                            <div class="col-auto">
-                                <i class="fas fa-wifi-slash fa-2x text-danger"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Newly Disconnected Card -->
-            <div class="col-xl col-md-4 col-sm-6 mb-4">
-                <div class="card border-bottom-danger shadow h-100 py-2" style="opacity: 0.85;">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-danger text-uppercase mb-1">
-                                    Newly Disconnected</div>
-                                <h2 class="h5 mb-0 font-weight-bold text-gray-800" th:text="${connectivityStats != null ? connectivityStats.totalNewlyDisconnected : 0}">0</h2>
-                            </div>
-                            <div class="col-auto">
-                                <i class="fas fa-minus-circle fa-2x text-danger"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Total Card -->
-            <div class="col-xl col-md-4 col-sm-6 mb-4">
-                <div class="card border-bottom-primary shadow h-100 py-2">
-                    <div class="card-body">
-                        <div class="row no-gutters align-items-center">
-                            <div class="col mr-2">
-                                <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
-                                    Total Offices</div>
-                                <h2 class="h5 mb-0 font-weight-bold text-gray-800" th:text="${connectivityStats != null ? connectivityStats.totalOffices : 0}">0</h2>
-                            </div>
-                            <div class="col-auto">
-                                <i class="fas fa-building fa-2x text-primary"></i>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
+        <div th:replace="~{fragments/connectivity-stats-cards :: connectivityStatsCards}"></div>
 
         <!-- ===== QUARTERLY BREAKDOWN ===== -->
         <div class="row mb-4">

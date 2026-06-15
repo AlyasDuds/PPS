@@ -92,13 +92,41 @@ function initializeFilterPanel() {
         });
     }
 
-    // Enter key on search input
+    // Live filter search input as user types
     const searchInput = document.getElementById('tableSearchInput');
     if (searchInput) {
+        searchInput.addEventListener('input', function() {
+            applyTableFilters();
+        });
         searchInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 applyTableFilters();
             }
+        });
+    }
+
+    // Live filter dropdowns on change + highlight styling
+    const filterArea = document.getElementById('filterArea');
+    if (filterArea) {
+        filterArea.addEventListener('change', function() {
+            this.classList.toggle('has-value', !!this.value);
+            applyTableFilters();
+        });
+    }
+
+    const filterConnectivity = document.getElementById('filterConnectivity');
+    if (filterConnectivity) {
+        filterConnectivity.addEventListener('change', function() {
+            this.classList.toggle('has-value', !!this.value);
+            applyTableFilters();
+        });
+    }
+
+    const filterOfficeStatus = document.getElementById('filterOfficeStatus');
+    if (filterOfficeStatus) {
+        filterOfficeStatus.addEventListener('change', function() {
+            this.classList.toggle('has-value', !!this.value);
+            applyTableFilters();
         });
     }
 }
@@ -187,10 +215,26 @@ function resetTableFilters() {
     $.fn.dataTable.ext.search = [];
     table.search('').columns().search('').draw();
 
-    if (document.getElementById('tableSearchInput')) document.getElementById('tableSearchInput').value = '';
-    if (document.getElementById('filterArea')) document.getElementById('filterArea').value = '';
-    if (document.getElementById('filterConnectivity')) document.getElementById('filterConnectivity').value = '';
-    if (document.getElementById('filterOfficeStatus')) document.getElementById('filterOfficeStatus').value = '';
+    const searchInput = document.getElementById('tableSearchInput');
+    if (searchInput) {
+        searchInput.value = '';
+        searchInput.classList.remove('has-value');
+    }
+    const filterArea = document.getElementById('filterArea');
+    if (filterArea) {
+        filterArea.value = '';
+        filterArea.classList.remove('has-value');
+    }
+    const filterConnectivity = document.getElementById('filterConnectivity');
+    if (filterConnectivity) {
+        filterConnectivity.value = '';
+        filterConnectivity.classList.remove('has-value');
+    }
+    const filterOfficeStatus = document.getElementById('filterOfficeStatus');
+    if (filterOfficeStatus) {
+        filterOfficeStatus.value = '';
+        filterOfficeStatus.classList.remove('has-value');
+    }
 
     updateActiveFilterCount();
 }

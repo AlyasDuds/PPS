@@ -45,6 +45,12 @@ function goToProfile(el) {
    FILTER PANEL
 ===================================================== */
 function initializeFilterPanel() {
+    // Cache these — they're queried repeatedly
+    const $year = $('#yearSelector');
+    const $quarter = $('#quarterFilter');
+    const $area = $('#areaFilter');
+    const $status = $('#statusFilter');
+    const $filters = $year.add($quarter).add($area).add($status);
 
     highlightActiveSelects();
     renderFilterTags();
@@ -54,82 +60,67 @@ function initializeFilterPanel() {
         $('#filterChevron').toggleClass('fa-chevron-up fa-chevron-down');
     });
 
-    $('#applyFiltersBtn').on('click', function () {
-        applyFilters();
-    });
+    $('#applyFiltersBtn').on('click', applyFilters);
+    $('#clearFiltersBtn').on('click', clearFilters);
 
-    $('#clearFiltersBtn').on('click', function () {
-        clearFilters();
-    });
-
-    $('#yearSelector, #quarterFilter, #areaFilter, #statusFilter').on('change', function () {
+    $filters.on('change', function () {
         highlightActiveSelects();
         renderFilterTags();
-    });
-
-    $('#yearSelector, #quarterFilter, #areaFilter, #statusFilter').on('keypress', function (e) {
+    }).on('keypress', function (e) {
         if (e.key === 'Enter') applyFilters();
     });
 }
 
 function applyFilters() {
-    var year    = $('#yearSelector').val();
+    var year = $('#yearSelector').val();
     var quarter = $('#quarterFilter').val();
-    var area    = $('#areaFilter').val();
-    var status  = $('#statusFilter').val();
+    var area = $('#areaFilter').val();
+    var status = $('#statusFilter').val();
 
     var params = [];
-    if (year)    params.push('year='          + encodeURIComponent(year));
+    if (year) params.push('year=' + encodeURIComponent(year));
     if (quarter) params.push('quarterFilter=' + encodeURIComponent(quarter));
-    if (area)    params.push('areaFilter='    + encodeURIComponent(area));
-    if (status)  params.push('statusFilter='  + encodeURIComponent(status));
+    if (area) params.push('areaFilter=' + encodeURIComponent(area));
+    if (status) params.push('statusFilter=' + encodeURIComponent(status));
 
+    // Show loading state immediately for perceived performance
     $('#applyFiltersBtn')
-        .addClass('loading')
+        .prop('disabled', true)
         .html('<i class="fas fa-spinner fa-spin mr-1"></i> Applying...');
 
-    window.location.href = '/report' + (params.length ? '?' + params.join('&') : '');
-}
-
-function clearFilters() {
-    window.location.href = '/report';
-}
-
-function highlightActiveSelects() {
-    $('#yearSelector, #quarterFilter, #areaFilter, #statusFilter').each(function () {
-        $(this).toggleClass('has-value', !!$(this).val());
-    });
+    // Use replace instead of href to skip browser history entry (slightly faster)
+    window.location.replace('/report' + (params.length ? '?' + params.join('&') : ''));
 }
 
 function renderFilterTags() {
     var container = $('#activeFilterTags');
     container.empty();
 
-    var year     = $('#yearSelector').val();
-    var quarter  = $('#quarterFilter').val();
-    var areaVal  = $('#areaFilter').val();
+    var year = $('#yearSelector').val();
+    var quarter = $('#quarterFilter').val();
+    var areaVal = $('#areaFilter').val();
     var areaText = $('#areaFilter option:selected').text().trim();
-    var status   = $('#statusFilter').val();
+    var status = $('#statusFilter').val();
 
-    var qLabels = { Q1:'Q1 (Jan–Mar)', Q2:'Q2 (Apr–Jun)', Q3:'Q3 (Jul–Sep)', Q4:'Q4 (Oct–Dec)' };
+    var qLabels = { Q1: 'Q1 (Jan–Mar)', Q2: 'Q2 (Apr–Jun)', Q3: 'Q3 (Jul–Sep)', Q4: 'Q4 (Oct–Dec)' };
     var sLabels = {
-        active:              'Active',
-        inactive:            'Inactive',
-        newly_connected:     'Newly Connected',
-        newly_disconnected:  'Newly Disconnected'
+        active: 'Active',
+        inactive: 'Inactive',
+        newly_connected: 'Newly Connected',
+        newly_disconnected: 'Newly Disconnected'
     };
 
-    if (year)    container.append(buildTag('tag-year',    'fas fa-calendar',        'Year: '   + year,               'yearSelector'));
-    if (quarter) container.append(buildTag('tag-quarter', 'fas fa-layer-group',     qLabels[quarter] || quarter,     'quarterFilter'));
-    if (areaVal) container.append(buildTag('tag-area',    'fas fa-map-marker-alt',  'Area: '   + areaText,           'areaFilter'));
-    if (status)  container.append(buildTag('tag-status-' + status.replace('_','-'), 'fas fa-wifi', sLabels[status] || status, 'statusFilter'));
+    if (year) container.append(buildTag('tag-year', 'fas fa-calendar', 'Year: ' + year, 'yearSelector'));
+    if (quarter) container.append(buildTag('tag-quarter', 'fas fa-layer-group', qLabels[quarter] || quarter, 'quarterFilter'));
+    if (areaVal) container.append(buildTag('tag-area', 'fas fa-map-marker-alt', 'Area: ' + areaText, 'areaFilter'));
+    if (status) container.append(buildTag('tag-status-' + status.replace('_', '-'), 'fas fa-wifi', sLabels[status] || status, 'statusFilter'));
 }
 
 function buildTag(extraClass, iconClass, text, selectId) {
     return $('<span class="filter-tag ' + extraClass + '">' +
-             '<i class="' + iconClass + ' mr-1"></i>' + text +
-             '<button class="remove-tag" data-target="' + selectId + '" title="Remove">' +
-             '<i class="fas fa-times"></i></button></span>')
+        '<i class="' + iconClass + ' mr-1"></i>' + text +
+        '<button class="remove-tag" data-target="' + selectId + '" title="Remove">' +
+        '<i class="fas fa-times"></i></button></span>')
         .on('click', '.remove-tag', function () {
             $('#' + $(this).data('target')).val('');
             highlightActiveSelects();
@@ -145,14 +136,14 @@ function initializePrint() {
         var $btn = $(this);
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Preparing...');
 
-        var year    = $('#yearSelector option:selected').text().trim()  || 'All Years';
+        var year = $('#yearSelector option:selected').text().trim() || 'All Years';
         var quarter = $('#quarterFilter option:selected').text().trim() || 'All Quarters';
-        var area    = $('#areaFilter option:selected').text().trim()    || 'All Areas';
-        var status  = $('#statusFilter option:selected').text().trim()  || 'All Status';
+        var area = $('#areaFilter option:selected').text().trim() || 'All Areas';
+        var status = $('#statusFilter option:selected').text().trim() || 'All Status';
 
-        var connected    = $('.border-bottom-success h2').first().text().trim();
+        var connected = $('.border-bottom-success h2').first().text().trim();
         var disconnected = $('.border-bottom-danger h2').first().text().trim();
-        var total        = $('.border-bottom-primary h2').first().text().trim();
+        var total = $('.border-bottom-primary h2').first().text().trim();
 
         // Build table rows
         // Column order: Year(0) | Quarter(1) | Connected(2) | Newly Connected(3) | Disconnected(4) | Newly Disconnected(5) | Total(6) | Status(7)
@@ -161,26 +152,26 @@ function initializePrint() {
             var cells = $(this).find('td');
             if (cells.length < 7) return;
             var isCurrent = $(this).hasClass('table-info') || $(this).hasClass('font-weight-bold');
-            var rowStyle  = isCurrent ? 'background:#eef2ff;font-weight:bold;' : '';
+            var rowStyle = isCurrent ? 'background:#eef2ff;font-weight:bold;' : '';
 
-            var year     = cells.eq(0).text().trim();
-            var quarter  = cells.eq(1).text().trim();
-            var conn     = cells.eq(2).find('.font-weight-bold').text().trim() || cells.eq(2).text().trim() || '—';
-            var newlyConn= cells.eq(3).find('.badge-success').text().trim() || cells.eq(3).find('.text-muted').text().trim() || cells.eq(3).text().trim() || '—';
-            var disconn  = cells.eq(4).find('.font-weight-bold').text().trim() || cells.eq(4).text().trim() || '—';
-            var newlyDisc= cells.eq(5).find('.badge-danger').text().trim() || cells.eq(5).find('.text-muted').text().trim() || cells.eq(5).text().trim() || '—';
-            var total    = cells.eq(6).text().trim() || '—';
-            var status   = cells.eq(7).text().trim() || '—';
+            var year = cells.eq(0).text().trim();
+            var quarter = cells.eq(1).text().trim();
+            var conn = cells.eq(2).find('.font-weight-bold').text().trim() || cells.eq(2).text().trim() || '—';
+            var newlyConn = cells.eq(3).find('.badge-success').text().trim() || cells.eq(3).find('.text-muted').text().trim() || cells.eq(3).text().trim() || '—';
+            var disconn = cells.eq(4).find('.font-weight-bold').text().trim() || cells.eq(4).text().trim() || '—';
+            var newlyDisc = cells.eq(5).find('.badge-danger').text().trim() || cells.eq(5).find('.text-muted').text().trim() || cells.eq(5).text().trim() || '—';
+            var total = cells.eq(6).text().trim() || '—';
+            var status = cells.eq(7).text().trim() || '—';
 
             tableRows += '<tr style="' + rowStyle + '">';
-            tableRows += '<td>' + year     + '</td>';
-            tableRows += '<td>' + quarter  + '</td>';
-            tableRows += '<td style="text-align:center;color:#1a9e72;font-weight:600;">' + conn      + '</td>';
+            tableRows += '<td>' + year + '</td>';
+            tableRows += '<td>' + quarter + '</td>';
+            tableRows += '<td style="text-align:center;color:#1a9e72;font-weight:600;">' + conn + '</td>';
             tableRows += '<td style="text-align:center;color:#28a745;font-weight:600;">' + newlyConn + '</td>';
-            tableRows += '<td style="text-align:center;color:#c0392b;font-weight:600;">' + disconn   + '</td>';
+            tableRows += '<td style="text-align:center;color:#c0392b;font-weight:600;">' + disconn + '</td>';
             tableRows += '<td style="text-align:center;color:#dc3545;font-weight:600;">' + newlyDisc + '</td>';
-            tableRows += '<td style="text-align:center;color:#2e59d9;font-weight:600;">' + total     + '</td>';
-            tableRows += '<td style="text-align:center;">'                               + status    + '</td>';
+            tableRows += '<td style="text-align:center;color:#2e59d9;font-weight:600;">' + total + '</td>';
+            tableRows += '<td style="text-align:center;">' + status + '</td>';
             tableRows += '</tr>';
         });
 
@@ -233,10 +224,10 @@ function initializePrint() {
             '</div>' +
 
             '<div class="filters">' +
-            '  <span class="filter-chip">&#128197; ' + year    + '</span>' +
+            '  <span class="filter-chip">&#128197; ' + year + '</span>' +
             '  <span class="filter-chip">&#128200; ' + quarter + '</span>' +
-            '  <span class="filter-chip">&#128205; ' + area    + '</span>' +
-            '  <span class="filter-chip">&#128246; ' + status  + '</span>' +
+            '  <span class="filter-chip">&#128205; ' + area + '</span>' +
+            '  <span class="filter-chip">&#128246; ' + status + '</span>' +
             '</div>' +
 
             '<div class="stats">' +
@@ -298,21 +289,21 @@ function buildNewlyConnectedTable() {
         var cells = $(this).find('td');
         // Standard check: Ensure row has enough columns
         if (cells.length < 5) return;
-        
+
         var year = cells.eq(0).text().trim();
         var quarter = cells.eq(1).text().trim();
-        
+
         // In PO TEMPLATE structure, 'Newly Connected' is in column 3 (0-indexed)
         // This should contain the count and the office list
         var newlyConnectedCell = cells.eq(3);
-        
+
         var officeList = newlyConnectedCell.find('.qb-names-list');
         if (officeList.length > 0) {
             officeList.find('.qb-names-item').each(function () {
                 var areaTag = $(this).find('.qb-area-tag').text().trim();
                 // Get office name from the span that comes after the area tag
                 var officeName = $(this).find('span').not('.qb-area-tag').first().text().trim();
-                
+
                 if (officeName) {
                     rows += '<tr>';
                     rows += '<td>' + year + '</td>';
@@ -324,11 +315,11 @@ function buildNewlyConnectedTable() {
             });
         }
     });
-    
+
     if (!rows) {
         rows = '<tr><td colspan="4" class="text-center text-muted">No newly connected offices found</td></tr>';
     }
-    
+
     return rows;
 }
 
@@ -338,21 +329,21 @@ function buildNewlyDisconnectedTable() {
         var cells = $(this).find('td');
         // Standard check: Ensure row has enough columns
         if (cells.length < 6) return;
-        
+
         var year = cells.eq(0).text().trim();
         var quarter = cells.eq(1).text().trim();
-        
+
         // In PO TEMPLATE structure, 'Newly Disconnected' is in column 5 (0-indexed)
         // This should contain count and office list
         var newlyDisconnectedCell = cells.eq(5);
-        
+
         var officeList = newlyDisconnectedCell.find('.qb-names-list');
         if (officeList.length > 0) {
             officeList.find('.qb-names-item').each(function () {
                 var areaTag = $(this).find('.qb-area-tag').text().trim();
                 // Get the office name from the span that comes after the area tag
                 var officeName = $(this).find('span').not('.qb-area-tag').first().text().trim();
-                
+
                 if (officeName) {
                     rows += '<tr>';
                     rows += '<td>' + year + '</td>';
@@ -364,11 +355,11 @@ function buildNewlyDisconnectedTable() {
             });
         }
     });
-    
+
     if (!rows) {
         rows = '<tr><td colspan="4" class="text-center text-muted">No newly disconnected offices found</td></tr>';
     }
-    
+
     return rows;
 }
 
@@ -394,18 +385,18 @@ function initializeExportExcel() {
         data.push(['Area', 'Office Name', 'Province', 'City/Municipality', 'Connectivity Status', 'ISP', 'Type of Connection', 'Speed (Mbps)', 'Postmaster']);
 
         var hasData = false;
-        
+
         // Check if DataTable is available and initialized
         if (typeof $.fn !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable('#postOfficeTable')) {
             var table = $('#postOfficeTable').DataTable();
             var rows = table.rows().data();
-            
+
             console.log('Export: Found', rows.length, 'rows in DataTable');
             console.log('Export: Sample row data:', rows.length > 0 ? rows[0] : 'No data');
-            
+
             if (rows.length > 0) {
                 hasData = true;
-                rows.each(function(r, index) {
+                rows.each(function (r, index) {
                     data.push([
                         r.area || 'N/A',
                         r.name || 'N/A',
@@ -424,7 +415,7 @@ function initializeExportExcel() {
             // Column indices based on actual table structure (0-indexed):
             // 0: #, 1: Area, 2: Office Name, 3: Province, 4: City/Municipality, 
             // 5: Connectivity Status, 6: ISP, 7: Type of Connection, 8: Speed, 9: Postmaster
-            $('#postOfficeTable tbody tr').each(function(index) {
+            $('#postOfficeTable tbody tr').each(function (index) {
                 hasData = true;
                 var cells = $(this).find('td');
                 data.push([
@@ -443,7 +434,7 @@ function initializeExportExcel() {
 
         if (!hasData) {
             console.log('Export Debug: No data found. Checking table status...');
-            
+
             // Additional debugging information
             let debugInfo = {
                 tableExists: $('#postOfficeTable').length > 0,
@@ -457,16 +448,16 @@ function initializeExportExcel() {
                 },
                 tableRows: $('#postOfficeTable tbody tr').length
             };
-            
+
             console.log('Export Debug Info:', debugInfo);
-            
+
             let message = 'There is no data to export for the current filters.';
             if (debugInfo.tableRows === 0) {
                 message += ' The table appears to be empty. Try clearing filters or refreshing the page.';
             } else if (!debugInfo.isDataTable) {
                 message += ' The data table is not properly initialized. Please refresh the page.';
             }
-            
+
             Swal.fire({
                 icon: 'warning',
                 title: 'No Data',
@@ -478,15 +469,15 @@ function initializeExportExcel() {
 
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Exporting...');
 
-        var year     = $('#yearSelector').val()                          || 'All';
-        var quarter  = $('#quarterFilter').val()                         || 'All';
-        var areaText = $('#areaFilter option:selected').text().trim()    || 'All Areas';
-        var statText = $('#statusFilter option:selected').text().trim()  || 'All Status';
+        var year = $('#yearSelector').val() || 'All';
+        var quarter = $('#quarterFilter').val() || 'All';
+        var areaText = $('#areaFilter option:selected').text().trim() || 'All Areas';
+        var statText = $('#statusFilter option:selected').text().trim() || 'All Status';
 
-        var connected    = $('.border-bottom-success h2').first().text().trim();
+        var connected = $('.border-bottom-success h2').first().text().trim();
         var disconnected = $('.border-bottom-danger h2').first().text().trim();
-        var total        = $('.border-bottom-primary h2').first().text().trim();
-        var printDate    = new Date().toLocaleDateString('en-PH', { year:'numeric', month:'long', day:'numeric' });
+        var total = $('.border-bottom-primary h2').first().text().trim();
+        var printDate = new Date().toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' });
 
         var wb = XLSX.utils.book_new();
 
@@ -504,21 +495,21 @@ function initializeExportExcel() {
             ['Generated:', printDate],
             [''],
             ['FILTERS APPLIED', ''],
-            ['Year',    year],
+            ['Year', year],
             ['Quarter', quarter],
-            ['Area',    areaText],
-            ['Status',  statText],
+            ['Area', areaText],
+            ['Status', statText],
             [''],
             ['OVERALL STATISTICS', ''],
-            ['Active (Connected)',      Number(connected)    || connected],
+            ['Active (Connected)', Number(connected) || connected],
             ['Inactive (Disconnected)', Number(disconnected) || disconnected],
-            ['Total Offices',           Number(total)        || total]
+            ['Total Offices', Number(total) || total]
         ];
         var wsSummary = XLSX.utils.aoa_to_sheet(summaryData);
         wsSummary['!cols'] = [{ wch: 28 }, { wch: 24 }];
         XLSX.utils.book_append_sheet(wb, wsSummary, 'Summary');
 
-        var filename = 'PHLPost_Connectivity_' + new Date().toISOString().slice(0,10) + '.xlsx';
+        var filename = 'PHLPost_Connectivity_' + new Date().toISOString().slice(0, 10) + '.xlsx';
         XLSX.writeFile(wb, filename);
 
         setTimeout(function () {
@@ -539,20 +530,20 @@ function initializeReportTable() {
     }
 
     // Read filter values
-    const yearFilter    = $('#yearSelector').val()   || '';
-    const quarterFilter = $('#quarterFilter').val()  || '';
-    const areaFilter    = $('#areaFilter').val()     || '';
-    const statusFilter  = $('#statusFilter').val()   || '';
+    const yearFilter = $('#yearSelector').val() || '';
+    const quarterFilter = $('#quarterFilter').val() || '';
+    const areaFilter = $('#areaFilter').val() || '';
+    const statusFilter = $('#statusFilter').val() || '';
 
     // Build AJAX URL with filter parameters
     let ajaxUrl = '/api/quarters/post-offices';
     const params = [];
-    
-    if (yearFilter)    params.push('year=' + encodeURIComponent(yearFilter));
+
+    if (yearFilter) params.push('year=' + encodeURIComponent(yearFilter));
     if (quarterFilter) params.push('quarter=' + encodeURIComponent(quarterFilter));
-    if (areaFilter)    params.push('area=' + encodeURIComponent(areaFilter));
-    if (statusFilter)  params.push('status=' + encodeURIComponent(statusFilter));
-    
+    if (areaFilter) params.push('area=' + encodeURIComponent(areaFilter));
+    if (statusFilter) params.push('status=' + encodeURIComponent(statusFilter));
+
     if (params.length > 0) {
         ajaxUrl += '?' + params.join('&');
     }
@@ -563,7 +554,7 @@ function initializeReportTable() {
         ajax: {
             url: ajaxUrl,
             dataSrc: '',
-            error: function(xhr, error, code) {
+            error: function (xhr, error, code) {
                 console.error('DataTable AJAX Error:', {
                     status: xhr.status,
                     statusText: xhr.statusText,
@@ -571,7 +562,7 @@ function initializeReportTable() {
                     error: error,
                     code: code
                 });
-                
+
                 let errorMessage = 'Failed to load post office data.';
                 if (xhr.responseJSON && xhr.responseJSON.error) {
                     errorMessage = 'Server error: ' + xhr.responseJSON.message;
@@ -599,16 +590,17 @@ function initializeReportTable() {
             { data: 'name', defaultContent: 'N/A' },    // From Column B: POSTAL OFFICE NAME
             { data: 'province', defaultContent: 'N/A' },// From Column J: PROVINCE
             { data: 'cityMunicipality', defaultContent: 'N/A' }, // From Column K: CITY/MUNICIPALITY
-            { data: 'connectivityStatus',               // From Column Q: CONNECTIVITY STATUS
-                render: function(data, type, row) {
+            {
+                data: 'connectivityStatus',               // From Column Q: CONNECTIVITY STATUS
+                render: function (data, type, row) {
                     let val = (data || '').toUpperCase();
                     let badge = val === 'ACTIVE' ? 'success' : 'danger';
                     let statusBadge = `<span class="badge badge-${badge}">${val}</span>`;
-                    
+
                     if (row.newThisQuarter) {
                         statusBadge += ' <span class="badge badge-info ml-1">New This Quarter</span>';
                     }
-                    
+
                     return statusBadge;
                 }
             },
@@ -628,7 +620,7 @@ function initializeReportTable() {
                         <i class="fas fa-eye"></i>
                     </button>
                     `;
-                    
+
                     if (isAnyAdmin) {
                         buttons += `
                         <button class="btn btn-sm btn-warning edit-btn" data-id="${row.id}">
@@ -636,7 +628,7 @@ function initializeReportTable() {
                         </button>
                         `;
                     }
-                    
+
                     // Only show Archive button for System Admin and Area Admin
                     if (isSystemAdmin || isAreaAdmin) {
                         buttons += `
@@ -661,12 +653,12 @@ function initializeReportTable() {
     });
 
     // Delegated button events
-    $('#postOfficeTable').on('click', 'tbody tr', function (e) { 
+    $('#postOfficeTable').on('click', 'tbody tr', function (e) {
         // Don't trigger if clicking on buttons or links
         if ($(e.target).closest('button, a').length > 0) {
             return;
         }
-        
+
         const row = $(this).closest('tr');
         const rowData = $('#postOfficeTable').DataTable().row(row).data();
         if (rowData && rowData.id) {
@@ -674,11 +666,11 @@ function initializeReportTable() {
         }
     });
 
-    $('#postOfficeTable').on('click', '.view-btn', function() { 
-        viewOfficeFromReport($(this).data('id')); 
+    $('#postOfficeTable').on('click', '.view-btn', function () {
+        viewOfficeFromReport($(this).data('id'));
     });
 
-    $('#postOfficeTable').on('click', '.edit-btn', function () { 
+    $('#postOfficeTable').on('click', '.edit-btn', function () {
         editOfficeFromReport($(this).data('id'));
     });
 
@@ -688,10 +680,10 @@ function initializeReportTable() {
 
     // Archive modal confirm button
     $('#reportConfirmArchiveBtn').on('click', function () {
-        const id     = $('#reportArchiveModal').data('office-id');
-        const name   = $('#reportArchiveOfficeName').text();
+        const id = $('#reportArchiveModal').data('office-id');
+        const name = $('#reportArchiveOfficeName').text();
         const reason = $('#reportArchiveReasonInput').val().trim();
-        
+
         $('#reportArchiveModal').modal('hide');
         performReportArchive(id, name, reason);
     });
@@ -720,7 +712,7 @@ function performReportArchive(id, name, reason) {
         method: 'POST',
         data: JSON.stringify({ reason: reason }),
         contentType: 'application/json',
-        success: function(response) {
+        success: function (response) {
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
                     icon: 'success',
@@ -734,7 +726,7 @@ function performReportArchive(id, name, reason) {
             // Reload the table
             $('#postOfficeTable').DataTable().ajax.reload();
         },
-        error: function(xhr) {
+        error: function (xhr) {
             const errorMsg = xhr.responseJSON?.message || 'Failed to archive office. Please try again.';
             if (typeof Swal !== 'undefined') {
                 Swal.fire({
@@ -748,4 +740,20 @@ function performReportArchive(id, name, reason) {
             }
         }
     });
+}
+
+function highlightActiveSelects() {
+    $('#yearSelector, #quarterFilter, #areaFilter, #statusFilter').each(function () {
+        $(this).toggleClass('has-value', !!$(this).val());
+    });
+}
+
+function clearFilters() {
+    $('#yearSelector').val('');
+    $('#quarterFilter').val('');
+    if ($('#areaFilter').length) $('#areaFilter').val('');
+    $('#statusFilter').val('');
+    highlightActiveSelects();
+    renderFilterTags();
+    window.location.replace('/report');
 }

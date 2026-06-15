@@ -76,22 +76,16 @@ public class DashboardController {
         }
 
         int currentYear = LocalDate.now().getYear();
-        Map<String, Long> qStats = reportController.computeConnectivityStats(currentYear, null, statsAreaId);
-        long activeCount   = qStats.getOrDefault("totalConnected", 0L);
-        long inactiveCount = qStats.getOrDefault("totalDisconnected", 0L);
-        // Use actual total count from postal_offices table instead of connectivity-derived count
-        long totalCount = postalOfficeRepository.countNonArchived();
-        // Open / Closed still use direct DB counts (no quarterly override for these)
-        long openCount  = postalOfficeRepository.countOpenOffices();
-        long closedCount = postalOfficeRepository.countClosedOffices();
+        Map<String, Long> connectivityStats =
+                reportController.computeConnectivityStats(currentYear, null, statsAreaId, null);
 
-        model.addAttribute("offices",       offices.stream().map(this::convertToMapDTO).collect(Collectors.toList()));
-        model.addAttribute("totalCount",    totalCount);
-        model.addAttribute("activeCount",   activeCount);
-        model.addAttribute("inactiveCount", inactiveCount);
-        model.addAttribute("openCount",     openCount);
-        model.addAttribute("closedCount",   closedCount);
-        model.addAttribute("areaCount",     postalOfficeRepository.countDistinctAreasNonArchived());
+        model.addAttribute("offices",           offices.stream().map(this::convertToMapDTO).collect(Collectors.toList()));
+        model.addAttribute("connectivityStats", connectivityStats);
+        model.addAttribute("totalCount",        connectivityStats.getOrDefault("totalOffices", 0L));
+        model.addAttribute("activeCount",       connectivityStats.getOrDefault("totalConnected", 0L));
+        model.addAttribute("inactiveCount",     connectivityStats.getOrDefault("totalDisconnected", 0L));
+        reportController.addOfficeStatusCounts(model, statsAreaId);
+        model.addAttribute("areaCount",         postalOfficeRepository.countDistinctAreasNonArchived());
 
         // For modal dropdowns and filters
         List<Area> visibleAreas = locationService.getAllAreas();

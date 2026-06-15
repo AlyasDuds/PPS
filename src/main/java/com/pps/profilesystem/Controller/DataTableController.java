@@ -15,7 +15,9 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
@@ -36,6 +38,9 @@ public class DataTableController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ReportController reportController;
 
     @GetMapping
     @Transactional(readOnly = true)
@@ -67,22 +72,26 @@ public class DataTableController {
                 .collect(Collectors.toList());
         }
 
-        // Stats — derived from the already-fetched list (no extra DB queries)
-        long totalCount    = offices.size();
-        long activeCount   = offices.stream()
-            .filter(PostalOffice::isEffectivelyConnected).count();
-        long inactiveCount = totalCount - activeCount;
-        long openCount     = offices.stream()
+        // Stats — connectivity aligned with report; open/closed from fetched offices
+        Integer statsAreaId = null;
+        if (roleId != null && roleId != 1 && roleId != 4 && areaId != null) {
+            statsAreaId = areaId;
+        }
+        int currentYear = LocalDate.now().getYear();
+        Map<String, Long> connectivityStats =
+                reportController.computeConnectivityStats(currentYear, null, statsAreaId, null);
+        long openCount = offices.stream()
             .filter(po -> "OPEN".equalsIgnoreCase(po.getOfficeStatus())).count();
-        long closedCount   = offices.stream()
+        long closedCount = offices.stream()
             .filter(po -> "CLOSED".equalsIgnoreCase(po.getOfficeStatus())).count();
 
-        model.addAttribute("offices",       offices.stream().map(this::convertToMapDTO).collect(Collectors.toList()));
-        model.addAttribute("totalCount",    totalCount);
-        model.addAttribute("activeCount",   activeCount);
-        model.addAttribute("inactiveCount", inactiveCount);
-        model.addAttribute("openCount",     openCount);
-        model.addAttribute("closedCount",   closedCount);
+        model.addAttribute("offices",           offices.stream().map(this::convertToMapDTO).collect(Collectors.toList()));
+        model.addAttribute("connectivityStats", connectivityStats);
+        model.addAttribute("totalCount",        connectivityStats.getOrDefault("totalOffices", 0L));
+        model.addAttribute("activeCount",       connectivityStats.getOrDefault("totalConnected", 0L));
+        model.addAttribute("inactiveCount",     connectivityStats.getOrDefault("totalDisconnected", 0L));
+        model.addAttribute("openCount",         openCount);
+        model.addAttribute("closedCount",       closedCount);
         model.addAttribute("areaCount",     postalOfficeRepository.countDistinctAreasNonArchived());
 
         // For modal dropdowns and filters

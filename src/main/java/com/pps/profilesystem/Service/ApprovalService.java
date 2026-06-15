@@ -185,6 +185,7 @@ public class ApprovalService {
      * Operation gives final approval → status APPROVED → data applied to DB.
      */
     @Transactional
+    @org.springframework.cache.annotation.CacheEvict(value = "connectivityStats", allEntries = true)
     public void operationApproveRequest(Long requestId, String operationEmail, String notes) {
         ApprovalRequest request = approvalRequestRepository.findById(requestId)
                 .orElseThrow(() -> new RuntimeException("Request not found: " + requestId));
@@ -424,24 +425,51 @@ public class ApprovalService {
         }
     }
 
-    private void handleConnectivityStatusChange(PostalOffice office, Integer oldStatus, Integer newStatus) {
-        if (!Integer.valueOf(1).equals(oldStatus) && Integer.valueOf(1).equals(newStatus)) {
-            // Switching to active → create a new Connectivity record
-            Connectivity connectivity = createConnectivityRecord(office);
-            Connectivity savedConnectivity = connectivityRepository.save(connectivity);
-            office.setActiveConnectivity(savedConnectivity);
+    private void handleConnectivityStatusChange(PostalOffice office, Boolean oldStatus, Boolean newStatus) {
+        if (!Boolean.TRUE.equals(oldStatus) && Boolean.TRUE.equals(newStatus)) {
+            // Switching to ACTIVE — reuse existing open record if available, else create new
+            // Check if the office already has an open connectivity record with no dateDisconnected
+            Optional<Connectivity> existingOpen = connectivityRepository
+                    .findByPostalOfficeIdAndDateDisconnectedIsNull(office.getId());
+
+            if (existingOpen.isPresent()) {
+                // Already has an open record — just point activeConnectivity at it (no new record)
+                office.setActiveConnectivity(existingOpen.get());
+            } else {
+                // Look for the most recent closed record — reopen it instead of creating a new one
+                // to preserve the original dateConnected (historical data)
+                Optional<Connectivity> latestClosed = connectivityRepository
+                        .findTopByPostalOfficeIdOrderByDateConnectedDesc(office.getId());
+
+                if (latestClosed.isPresent() && latestClosed.get().getDateDisconnected() != null) {
+                    // Reopen the latest closed record to preserve historical dateConnected
+                    Connectivity conn = latestClosed.get();
+                    conn.setDateDisconnected(null);
+                    Connectivity saved = connectivityRepository.save(conn);
+                    office.setActiveConnectivity(saved);
+                } else {
+                    // No existing record at all — create a fresh one
+                    Connectivity connectivity = createConnectivityRecord(office);
+                    Connectivity saved = connectivityRepository.save(connectivity);
+                    office.setActiveConnectivity(saved);
+                }
+            }
         }
-        else if (Integer.valueOf(1).equals(oldStatus) && !Integer.valueOf(1).equals(newStatus)) {
-            // Switching to inactive
+        else if (Boolean.TRUE.equals(oldStatus) && !Boolean.TRUE.equals(newStatus)) {
+            // Switching to INACTIVE — close the active connectivity record
             if (office.getActiveConnectivity() != null) {
-                // Close the active connectivity record
                 Connectivity conn = office.getActiveConnectivity();
                 conn.setDateDisconnected(LocalDateTime.now());
                 connectivityRepository.save(conn);
                 office.setActiveConnectivity(null);
+            } else {
+                // No activeConnectivity pointer — find and close the open record directly
+                connectivityRepository.findByPostalOfficeIdAndDateDisconnectedIsNull(office.getId())
+                        .ifPresent(conn -> {
+                            conn.setDateDisconnected(LocalDateTime.now());
+                            connectivityRepository.save(conn);
+                        });
             }
-            // If no activeConnectivity (e.g. legacy data), the connectionStatus boolean
-            // change is sufficient — isEffectivelyConnected() will return false.
         }
     }
 

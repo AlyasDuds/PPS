@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import org.springframework.cache.annotation.Cacheable;
 import java.util.*;
 
 @Controller
@@ -39,6 +40,9 @@ public class QuartersController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ReportController reportController;
 
     // Match ReportController: ignore these offices for 'newly connected' counts
     private static final java.util.Set<Integer> NEWLY_CONNECTED_IGNORE = java.util.Set.of(1364, 1365, 1366, 1374);
@@ -97,11 +101,10 @@ public class QuartersController {
         model.addAttribute("currentQuarterInfo", getCurrentQuarterInfo());
         model.addAttribute("areas", getAreas(roleId, userAreaId));
 
-        // Pass filter-aware stats and latest quarter data
+        // Pass filter-aware stats (same logic as Connectivity Report)
         model.addAttribute("connectivityStats",
-                getConnectivityStats(currentYear, selectedQuarter, areaId, statusFilter));
-        model.addAttribute("latestQuarter",
-                getLatestQuarterData(currentYear, selectedQuarter, areaId, statusFilter));
+                reportController.computeConnectivityStats(currentYear, selectedQuarter, areaId, statusFilter));
+        reportController.addOfficeStatusCounts(model, areaId);
 
         model.addAttribute("selectedAreaFilter", areaId != null && areaId != -1 ? areaId.toString() : "");
         model.addAttribute("selectedQuarterFilter", selectedQuarter);
@@ -128,7 +131,8 @@ public class QuartersController {
 
     // ── Stats Cards (Active / Inactive / Total) ───────────────────────────────
 
-    private Map<String, Long> getConnectivityStats(
+    @Cacheable(value = "connectivityStats", key = "#year + '_' + #quarterFilter + '_' + (#areaId == null ? 'null' : #areaId) + '_' + (#statusFilter == null ? 'null' : #statusFilter)")
+private Map<String, Long> getConnectivityStats(
             int year, String quarterFilter, Integer areaId, String statusFilter) {
 
         // Check if there's any connectivity data for the requested year
@@ -169,12 +173,13 @@ public class QuartersController {
             return stats;
         }
 
-        // 2. Carry forward Q4 2025 for year >= 2026
-        if (year >= 2026) {
+        // 2. Carry forward currentYear Q4 for year > currentYear
+        int currentYear = LocalDate.now().getYear();
+        if (year > currentYear) {
             Map<String, Long> stats = new HashMap<>();
-            Map<String, Long> q4_2025 = getConnectivityStats(2025, "Q4", areaId, null);
-            long baseTotal = q4_2025.getOrDefault("totalOffices", 0L);
-            long baseDisconnected = q4_2025.getOrDefault("totalDisconnected", 0L);
+            Map<String, Long> lastQ = getConnectivityStats(currentYear, "Q4", areaId, null);
+            long baseTotal = lastQ.getOrDefault("totalOffices", 0L);
+            long baseDisconnected = lastQ.getOrDefault("totalDisconnected", 0L);
             long baseConnected = baseTotal - baseDisconnected;
             if (baseConnected < 0) baseConnected = 0;
             
@@ -237,7 +242,8 @@ public class QuartersController {
                 stats.put("totalConnected", active);
                 stats.put("totalDisconnected", inactive);
                 stats.put("totalOffices", total);
-            }
+
+        }
         } catch (Exception e) {
             stats.put("totalConnected", 0L);
             stats.put("totalDisconnected", 0L);
@@ -246,172 +252,7 @@ public class QuartersController {
         return stats;
     }
 
-    // ── Latest Quarter Data (for simplified card layout) ──────────────────────
 
-    private long toLong(Object val) {
-        if (val == null) return 0L;
-        if (val instanceof Long)    return (Long) val;
-        if (val instanceof Integer) return ((Integer) val).longValue();
-        if (val instanceof Number)  return ((Number) val).longValue();
-        return 0L;
-    }
-
-    private Map<String, Object> getLatestQuarterData(
-            int year, String quarterFilter, Integer areaId, String statusFilter) {
-
-        // Check if there's any connectivity data for the requested year
-        boolean hasConnectivityDataForYear = connectivityRepository.findByDateConnectedBetween(
-            LocalDateTime.of(year, 1, 1, 0, 0, 0),
-            LocalDateTime.of(year, 12, 31, 23, 59, 59)
-        ).stream()
-        .filter(c -> c.getPostalOffice() != null)
-        .filter(c -> !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
-        .filter(c -> areaId == null || (c.getPostalOffice().getArea() != null && areaId.equals(c.getPostalOffice().getArea().getId())))
-        .count() > 0;
-
-        // If no connectivity data for the year, return all zeros
-        if (!hasConnectivityDataForYear) {
-            Map<String, Object> empty = new HashMap<>();
-            empty.put("quarter", quarterFilter != null ? quarterFilter : getCurrentQuarterInfo().get("quarter").toString());
-            empty.put("year", year);
-            empty.put("connected", 0L);
-            empty.put("disconnected", 0L);
-            empty.put("newlyConnected", 0L);
-            empty.put("newlyDisconnected", 0L);
-            empty.put("totalOffices", 0L);
-            return empty;
-        }
-
-        // 1. If areaId is null (All Areas), build by summing all individual areas (1 to 9)
-        if (areaId == null) {
-            List<Area> allAreas = areaRepository.findAll();
-            Map<String, Object> combined = new HashMap<>();
-            combined.put("quarter", quarterFilter != null ? quarterFilter : getCurrentQuarterInfo().get("quarter").toString());
-            combined.put("year", year);
-            
-            long totalOffices = 0;
-            long connected = 0;
-            long disconnected = 0;
-            long newlyConnected = 0;
-            long newlyDisconnected = 0;
-            
-            for (Area area : allAreas) {
-                Map<String, Object> areaData = getLatestQuarterData(year, quarterFilter, area.getId(), statusFilter);
-                totalOffices += toLong(areaData.get("totalOffices"));
-                connected += toLong(areaData.get("connected"));
-                disconnected += toLong(areaData.get("disconnected"));
-                newlyConnected += toLong(areaData.get("newlyConnected"));
-                newlyDisconnected += toLong(areaData.get("newlyDisconnected"));
-            }
-            
-            combined.put("totalOffices", totalOffices);
-            combined.put("connected", connected);
-            combined.put("disconnected", disconnected);
-            combined.put("newlyConnected", newlyConnected);
-            combined.put("newlyDisconnected", newlyDisconnected);
-            return combined;
-        }
-
-        // 2. Carry forward Q4 2025 for year >= 2026
-        if (year >= 2026) {
-            Map<String, Object> q4_2025 = getLatestQuarterData(2025, "Q4", areaId, null);
-            long baseTotal = toLong(q4_2025.get("totalOffices"));
-            long baseDisconnected = toLong(q4_2025.get("disconnected")) + toLong(q4_2025.get("newlyDisconnected"));
-            long baseConnected = baseTotal - baseDisconnected;
-            if (baseConnected < 0) baseConnected = 0;
-            
-            Map<String, Object> latestData = new HashMap<>();
-            latestData.put("quarter", quarterFilter != null ? quarterFilter : getCurrentQuarterInfo().get("quarter").toString());
-            latestData.put("year", year);
-            
-            if ("active".equals(statusFilter)) {
-                latestData.put("totalOffices", baseConnected);
-                latestData.put("connected", baseConnected);
-                latestData.put("disconnected", 0L);
-                latestData.put("newlyConnected", 0L);
-                latestData.put("newlyDisconnected", 0L);
-            } else if ("inactive".equals(statusFilter)) {
-                latestData.put("totalOffices", baseDisconnected);
-                latestData.put("connected", 0L);
-                latestData.put("disconnected", baseDisconnected);
-                latestData.put("newlyConnected", 0L);
-                latestData.put("newlyDisconnected", 0L);
-            } else if ("newly_connected".equals(statusFilter) || "newly_disconnected".equals(statusFilter)) {
-                latestData.put("totalOffices", 0L);
-                latestData.put("connected", 0L);
-                latestData.put("disconnected", 0L);
-                latestData.put("newlyConnected", 0L);
-                latestData.put("newlyDisconnected", 0L);
-            } else {
-                latestData.put("totalOffices", baseTotal);
-                latestData.put("connected", baseConnected);
-                latestData.put("disconnected", baseDisconnected);
-                latestData.put("newlyConnected", 0L);
-                latestData.put("newlyDisconnected", 0L);
-            }
-            return latestData;
-        }
-
-        try {
-            // Determine which quarter to show.
-            // Default to current quarter for dynamic behavior
-            String targetQuarter = (quarterFilter != null && !quarterFilter.isEmpty())
-                    ? quarterFilter : getCurrentQuarterInfo().get("quarter").toString();
-
-            // Use the same snapshot date as getConnectivityStats for consistency
-            LocalDateTime snapshotDate = resolveSnapshotDate(year, targetQuarter);
-            // Compute baseline statistics
-            long totalConnected = countActiveAt(snapshotDate, areaId);
-            long totalOffices = countTotal(areaId);
-            long totalDisconnected = totalOffices - totalConnected;
-            if (totalDisconnected < 0) totalDisconnected = 0;
-
-            // Determine date range for newly connected/disconnected counts
-            LocalDateTime[] qRange = resolveQuarterRange(year, targetQuarter);
-            LocalDateTime now = LocalDateTime.now(); // current timestamp for in-progress quarter
-            LocalDateTime endForNew = isCurrentQuarter(year, targetQuarter) ? now : qRange[1];
-            long newlyConnected = countNewlyConnected(qRange[0], endForNew, areaId);
-            long newlyDisconnected = countNewlyDisconnected(qRange[0], endForNew, areaId);
-            long connectedWithoutNew = totalConnected - newlyConnected;
-            if (connectedWithoutNew < 0) connectedWithoutNew = 0;
-
-            Map<String, Object> latestData = new HashMap<>();
-            latestData.put("quarter", targetQuarter);
-            latestData.put("year", year);
-            latestData.put("totalOffices", totalOffices);
-
-            if ("newly_connected".equals(statusFilter)) {
-                latestData.put("connected", newlyConnected);
-                latestData.put("disconnected", 0L);
-                latestData.put("newlyConnected", newlyConnected);
-                latestData.put("newlyDisconnected", 0L);
-            } else if ("newly_disconnected".equals(statusFilter)) {
-                latestData.put("connected", 0L);
-                latestData.put("disconnected", newlyDisconnected);
-                latestData.put("newlyConnected", 0L);
-                latestData.put("newlyDisconnected", newlyDisconnected);
-            } else {
-                // Use connected count excluding newly connected offices
-                latestData.put("connected", connectedWithoutNew);
-                latestData.put("disconnected", totalDisconnected);
-                latestData.put("newlyConnected", newlyConnected);
-                latestData.put("newlyDisconnected", newlyDisconnected);
-            }
-
-            return latestData;
-        } catch (Exception e) {
-            // Return empty data on error
-            Map<String, Object> empty = new HashMap<>();
-            empty.put("quarter", getCurrentQuarterInfo().get("quarter").toString());
-            empty.put("year", year);
-            empty.put("connected", 0L);
-            empty.put("disconnected", 0L);
-            empty.put("newlyConnected", 0L);
-            empty.put("newlyDisconnected", 0L);
-            empty.put("totalOffices", 0L);
-            return empty;
-        }
-    }
 
     // ── Helper: resolve quarter start and end dates ───────────────────────────
 

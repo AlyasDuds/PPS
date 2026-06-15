@@ -108,11 +108,12 @@ public class QuarterConnectivityService {
             return stats;
         }
 
-        // 2. year >= 2026: carry forward Q4 2025
-        if (year >= 2026) {
-            Map<String, Long> q4_2025 = getConnectivityStats(2025, "Q4", areaId, null);
-            long baseTotal        = q4_2025.getOrDefault("totalOffices",      0L);
-            long baseDisconnected = q4_2025.getOrDefault("totalDisconnected", 0L);
+        // 2. year > currentYear: carry forward currentYear Q4
+        int currentYear = LocalDate.now().getYear();
+        if (year > currentYear) {
+            Map<String, Long> lastQ = getConnectivityStats(currentYear, "Q4", areaId, null);
+            long baseTotal        = lastQ.getOrDefault("totalOffices",      0L);
+            long baseDisconnected = lastQ.getOrDefault("totalDisconnected", 0L);
             long baseConnected    = Math.max(0, baseTotal - baseDisconnected);
 
             Map<String, Long> stats = new HashMap<>();
@@ -169,6 +170,8 @@ public class QuarterConnectivityService {
                 stats.put("totalConnected",    active);
                 stats.put("totalDisconnected", inactive);
                 stats.put("totalOffices",      total);
+
+
             }
         } catch (Exception e) {
             stats.put("totalConnected",    0L);

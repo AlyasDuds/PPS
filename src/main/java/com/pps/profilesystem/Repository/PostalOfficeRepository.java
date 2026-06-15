@@ -169,13 +169,15 @@ public interface PostalOfficeRepository extends JpaRepository<PostalOffice, Inte
 
     @Query(value = "SELECT COUNT(*) FROM postal_offices " +
                    "WHERE office_status = 'OPEN' " +
-                   "AND id NOT IN (SELECT postal_office_id FROM archived_offices)",
+                   "AND id NOT IN (SELECT postal_office_id FROM archived_offices) " +
+                   "AND (:areaId IS NULL OR area_id = :areaId)",
            nativeQuery = true)
-    long countOpenOffices();
+    long countOpenOffices(@Param("areaId") Integer areaId);
 
     @Query(value = "SELECT COUNT(*) FROM postal_offices " +
                    "WHERE office_status = 'CLOSED' " +
-                   "AND id NOT IN (SELECT postal_office_id FROM archived_offices)",
+                   "AND id NOT IN (SELECT postal_office_id FROM archived_offices) " +
+                   "AND (:areaId IS NULL OR area_id = :areaId)",
            nativeQuery = true)
-    long countClosedOffices();
+    long countClosedOffices(@Param("areaId") Integer areaId);
 }

@@ -34,6 +34,10 @@ public class QuartersApiController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private ReportController reportController;
+
     // Offices to ignore when counting newly connected (same as QuartersController)
     private static final java.util.Set<Integer> NEWLY_CONNECTED_IGNORE = java.util.Set.of(1364, 1365, 1366, 1374);
 
@@ -50,25 +54,6 @@ public class QuartersApiController {
             @RequestParam(required = false) String status) {
 
         try {
-            if (area != null && !area.trim().isEmpty()) {
-                try {
-                    int aId = Integer.parseInt(area.trim());
-                    System.out.println("=== DIAGNOSTICS FOR AREA " + aId + " ===");
-                    List<Connectivity> allConn = connectivityRepository.findAll();
-                    int matchCount = 0;
-                    for (Connectivity c : allConn) {
-                        PostalOffice po = c.getPostalOffice();
-                        if (po != null && po.getArea() != null && po.getArea().getId() == aId) {
-                            System.out.println("ConnID: " + c.getConnectivityId() + " | OfficeID: " + po.getId() + " | OfficeName: " + po.getName() + " | DateConn: " + c.getDateConnected() + " | DateDisc: " + c.getDateDisconnected() + " | Created: " + c.getCreatedStamp());
-                            matchCount++;
-                        }
-                    }
-                    System.out.println("Total matching connectivity records: " + matchCount);
-                } catch (Exception ex) {
-                    System.out.println("Diagnostics error: " + ex.getMessage());
-                }
-            }
-
             // Get the logged-in user and apply area restrictions
             Authentication auth = SecurityContextHolder.getContext().getAuthentication();
             String email = auth.getName();
@@ -98,334 +83,101 @@ public class QuartersApiController {
                     return new ArrayList<>();
                 }
             }
-            // If roleId is null or roleId == 1 (system admin), allow all areas
 
-            // Resolve year/quarter — default to current if not provided
             int resolvedYear = (yearInt != null) ? yearInt : LocalDateTime.now().getYear();
-            
-            // If year >= 2026, carry forward Q4 2025 offices
-            if (resolvedYear >= 2026) {
-                List<Map<String, Object>> q4_2025_offices = getQuartersPostOffices("2025", "4", area, null);
-                List<Map<String, Object>> result = new ArrayList<>();
-                for (Map<String, Object> office : q4_2025_offices) {
-                    Map<String, Object> copy = new HashMap<>(office);
-                    copy.put("newThisQuarter", false);
-                    
-                    boolean isActive = Boolean.TRUE.equals(copy.get("status"));
-                    if ("active".equals(status)) {
-                        if (isActive) result.add(copy);
-                    } else if ("inactive".equals(status)) {
-                        if (!isActive) result.add(copy);
-                    } else if ("newly_connected".equals(status) || "newly_disconnected".equals(status)) {
-                        // In 2026, newly connected and newly disconnected must be empty/0
-                    } else {
-                        result.add(copy);
-                    }
-                }
-                return result;
+            int resolvedQuarter = (quarterInt != null) ? quarterInt : (LocalDateTime.now().getMonthValue() - 1) / 3 + 1;
+
+            // Call reportController.buildQuartersData to get the exact historical classification of offices
+            List<Map<String, Object>> quartersData = reportController.buildQuartersData(
+                    resolvedYear, "Q" + resolvedQuarter, areaInt, null);
+
+            if (quartersData == null || quartersData.isEmpty()) {
+                return new ArrayList<>();
             }
-            int resolvedQuarter = (quarterInt != null) ? quarterInt
-                    : (LocalDateTime.now().getMonthValue() - 1) / 3 + 1;
 
-            LocalDateTime[] range = getQuarterDateRange(resolvedYear, resolvedQuarter);
-            LocalDateTime qStart = range[0];
-            LocalDateTime qEnd = range[1];
+            Map<String, Object> qData = quartersData.get(0);
+            Boolean isFuture = (Boolean) qData.getOrDefault("isFuture", false);
+            if (Boolean.TRUE.equals(isFuture)) {
+                return new ArrayList<>();
+            }
 
-            // Area 2 overrides for year 2025
-            if (areaInt != null && areaInt == 2 && resolvedYear == 2025) {
-                List<PostalOffice> allArea2 = postalOfficeRepository.findAllNonArchivedByArea(2);
-                
-                // Use historical connectivity data for consistency with ReportController
-                Set<Integer> activeIdsAtQuarter = connectivityRepository.findActiveAtDate(qEnd)
-                        .stream()
-                        .filter(c -> c.getPostalOffice() != null)
-                        .filter(c -> c.getPostalOffice().getArea() != null && c.getPostalOffice().getArea().getId() == 2)
-                        .map(c -> c.getPostalOffice().getId())
-                        .collect(Collectors.toSet());
-                
-                List<PostalOffice> activeArea2 = allArea2.stream()
-                        .filter(po -> activeIdsAtQuarter.contains(po.getId()))
-                        .sorted(Comparator.comparing(PostalOffice::getId))
-                        .collect(Collectors.toList());
-                List<PostalOffice> inactiveArea2 = allArea2.stream()
-                        .filter(po -> !activeIdsAtQuarter.contains(po.getId()))
-                        .sorted(Comparator.comparing(PostalOffice::getId))
-                        .collect(Collectors.toList());
+            @SuppressWarnings("unchecked")
+            List<String> connectedNames = (List<String>) qData.getOrDefault("connectedNames", new ArrayList<>());
+            @SuppressWarnings("unchecked")
+            List<String> newlyConnectedNames = (List<String>) qData.getOrDefault("newlyConnectedNames", new ArrayList<>());
+            @SuppressWarnings("unchecked")
+            List<String> disconnectedNames = (List<String>) qData.getOrDefault("disconnectedNames", new ArrayList<>());
+            @SuppressWarnings("unchecked")
+            List<String> newlyDisconnectedNames = (List<String>) qData.getOrDefault("newlyDisconnectedNames", new ArrayList<>());
 
-                List<PostalOffice> baseConnectedOffices = new ArrayList<>(activeArea2);
-                List<PostalOffice> newlyConnectedOffices = new ArrayList<>();
-                if (baseConnectedOffices.size() >= 2) {
-                    newlyConnectedOffices.add(baseConnectedOffices.remove(baseConnectedOffices.size() - 1));
-                    newlyConnectedOffices.add(baseConnectedOffices.remove(baseConnectedOffices.size() - 1));
+            // Build a map of office ID -> status and newThisQuarter flags based on the requested status filter
+            Map<Integer, Map<String, Object>> officeConfig = new HashMap<>();
+
+            if (status == null || status.trim().isEmpty() || "active".equals(status)) {
+                for (String nameEntry : connectedNames) {
+                    try {
+                        int id = Integer.parseInt(nameEntry.split("::")[0]);
+                        Map<String, Object> config = new HashMap<>();
+                        config.put("status", true);
+                        config.put("newThisQuarter", false);
+                        officeConfig.put(id, config);
+                    } catch (Exception ignored) {}
                 }
-
-                List<PostalOffice> inactiveOffices = new ArrayList<>(inactiveArea2);
-                while (inactiveOffices.size() > 31) {
-                    inactiveOffices.remove(inactiveOffices.size() - 1);
+            }
+            if (status == null || status.trim().isEmpty() || "newly_connected".equals(status)) {
+                for (String nameEntry : newlyConnectedNames) {
+                    try {
+                        int id = Integer.parseInt(nameEntry.split("::")[0]);
+                        Map<String, Object> config = new HashMap<>();
+                        config.put("status", true);
+                        config.put("newThisQuarter", true);
+                        officeConfig.put(id, config);
+                    } catch (Exception ignored) {}
                 }
-
-                if (resolvedQuarter == 1) {
-                    if ("newly_connected".equals(status)) {
-                        return newlyConnectedOffices.stream().map(po -> {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", true);
-                            dto.put("newThisQuarter", true);
-                            return dto;
-                        }).collect(Collectors.toList());
-                    } else if ("newly_disconnected".equals(status)) {
-                        return new ArrayList<>();
-                    } else if ("active".equals(status)) {
-                        return baseConnectedOffices.stream().map(po -> {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", true);
-                            dto.put("newThisQuarter", false);
-                            return dto;
-                        }).collect(Collectors.toList());
-                    } else if ("inactive".equals(status)) {
-                        return inactiveOffices.stream().map(po -> {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", false);
-                            dto.put("newThisQuarter", false);
-                            return dto;
-                        }).collect(Collectors.toList());
-                    } else {
-                        List<Map<String, Object>> list = new ArrayList<>();
-                        for (PostalOffice po : baseConnectedOffices) {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", true);
-                            dto.put("newThisQuarter", false);
-                            list.add(dto);
-                        }
-                        for (PostalOffice po : inactiveOffices) {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", false);
-                            dto.put("newThisQuarter", false);
-                            list.add(dto);
-                        }
-                        return list;
-                    }
-                } else {
-                    // resolvedQuarter Q2-Q4
-                    List<PostalOffice> activeOffices = new ArrayList<>(activeArea2);
-                    while (activeOffices.size() > 154) {
-                        activeOffices.remove(activeOffices.size() - 1);
-                    }
-
-                    if ("newly_connected".equals(status) || "newly_disconnected".equals(status)) {
-                        return new ArrayList<>();
-                    } else if ("active".equals(status)) {
-                        return activeOffices.stream().map(po -> {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", true);
-                            dto.put("newThisQuarter", false);
-                            return dto;
-                        }).collect(Collectors.toList());
-                    } else if ("inactive".equals(status)) {
-                        return inactiveOffices.stream().map(po -> {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", false);
-                            dto.put("newThisQuarter", false);
-                            return dto;
-                        }).collect(Collectors.toList());
-                    } else {
-                        List<Map<String, Object>> list = new ArrayList<>();
-                        for (PostalOffice po : activeOffices) {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", true);
-                            dto.put("newThisQuarter", false);
-                            list.add(dto);
-                        }
-                        for (PostalOffice po : inactiveOffices) {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", false);
-                            dto.put("newThisQuarter", false);
-                            list.add(dto);
-                        }
-                        return list;
-                    }
+            }
+            if (status == null || status.trim().isEmpty() || "inactive".equals(status)) {
+                for (String nameEntry : disconnectedNames) {
+                    try {
+                        int id = Integer.parseInt(nameEntry.split("::")[0]);
+                        Map<String, Object> config = new HashMap<>();
+                        config.put("status", false);
+                        config.put("newThisQuarter", false);
+                        officeConfig.put(id, config);
+                    } catch (Exception ignored) {}
+                }
+            }
+            if (status == null || status.trim().isEmpty() || "newly_disconnected".equals(status)) {
+                for (String nameEntry : newlyDisconnectedNames) {
+                    try {
+                        int id = Integer.parseInt(nameEntry.split("::")[0]);
+                        Map<String, Object> config = new HashMap<>();
+                        config.put("status", false);
+                        config.put("newThisQuarter", false);
+                        officeConfig.put(id, config);
+                    } catch (Exception ignored) {}
                 }
             }
 
-            // Area 1 overrides
-            if (areaInt != null && areaInt == 1 && resolvedYear == 2025) {
-                List<PostalOffice> allArea1 = postalOfficeRepository.findAllNonArchivedByArea(1);
-                
-                // Use historical connectivity data for consistency with ReportController
-                Set<Integer> activeIdsAtQuarter = connectivityRepository.findActiveAtDate(qEnd)
-                        .stream()
-                        .filter(c -> c.getPostalOffice() != null)
-                        .filter(c -> c.getPostalOffice().getArea() != null && c.getPostalOffice().getArea().getId() == 1)
-                        .map(c -> c.getPostalOffice().getId())
-                        .collect(Collectors.toSet());
-                
-                List<PostalOffice> activeArea1 = allArea1.stream()
-                        .filter(po -> activeIdsAtQuarter.contains(po.getId()))
-                        .sorted(Comparator.comparing(PostalOffice::getId))
-                        .collect(Collectors.toList());
+            if (officeConfig.isEmpty()) {
+                return new ArrayList<>();
+            }
 
-                List<PostalOffice> baseConnectedOffices = new ArrayList<>(activeArea1);
-                List<PostalOffice> newlyConnectedOffices = new ArrayList<>();
-                if (baseConnectedOffices.size() >= 2) {
-                    newlyConnectedOffices.add(baseConnectedOffices.remove(baseConnectedOffices.size() - 1));
-                    newlyConnectedOffices.add(baseConnectedOffices.remove(baseConnectedOffices.size() - 1));
+            List<PostalOffice> officesList = postalOfficeRepository.findAllById(officeConfig.keySet());
+
+            return officesList.stream().map(po -> {
+                Map<String, Object> dto = convertToDTO(po);
+                Map<String, Object> config = officeConfig.get(po.getId());
+                if (config != null) {
+                    dto.put("status", config.get("status"));
+                    dto.put("newThisQuarter", config.get("newThisQuarter"));
                 }
-
-                if (resolvedQuarter == 4) {
-                    if ("newly_connected".equals(status)) {
-                        return newlyConnectedOffices.stream().map(po -> {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", true);
-                            dto.put("newThisQuarter", true);
-                            return dto;
-                        }).collect(Collectors.toList());
-                    } else if ("newly_disconnected".equals(status) || "inactive".equals(status)) {
-                        return new ArrayList<>();
-                    } else if ("active".equals(status)) {
-                        return baseConnectedOffices.stream().map(po -> {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", true);
-                            dto.put("newThisQuarter", false);
-                            return dto;
-                        }).collect(Collectors.toList());
-                    } else {
-                        List<Map<String, Object>> list = new ArrayList<>();
-                        for (PostalOffice po : baseConnectedOffices) {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", true);
-                            dto.put("newThisQuarter", false);
-                            list.add(dto);
-                        }
-                        for (PostalOffice po : newlyConnectedOffices) {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", true);
-                            dto.put("newThisQuarter", true);
-                            list.add(dto);
-                        }
-                        return list;
-                    }
-                } else {
-                    // resolvedQuarter Q1-Q3
-                    List<PostalOffice> activeOffices = new ArrayList<>(activeArea1);
-                    while (activeOffices.size() > 70) {
-                        activeOffices.remove(activeOffices.size() - 1);
-                    }
-
-                    if ("newly_connected".equals(status) || "newly_disconnected".equals(status) || "inactive".equals(status)) {
-                        return new ArrayList<>();
-                    } else if ("active".equals(status)) {
-                        return activeOffices.stream().map(po -> {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", true);
-                            dto.put("newThisQuarter", false);
-                            return dto;
-                        }).collect(Collectors.toList());
-                    } else {
-                        return activeOffices.stream().map(po -> {
-                            Map<String, Object> dto = convertToDTO(po);
-                            dto.put("status", true);
-                            dto.put("newThisQuarter", false);
-                            return dto;
-                        }).collect(Collectors.toList());
-                    }
-                }
-            }
-
-            List<Map<String, Object>> offices;
-
-            if ("newly_connected".equals(status)) {
-                // Compute truly newly connected offices (no earlier connectivity record)
-                List<Connectivity> records = connectivityRepository.findByDateConnectedBetween(qStart, qEnd);
-                Set<Integer> newlyIds = new HashSet<>();
-                for (Connectivity c : records) {
-                    PostalOffice po = c.getPostalOffice();
-                    if (po == null || archivedOfficeRepository.existsByPostalOfficeId(po.getId())) continue;
-                    if (NEWLY_CONNECTED_IGNORE.contains(po.getId())) continue;
-                    // Check for any earlier connection before quarter start
-                    boolean hasEarlier = connectivityRepository.findByPostalOfficeId(po.getId()).stream()
-                            .map(cc -> cc.getDateConnected() != null ? cc.getDateConnected() : cc.getCreatedStamp())
-                            .filter(Objects::nonNull)
-                            .anyMatch(dt -> dt.isBefore(qStart));
-                    if (!hasEarlier) newlyIds.add(po.getId());
-                }
-                // Fetch offices in batch
-                List<PostalOffice> officesList = postalOfficeRepository.findAllById(newlyIds);
-                offices = officesList.stream().map(po -> {
-                    Map<String, Object> dto = convertToDTO(po);
-                    dto.put("status", true);
-                    dto.put("newThisQuarter", true);
-                    return dto;
-                }).collect(Collectors.toList());
-
-
-
-// removed duplicate newly_connected logic
-            } else if ("newly_disconnected".equals(status)) {
-                // Offices that DISCONNECTED within quarter
-                List<Connectivity> records = connectivityRepository.findByDateDisconnectedBetween(qStart, qEnd);
-                offices = toUniqueDTOsWithFlag(records, false, false);
-            } else {
-                // Show ALL non-archived offices (active + inactive)
-                // Use historical connectivity data from Connectivity table to match ReportController
-                // This ensures synchronization between Connectivity Report and Internet Connectivity
-
-                Set<Integer> newlyConnectedIds = connectivityRepository.findByDateConnectedBetween(qStart, qEnd)
-                        .stream()
-                        .filter(c -> c.getPostalOffice() != null && !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
-                        .map(c -> c.getPostalOffice().getId())
-                        .collect(Collectors.toSet());
-
-                // Get active offices at the end of the quarter using historical connectivity data
-                Set<Integer> activeIds = connectivityRepository.findActiveAtDate(qEnd)
-                        .stream()
-                        .filter(c -> c.getPostalOffice() != null)
-                        .map(c -> c.getPostalOffice().getId())
-                        .collect(Collectors.toSet());
-
-                offices = postalOfficeRepository.findAllNonArchivedWithConnectivity()
-                        .stream()
-                        .map(po -> {
-                            Map<String, Object> dto = convertToDTO(po);
-                            // Use historical connectivity status instead of current connectionStatus
-                            dto.put("status", activeIds.contains(po.getId()));
-                            dto.put("newThisQuarter", newlyConnectedIds.contains(po.getId()));
-                            return dto;
-                        })
-                        .collect(Collectors.toList());
-            }
-
-            // Apply area filter
-            if (areaInt != null) {
-                final Integer ai = areaInt;
-                offices = offices.stream()
-                        .filter(o -> ai.equals(o.get("areaId")))
-                        .collect(Collectors.toList());
-            }
-
-            // Apply active / inactive status filter
-            if ("active".equals(status)) {
-                offices = offices.stream()
-                        .filter(o -> Boolean.TRUE.equals(o.get("status")))
-                        .collect(Collectors.toList());
-            } else if ("inactive".equals(status)) {
-                offices = offices.stream()
-                        .filter(o -> !Boolean.TRUE.equals(o.get("status")))
-                        .collect(Collectors.toList());
-            }
-
-            return offices;
+                return dto;
+            }).collect(Collectors.toList());
 
         } catch (Exception e) {
-            // Log the error and return empty list with error info
             System.err.println("Error in getQuartersPostOffices: " + e.getMessage());
             e.printStackTrace();
-
-            // Return empty list with error info for debugging
-            Map<String, Object> errorResponse = new HashMap<>();
-            errorResponse.put("error", true);
-            errorResponse.put("message", "Failed to load post offices: " + e.getMessage());
-            errorResponse.put("timestamp", LocalDateTime.now().toString());
-
-            return List.of(errorResponse);
+            return new ArrayList<>();
         }
     }
 

@@ -694,7 +694,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const statusEl  = document.getElementById('summaryStatus');
             const connSelect = document.getElementById('connectionStatusSelect');
             if (statusEl) {
-                statusEl.innerHTML = connSelect?.value === 'active'
+                statusEl.innerHTML = connCheck?.value === 'true'
                     ? '<span class="badge badge-success">Active</span>'
                     : '<span class="badge badge-secondary">Inactive</span>';
             }
