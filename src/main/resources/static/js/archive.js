@@ -53,6 +53,7 @@ $(document).ready(function () {
 
         $('#archiveOfficeName').text(name);
         $('#archiveReasonInput').val('');
+        $('#archiveDateInput').val('');
 
         try {
             if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
@@ -84,15 +85,21 @@ $(document).ready(function () {
         if (!pendingArchiveId) return;
 
         const reason = $('#archiveReasonInput').val().trim();
+        const archiveDate = $('#archiveDateInput').val();
         const $btn   = $(this);
 
         $btn.prop('disabled', true).html('<i class="fas fa-spinner fa-spin mr-1"></i> Archiving...');
+
+        const requestData = { reason: reason };
+        if (archiveDate) {
+            requestData.archiveDate = archiveDate;
+        }
 
         $.ajax({
             url: '/api/archive/' + pendingArchiveId,
             method: 'POST',
             contentType: 'application/json',
-            data: JSON.stringify({ reason: reason }),
+            data: JSON.stringify(requestData),
             success: function (res) {
                 $('#archiveReasonModal').modal('hide');
                 $btn.prop('disabled', false).html('<i class="fas fa-archive mr-1"></i> Archive');

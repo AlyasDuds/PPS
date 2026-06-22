@@ -528,6 +528,7 @@ public class ApprovalService {
                 + " · Requested by: " + (request.getRequestedBy() != null ? request.getRequestedBy() : "unknown");
 
         String actor = request.getAreaAdminProcessedBy() != null ? request.getAreaAdminProcessedBy() : "system";
+        Integer areaId = getAreaIdForOffice(request.getOfficeId());
         notifService.pushAudit(
                 ConnectivityNotification.Type.UPDATED,
                 officeName,
@@ -538,7 +539,8 @@ public class ApprovalService {
                 null,
                 "APPROVAL",
                 "ApprovalRequest",
-                request.getId()
+                request.getId(),
+                areaId
         );
     }
 
@@ -549,6 +551,7 @@ public class ApprovalService {
                 + " · Requested by: " + (request.getRequestedBy() != null ? request.getRequestedBy() : "unknown");
 
         String actor = request.getRequestedBy() != null ? request.getRequestedBy() : "system";
+        Integer areaId = getAreaIdForOffice(request.getOfficeId());
         notifService.pushAudit(
                 ConnectivityNotification.Type.UPDATED,
                 officeName,
@@ -559,7 +562,8 @@ public class ApprovalService {
                 null,
                 "APPROVAL",
                 "ApprovalRequest",
-                request.getId()
+                request.getId(),
+                areaId
         );
     }
 
@@ -569,6 +573,7 @@ public class ApprovalService {
                 + " · " + statusMessage
                 + " · Requested by: " + (request.getRequestedBy() != null ? request.getRequestedBy() : "unknown");
 
+        Integer areaId = getAreaIdForOffice(request.getOfficeId());
         notifService.pushAudit(
                 ConnectivityNotification.Type.UPDATED,
                 officeName,
@@ -579,7 +584,8 @@ public class ApprovalService {
                 request.getRequestedBy(),
                 "APPROVAL",
                 "ApprovalRequest",
-                request.getId()
+                request.getId(),
+                areaId
         );
     }
 
@@ -591,6 +597,7 @@ public class ApprovalService {
                 + " · " + statusMessage
                 + " · Area Admin: " + request.getAreaAdminProcessedBy();
 
+        Integer areaId = getAreaIdForOffice(request.getOfficeId());
         notifService.pushAudit(
                 ConnectivityNotification.Type.UPDATED,
                 officeName,
@@ -601,7 +608,15 @@ public class ApprovalService {
                 request.getAreaAdminProcessedBy(),
                 "APPROVAL",
                 "ApprovalRequest",
-                request.getId()
+                request.getId(),
+                areaId
         );
+    }
+
+    private Integer getAreaIdForOffice(Integer officeId) {
+        if (officeId == null) return null;
+        return postalOfficeRepository.findById(officeId)
+                .map(po -> po.getArea() != null ? po.getArea().getId() : null)
+                .orElse(null);
     }
 }

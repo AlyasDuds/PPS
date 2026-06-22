@@ -328,12 +328,15 @@ public class ReportController {
 
         List<Map<String, Object>> list = new ArrayList<>();
 
-        // Fetch base connected and disconnected for the current true state
-        // For baseline, use the exact current snapshot
-        List<String> finalConnectedNames = getConnectedNames(now, areaId);
-        List<String> finalDisconnectedNames = getDisconnectedNames(now, areaId);
+        // For historical years, use the snapshot at the end of that year (Dec 31 23:59:59)
+        // For current year, use the current snapshot
+        LocalDateTime snapshotDate = currentYearMatch ? now : LocalDateTime.of(year, 12, 31, 23, 59, 59);
 
-        // Running totals starting from current snapshot and going backwards
+        // Fetch base connected and disconnected for the snapshot date
+        List<String> finalConnectedNames = getConnectedNames(snapshotDate, areaId);
+        List<String> finalDisconnectedNames = getDisconnectedNames(snapshotDate, areaId);
+
+        // Running totals starting from snapshot and going backwards
         List<String> runningConnectedNames = new ArrayList<>(finalConnectedNames);
         List<String> runningDisconnectedNames = new ArrayList<>(finalDisconnectedNames);
 

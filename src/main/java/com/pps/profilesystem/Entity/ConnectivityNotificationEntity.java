@@ -54,6 +54,10 @@ public class ConnectivityNotificationEntity {
     @Column(name = "entity_id")
     private Long entityId;
 
+    /** Area id of the office for area-based filtering. */
+    @Column(name = "area_id")
+    private Integer areaId;
+
     @Column(columnDefinition = "TEXT")
     private String detail;
 
@@ -153,6 +157,14 @@ public class ConnectivityNotificationEntity {
 
     public void setEntityId(Long entityId) {
         this.entityId = entityId;
+    }
+
+    public Integer getAreaId() {
+        return areaId;
+    }
+
+    public void setAreaId(Integer areaId) {
+        this.areaId = areaId;
     }
 
     public String getDetail() {

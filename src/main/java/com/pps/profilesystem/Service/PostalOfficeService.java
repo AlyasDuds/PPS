@@ -161,9 +161,9 @@ public class PostalOfficeService {
         Connectivity connectivity = new Connectivity();
         connectivity.setPostalOffice(office);  // Sets OfficeID
         connectivity.setProvider(defaultProvider);
-        connectivity.setDateConnected(LocalDateTime.now());
+        // dateConnected will be set by @PrePersist hook if null, or by user input
         // dateDisconnected is null for active connections
-        
+
         return connectivity;
     }
 
@@ -304,7 +304,7 @@ public class PostalOfficeService {
         Connectivity newConn = new Connectivity();
         newConn.setPostalOffice(office);
         newConn.setProvider(providerOpt.get());
-        newConn.setDateConnected(LocalDateTime.now());
+        // dateConnected will be set by @PrePersist hook if null, or by user input
         Connectivity savedConn = connectivityRepository.save(newConn);
         office.setActiveConnectivity(savedConn);
         office.setConnectionStatus(true);

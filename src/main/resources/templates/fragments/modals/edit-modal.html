@@ -676,7 +676,7 @@
 
                                     </label>
 
-                                    <select class="form-control" id="editISP">
+                                    <select class="form-control" id="editISP" onchange="toggleEditISPOther(this)">
 
                                         <option value="">-- Select ISP --</option>
 
@@ -698,6 +698,10 @@
 
                                     </select>
 
+                                </div>
+                                <div id="editISPOtherWrap" style="display:none;" class="mt-2">
+                                    <input type="text" class="form-control" id="editISPOther"
+                                           placeholder="Specify ISP name...">
                                 </div>
 
                             </div>
@@ -722,7 +726,7 @@
 
                                     </label>
 
-                                    <select class="form-control" id="editTypeOfConnection">
+                                    <select class="form-control" id="editTypeOfConnection" onchange="toggleEditTypeOfConnectionOther(this)">
 
                                         <option value="">-- Select Type --</option>
 
@@ -736,8 +740,14 @@
 
                                         <option value="Satellite">Satellite</option>
 
+                                        <option value="Other">Other</option>
+
                                     </select>
 
+                                </div>
+                                <div id="editTypeOfConnectionOtherWrap" style="display:none;" class="mt-2">
+                                    <input type="text" class="form-control" id="editTypeOfConnectionOther"
+                                           placeholder="Specify connection type...">
                                 </div>
 
                             </div>
@@ -833,7 +843,60 @@
 
                     </div>
 
-
+                    <!-- ── Plan & Billing ─────────────────────────────────── -->
+                    <h6 class="mt-3 mb-2 text-primary">
+                        <i class="fas fa-file-invoice-dollar mr-1"></i>Plan & Billing
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="editPlanName">Plan Name</label>
+                                <input type="text" class="form-control" id="editPlanName">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="editPlanPrice">Plan Price</label>
+                                <input type="number" class="form-control" id="editPlanPrice" min="0" step="0.01">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="editAccountNumber">Account Number</label>
+                                <input type="text" class="form-control" id="editAccountNumber">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="editPlanContract">Contract Type</label>
+                                <input type="text" class="form-control" id="editPlanContract" placeholder="e.g. 12 months">
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-center pt-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editIsWired">
+                                <label class="form-check-label" for="editIsWired">Wired</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-center pt-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editIsWireless">
+                                <label class="form-check-label" for="editIsWireless">Wireless</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-center pt-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editIsShared">
+                                <label class="form-check-label" for="editIsShared">Shared</label>
+                            </div>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-center pt-2">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editIsFree">
+                                <label class="form-check-label" for="editIsFree">Free</label>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- ── Remarks ─────────────────────────────────────────── -->
 

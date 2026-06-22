@@ -40,7 +40,7 @@ public class ArchiveService {
      * Archive a single postal office.
      * Also disconnects its active connectivity if present.
      */
-    public PostalOffice archiveOffice(Integer id, String reason, String archivedBy) {
+    public PostalOffice archiveOffice(Integer id, String reason, String archivedBy, LocalDateTime archiveDate) {
         PostalOffice office = postalOfficeRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Postal office not found with ID: " + id));
 
@@ -62,10 +62,19 @@ public class ArchiveService {
                 ? reason.trim()
                 : "No reason provided";
         String by = (archivedBy != null && !archivedBy.isBlank()) ? archivedBy.trim() : "unknown";
-        ArchivedOffice archivedOffice = new ArchivedOffice(office, trimmedReason, by);
+        LocalDateTime archivedAt = (archiveDate != null) ? archiveDate : LocalDateTime.now();
+        ArchivedOffice archivedOffice = new ArchivedOffice(office, trimmedReason, by, archivedAt);
         archivedOfficeRepository.save(archivedOffice);
 
         return postalOfficeRepository.save(office);
+    }
+
+    /**
+     * Archive a single postal office (uses current date).
+     * Also disconnects its active connectivity if present.
+     */
+    public PostalOffice archiveOffice(Integer id, String reason, String archivedBy) {
+        return archiveOffice(id, reason, archivedBy, null);
     }
 
     /**

@@ -75,11 +75,20 @@ public class PostalOfficeEditRestController {
                     d.put("connectionStatus",           o.getConnectionStatus());
                     d.put("officeStatus",               o.getOfficeStatus());
                     
-                    // Fetch latest connectivity record to populate dates
+                    // Fetch latest connectivity record to populate dates and Plan & Billing fields
                     connectivityRepository.findTopByPostalOfficeIdOrderByDateConnectedDesc(o.getId())
                         .ifPresent(conn -> {
                             d.put("dateConnected", conn.getDateConnected() != null ? conn.getDateConnected().toLocalDate().toString() : null);
                             d.put("dateDisconnected", conn.getDateDisconnected() != null ? conn.getDateDisconnected().toLocalDate().toString() : null);
+                            // Plan & Billing fields from Connectivity
+                            d.put("planName", conn.getPlanName());
+                            d.put("planPrice", conn.getPlanPrice() != null ? conn.getPlanPrice().toString() : null);
+                            d.put("accountNumber", conn.getAccountNumber());
+                            d.put("planContract", conn.getPlanContract());
+                            d.put("isWired", conn.getIsWired());
+                            d.put("isWireless", conn.getIsWireless());
+                            d.put("isShared", conn.getIsShared());
+                            d.put("isFree", conn.getIsFree());
                         });
                     d.put("internetServiceProvider",    o.getInternetServiceProvider());
                     d.put("typeOfConnection",           o.getTypeOfConnection());
@@ -193,6 +202,9 @@ public class PostalOfficeEditRestController {
                             }
                         });
                 }
+                
+                // Save Plan & Billing fields to Connectivity record
+                saveConnectivityPlanFields(o, body);
 
                 postalOfficeRepository.save(o);
 
@@ -203,6 +215,7 @@ public class PostalOfficeEditRestController {
                     Integer actorRoleId = ConnectivityNotificationService.roleIdFromAuthorities(
                             auth != null ? auth.getAuthorities() : null
                     );
+                    Integer areaId = o.getArea() != null ? o.getArea().getId() : null;
                     notifService.pushAudit(
                             type,
                             o.getName(),
@@ -213,7 +226,8 @@ public class PostalOfficeEditRestController {
                             null,
                             "CONNECTIVITY",
                             "PostalOffice",
-                            o.getId() != null ? o.getId().longValue() : null
+                            o.getId() != null ? o.getId().longValue() : null,
+                            areaId
                     );
                 }
 
@@ -293,6 +307,15 @@ public class PostalOfficeEditRestController {
         oldValues.put("ispContactPerson", before.ispContactPerson);
         oldValues.put("ispContactNumber", before.ispContactNumber);
         oldValues.put("remarks", before.remarks);
+        // Plan & Billing fields (from Connectivity)
+        oldValues.put("planName", before.planName);
+        oldValues.put("planPrice", before.planPrice);
+        oldValues.put("accountNumber", before.accountNumber);
+        oldValues.put("planContract", before.planContract);
+        oldValues.put("isWired", before.isWired);
+        oldValues.put("isWireless", before.isWireless);
+        oldValues.put("isShared", before.isShared);
+        oldValues.put("isFree", before.isFree);
         return oldValues;
     }
 
@@ -318,6 +341,7 @@ public class PostalOfficeEditRestController {
         copyIfPresent(body, newValues, "ispContactPerson");
         copyIfPresent(body, newValues, "ispContactNumber");
         copyIfPresent(body, newValues, "remarks");
+        // Plan & Billing fields are handled separately through Connectivity, not in approval maps
         copyIfPresent(body, newValues, "areaId");
         copyIfPresent(body, newValues, "regionId");
         copyIfPresent(body, newValues, "provinceId");
@@ -397,6 +421,20 @@ public class PostalOfficeEditRestController {
         cmp(lines, "ISP Contact",    b.ispContactPerson, a.getIspContactPerson());
         cmp(lines, "ISP #",          b.ispContactNumber, a.getIspContactNumber());
         cmp(lines, "Remarks",        b.remarks,          a.getRemarks());
+        
+        // Plan & Billing fields (from Connectivity) - compare with current connectivity
+        Connectivity currentConn = a.getActiveConnectivity();
+        if (currentConn != null) {
+            cmp(lines, "Plan Name",     b.planName,     currentConn.getPlanName());
+            cmp(lines, "Plan Price",    b.planPrice,    currentConn.getPlanPrice() != null ? currentConn.getPlanPrice().toString() : null);
+            cmp(lines, "Account #",     b.accountNumber, currentConn.getAccountNumber());
+            cmp(lines, "Contract",      b.planContract, currentConn.getPlanContract());
+            cmpBool(lines, "Wired",      b.isWired,      currentConn.getIsWired());
+            cmpBool(lines, "Wireless",   b.isWireless,   currentConn.getIsWireless());
+            cmpBool(lines, "Shared",     b.isShared,     currentConn.getIsShared());
+            cmpBool(lines, "Free",       b.isFree,       currentConn.getIsFree());
+        }
+        
         return lines;
     }
 
@@ -406,6 +444,11 @@ public class PostalOfficeEditRestController {
     private void cmpNum(List<String> out, String lbl, Integer b, Integer a) {
         String bv = b == null ? "?" : String.valueOf(b);
         String av = a == null ? "?" : String.valueOf(a);
+        if (!bv.equals(av)) out.add(lbl + ": " + bv + " -> " + av);
+    }
+    private void cmpBool(List<String> out, String lbl, Boolean b, Boolean a) {
+        String bv = b == null ? "?" : (b ? "Yes" : "No");
+        String av = a == null ? "?" : (a ? "Yes" : "No");
         if (!bv.equals(av)) out.add(lbl + ": " + bv + " -> " + av);
     }
     private String blank(String s) { return (s == null || s.isBlank()) ? "?" : s.trim(); }
@@ -427,6 +470,9 @@ public class PostalOfficeEditRestController {
         String  isp, connType, speed, staticIp;
         Integer employees, tellers, carriers;
         String  contactPerson, contactNumber, ispContactPerson, ispContactNumber, remarks;
+        // Plan & Billing fields (from Connectivity)
+        String  planName, planPrice, accountNumber, planContract;
+        Boolean isWired, isWireless, isShared, isFree;
 
         static Snapshot of(PostalOffice o) {
             Snapshot s = new Snapshot();
@@ -450,6 +496,18 @@ public class PostalOfficeEditRestController {
             s.ispContactPerson = o.getIspContactPerson();
             s.ispContactNumber = o.getIspContactNumber();
             s.remarks          = o.getRemarks();
+            // Plan & Billing fields from Connectivity
+            if (o.getActiveConnectivity() != null) {
+                Connectivity c = o.getActiveConnectivity();
+                s.planName      = c.getPlanName();
+                s.planPrice     = c.getPlanPrice() != null ? c.getPlanPrice().toString() : null;
+                s.accountNumber = c.getAccountNumber();
+                s.planContract  = c.getPlanContract();
+                s.isWired       = c.getIsWired();
+                s.isWireless    = c.getIsWireless();
+                s.isShared      = c.getIsShared();
+                s.isFree        = c.getIsFree();
+            }
             return s;
         }
     }
@@ -551,5 +609,100 @@ public class PostalOfficeEditRestController {
             return "This office already has a request waiting for SRD Operation final approval.";
         }
         return "This office already has a pending request waiting for Area Admin review.";
+    }
+
+    private void saveConnectivityPlanFields(PostalOffice office, Map<String, Object> body) {
+        // Get or create the active connectivity record
+        Connectivity conn = office.getActiveConnectivity();
+        if (conn == null) {
+            // If no active connectivity, try to find the latest one
+            Optional<Connectivity> latest = connectivityRepository.findTopByPostalOfficeIdOrderByDateConnectedDesc(office.getId());
+            if (latest.isPresent()) {
+                conn = latest.get();
+            } else {
+                // Create a new connectivity record if none exists
+                Provider defaultProvider = providerRepository.findAll().stream()
+                    .findFirst()
+                    .orElseGet(() -> {
+                        Provider newProvider = new Provider();
+                        newProvider.setName("Default Provider");
+                        return providerRepository.save(newProvider);
+                    });
+                conn = new Connectivity();
+                conn.setPostalOffice(office);
+                conn.setProvider(defaultProvider);
+                conn.setDateConnected(LocalDateTime.now());
+            }
+        }
+
+        boolean changed = false;
+
+        // Save Plan & Billing fields
+        if (body.containsKey("planName")) {
+            String val = str(body.get("planName"));
+            if (!Objects.equals(val, conn.getPlanName())) {
+                conn.setPlanName(val);
+                changed = true;
+            }
+        }
+        if (body.containsKey("planPrice")) {
+            String val = str(body.get("planPrice"));
+            if (val != null && !val.isBlank()) {
+                try {
+                    java.math.BigDecimal price = new java.math.BigDecimal(val);
+                    if (!price.equals(conn.getPlanPrice())) {
+                        conn.setPlanPrice(price);
+                        changed = true;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+        if (body.containsKey("accountNumber")) {
+            String val = str(body.get("accountNumber"));
+            if (!Objects.equals(val, conn.getAccountNumber())) {
+                conn.setAccountNumber(val);
+                changed = true;
+            }
+        }
+        if (body.containsKey("planContract")) {
+            String val = str(body.get("planContract"));
+            if (!Objects.equals(val, conn.getPlanContract())) {
+                conn.setPlanContract(val);
+                changed = true;
+            }
+        }
+        if (body.containsKey("isWired")) {
+            Boolean val = bool(body.get("isWired"));
+            if (!Objects.equals(val, conn.getIsWired())) {
+                conn.setIsWired(val);
+                changed = true;
+            }
+        }
+        if (body.containsKey("isWireless")) {
+            Boolean val = bool(body.get("isWireless"));
+            if (!Objects.equals(val, conn.getIsWireless())) {
+                conn.setIsWireless(val);
+                changed = true;
+            }
+        }
+        if (body.containsKey("isShared")) {
+            Boolean val = bool(body.get("isShared"));
+            if (!Objects.equals(val, conn.getIsShared())) {
+                conn.setIsShared(val);
+                changed = true;
+            }
+        }
+        if (body.containsKey("isFree")) {
+            Boolean val = bool(body.get("isFree"));
+            if (!Objects.equals(val, conn.getIsFree())) {
+                conn.setIsFree(val);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            Connectivity saved = connectivityRepository.save(conn);
+            office.setActiveConnectivity(saved);
+        }
     }
 }

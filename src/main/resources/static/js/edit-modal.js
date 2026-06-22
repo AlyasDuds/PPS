@@ -29,6 +29,40 @@ $(function () {
         $('#editAreaIdHidden').val(this.value);
     });
 
+    /* Toggle Type of Connection Other field */
+    window.toggleEditTypeOfConnectionOther = function(select) {
+        const wrap = document.getElementById('editTypeOfConnectionOtherWrap');
+        const other = document.getElementById('editTypeOfConnectionOther');
+        if (!wrap) return;
+
+        const isOther = select.value === 'Other';
+        wrap.style.display = isOther ? 'block' : 'none';
+        if (other) {
+            if (!isOther) {
+                other.value = '';
+            } else {
+                other.focus();
+            }
+        }
+    };
+
+    /* Toggle ISP Other field */
+    window.toggleEditISPOther = function(select) {
+        const wrap = document.getElementById('editISPOtherWrap');
+        const other = document.getElementById('editISPOther');
+        if (!wrap) return;
+
+        const isOther = select.value === 'Others';
+        wrap.style.display = isOther ? 'block' : 'none';
+        if (other) {
+            if (!isOther) {
+                other.value = '';
+            } else {
+                other.focus();
+            }
+        }
+    };
+
     /* Cascading location dropdowns (Area → Province → City → Barangay) */
     $(document).on('change', '#editAreaId', function () {
         _resetSelect('#editProvinceId', '-- Select Province --',          true);
@@ -216,8 +250,20 @@ function saveOfficeChanges() {
     _setIfExists(candidate, 'dateConnected', '#editDateConnected', function () { return _trimOrNull('#editDateConnected'); });
     _setIfExists(candidate, 'dateDisconnected', '#editDateDisconnected', function () { return _trimOrNull('#editDateDisconnected'); });
     _setIfExists(candidate, 'officeStatus', '#editOfficeStatus', function () { return _trimOrNull('#editOfficeStatus'); });
-    _setIfExists(candidate, 'internetServiceProvider', '#editISP', function () { return _trimOrNull('#editISP'); });
-    _setIfExists(candidate, 'typeOfConnection', '#editTypeOfConnection', function () { return _trimOrNull('#editTypeOfConnection'); });
+    // Handle internetServiceProvider - use Other field if Others is selected
+    var ispVal = $('#editISP').val();
+    if (ispVal === 'Others') {
+        candidate.internetServiceProvider = _trimOrNull('#editISPOther') || 'Others';
+    } else {
+        candidate.internetServiceProvider = _trimOrNull('#editISP');
+    }
+    // Handle typeOfConnection - use Other field if Other is selected
+    var typeOfConnVal = $('#editTypeOfConnection').val();
+    if (typeOfConnVal === 'Other') {
+        candidate.typeOfConnection = _trimOrNull('#editTypeOfConnectionOther') || 'Other';
+    } else {
+        candidate.typeOfConnection = _trimOrNull('#editTypeOfConnection');
+    }
     _setIfExists(candidate, 'speed', '#editSpeed', function () { return _trimOrNull('#editSpeed'); });
     _setIfExists(candidate, 'staticIpAddress', '#editIPAddressType', function () {
         var t = $('#editIPAddressType').val();
@@ -231,6 +277,16 @@ function saveOfficeChanges() {
     _setIfExists(candidate, 'ispContactPerson', '#editISPContactPerson', function () { return _trimOrNull('#editISPContactPerson'); });
     _setIfExists(candidate, 'ispContactNumber', '#editISPContactNumber', function () { return _trimOrNull('#editISPContactNumber'); });
     _setIfExists(candidate, 'remarks', '#editRemarks', function () { return _trimOrNull('#editRemarks'); });
+
+    // Plan & Billing fields
+    _setIfExists(candidate, 'planName', '#editPlanName', function () { return _trimOrNull('#editPlanName'); });
+    _setIfExists(candidate, 'planPrice', '#editPlanPrice', function () { return _numOrNull('#editPlanPrice'); });
+    _setIfExists(candidate, 'accountNumber', '#editAccountNumber', function () { return _trimOrNull('#editAccountNumber'); });
+    _setIfExists(candidate, 'planContract', '#editPlanContract', function () { return _trimOrNull('#editPlanContract'); });
+    candidate.isWired = $('#editIsWired').is(':checked');
+    candidate.isWireless = $('#editIsWireless').is(':checked');
+    candidate.isShared = $('#editIsShared').is(':checked');
+    candidate.isFree = $('#editIsFree').is(':checked');
     _setIfExists(candidate, 'areaId', '#editAreaIdHidden', function () { return _intOrNull('#editAreaIdHidden'); });
     _setIfExists(candidate, 'provinceId', '#editProvinceId', function () { return _intOrNull('#editProvinceId'); });
     _setIfExists(candidate, 'cityMunId', '#editCityMunId', function () { return _intOrNull('#editCityMunId'); });
@@ -313,14 +369,39 @@ function _fillModal(d) {
     _setField('#editDateClosed', d.dateClosed);
     $('#editFrequencyOfDelivery').val(d.frequencyOfDelivery || '');
     
-    $('#editISP').val(d.internetServiceProvider || '');
-    
-    // Handle typeOfConnection - add to dropdown if not exists
-    var typeOfConn = d.typeOfConnection || '';
-    if (typeOfConn && $('#editTypeOfConnection option[value="' + typeOfConn + '"]').length === 0) {
-        $('#editTypeOfConnection').append('<option value="' + typeOfConn + '">' + typeOfConn + '</option>');
+    // Handle internetServiceProvider - use Other field if value not in dropdown
+    var isp = d.internetServiceProvider || '';
+    var validISP = ['PLDT', 'Globe', 'Smart', 'Converge', 'Sky Broadband', 'Eastern Telecoms', 'Radius Telecoms', 'Others'];
+    if (isp && validISP.includes(isp)) {
+        $('#editISP').val(isp);
+        $('#editISPOtherWrap').hide();
+        $('#editISPOther').val('');
+    } else if (isp) {
+        $('#editISP').val('Others');
+        $('#editISPOtherWrap').show();
+        $('#editISPOther').val(isp);
+    } else {
+        $('#editISP').val('');
+        $('#editISPOtherWrap').hide();
+        $('#editISPOther').val('');
     }
-    $('#editTypeOfConnection').val(typeOfConn);
+
+    // Handle typeOfConnection - use Other field if value not in dropdown
+    var typeOfConn = d.typeOfConnection || '';
+    var validOptions = ['Fiber', 'DSL', 'Cable', 'Wireless', 'Satellite', 'Other'];
+    if (typeOfConn && validOptions.includes(typeOfConn)) {
+        $('#editTypeOfConnection').val(typeOfConn);
+        $('#editTypeOfConnectionOtherWrap').hide();
+        $('#editTypeOfConnectionOther').val('');
+    } else if (typeOfConn) {
+        $('#editTypeOfConnection').val('Other');
+        $('#editTypeOfConnectionOtherWrap').show();
+        $('#editTypeOfConnectionOther').val(typeOfConn);
+    } else {
+        $('#editTypeOfConnection').val('');
+        $('#editTypeOfConnectionOtherWrap').hide();
+        $('#editTypeOfConnectionOther').val('');
+    }
     
     _setField('#editSpeed',    d.speed);
     $('#editIPAddressType').val(d.staticIpAddress === 'Static' ? 'static' : '');
@@ -335,10 +416,32 @@ function _fillModal(d) {
     _setField('#editISPContactNumber', d.ispContactNumber);
     _setField('#editRemarks',          d.remarks);
 
-    $('#editAreaId').val(d.areaId || '');
-    $('#editAreaIdHidden').val(d.areaId || '');
+    // Plan & Billing fields
+    _setField('#editPlanName',         d.planName);
+    _setField('#editPlanPrice',        d.planPrice);
+    _setField('#editAccountNumber',    d.accountNumber);
+    _setField('#editPlanContract',     d.planContract);
+    $('#editIsWired').prop('checked', d.isWired === true);
+    $('#editIsWireless').prop('checked', d.isWireless === true);
+    $('#editIsShared').prop('checked', d.isShared === true);
+    $('#editIsFree').prop('checked', d.isFree === true);
 
-    _fillLocationHierarchy(d);
+    // Load area options first, then set area value and fill hierarchy
+    if (_areasCache) {
+        _areasCache.done(function(areas) {
+            _populateSelect('#editAreaId', areas, 'id', 'name', '-- Select Area --');
+            $('#editAreaId').val(d.areaId || '');
+            $('#editAreaIdHidden').val(d.areaId || '');
+            _fillLocationHierarchy(d);
+        });
+    } else {
+        _areasCache = $.getJSON('/api/postal/areas').done(function(areas) {
+            _populateSelect('#editAreaId', areas, 'id', 'name', '-- Select Area --');
+            $('#editAreaId').val(d.areaId || '');
+            $('#editAreaIdHidden').val(d.areaId || '');
+            _fillLocationHierarchy(d);
+        });
+    }
 }
 
 function _fillLocationHierarchy(d) {

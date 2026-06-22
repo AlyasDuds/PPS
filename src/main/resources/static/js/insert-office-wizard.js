@@ -13,15 +13,35 @@ function syncConnectionStatus(select) {
     if (connCheck) connCheck.value = isActive ? 'true' : 'false';
     if (dateConn && dateDisconn) {
         if (isActive) {
+            // Allow user to set custom dateConnected for historical data
+            // Only set to current date if empty
             if (!dateConn.value) dateConn.value = nowLocal();
-            dateDisconn.value    = '';
-            dateConn.disabled    = false;
+            dateDisconn.value = '';
+            dateConn.disabled = false;  // Allow manual editing
             dateDisconn.disabled = true;
         } else {
             if (!dateDisconn.value) dateDisconn.value = nowLocal();
             dateConn.value       = '';
             dateConn.disabled    = true;
             dateDisconn.disabled = false;
+        }
+    }
+}
+
+// ── Global: called by onchange on the Type of Connection select ────────────
+function toggleTypeOfConnectionOther(select) {
+    const wrap = document.getElementById('typeOfConnectionOtherWrap');
+    const other = document.getElementById('typeOfConnectionOther');
+    if (!wrap) return;
+
+    const isOther = select.value === 'Other';
+    wrap.style.display = isOther ? 'block' : 'none';
+    if (other) {
+        if (!isOther) {
+            other.value = '';
+            other.classList.remove('is-invalid', 'is-valid');
+        } else {
+            other.focus();
         }
     }
 }
@@ -362,9 +382,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 if (dateConn && dateDisconn) {
                     if (isActive) {
-                        if (!dateConn.value) dateConn.value = nowLocal();
-                        dateDisconn.value    = '';
-                        dateConn.disabled    = false;
+                        // Always set to current date for new insertions - prevents counting in previous years
+                        dateConn.value = nowLocal();
+                        dateDisconn.value = '';
+                        dateConn.disabled = true;  // Disable manual editing to prevent changing to previous year
                         dateDisconn.disabled = true;
                     } else {
                         if (!dateDisconn.value) dateDisconn.value = nowLocal();
@@ -439,6 +460,14 @@ document.addEventListener('DOMContentLoaded', function () {
             return getStr('internetServiceProviderOther');
         }
         return getStr('internetServiceProvider');
+    }
+
+    function getTypeOfConnection() {
+        const sel = document.getElementById('typeOfConnection');
+        if (sel?.value === 'Other') {
+            return getStr('typeOfConnectionOther');
+        }
+        return getStr('typeOfConnection');
     }
 
     /** Uppercase while typing + live "NAME POST OFFICE" preview (no trim on keystroke). */
@@ -571,7 +600,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 internetServiceProvider:        getIsp(),
                 classification:                 getStr('classification'),
                 ownedOrShared:                  getStr('ownedOrShared'),
-                typeOfConnection:               getStr('typeOfConnection'),
+                typeOfConnection:               getTypeOfConnection(),
                 speed:                          getSpeed(),
                 staticIpAddress:                getStr('ipAddressType') === 'static' ? 'Static' : null,
                 ispContactPerson:               getStr('ispContactPerson'),
@@ -584,6 +613,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 dateConnected:                  getStr('dateConnected'),
                 dateDisconnected:               getStr('dateDisconnected'),
                 isWired:                        getBool('isWired'),
+                isWireless:                     getBool('isWireless'),
+                isShared:                       getBool('isShared'),
                 isFree:                         getBool('isFree'),
                 planContract:                   getStr('planContract'),
 

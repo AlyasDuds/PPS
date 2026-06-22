@@ -1,4 +1,54 @@
 <!-- ========================================================= -->
+<!-- User Modal Styles Fragment                                 -->
+<!-- ========================================================= -->
+<div th:fragment="userModalStyles">
+    <style>
+        .avatar-upload {
+            position: relative;
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 15px;
+        }
+        .avatar-upload label {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .avatar-placeholder {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 2rem;
+        }
+        .avatar-preview {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #667eea;
+        }
+        .upload-overlay {
+            position: absolute;
+            bottom: 0;
+            right: 0;
+            background: rgba(0,0,0,0.5);
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+    </style>
+</div>
+
+<!-- ========================================================= -->
 <!-- User Modal Fragment                                        -->
 <!-- ========================================================= -->
 <div th:fragment="userModal" class="modal fade" id="userModal" tabindex="-1"

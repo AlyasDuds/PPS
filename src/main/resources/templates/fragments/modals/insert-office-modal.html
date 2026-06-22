@@ -296,8 +296,8 @@
                             </div>
                             <div class="col-md-6" sec:authorize="hasAnyRole('ADMIN', 'SRD_OPERATION')">
                                 <div class="form-group">
-                                    <label for="dateConnected">Date Connected</label>
-                                    <input type="date" class="form-control" id="dateConnected" disabled>
+                                    <label for="dateConnected">Date Connected <small class="text-muted">(optional - defaults to current date)</small></label>
+                                    <input type="date" class="form-control" id="dateConnected">
                                 </div>
                             </div>
                             <div class="col-md-6" sec:authorize="hasAnyRole('ADMIN', 'SRD_OPERATION')">
@@ -309,14 +309,19 @@
                             <div class="col-md-4">
                                 <div class="form-group">
                                     <label for="typeOfConnection">Type of Connection</label>
-                                    <select class="form-control" id="typeOfConnection">
+                                    <select class="form-control" id="typeOfConnection" onchange="toggleTypeOfConnectionOther(this)">
                                         <option value="">-- Select --</option>
                                         <option value="Fiber">Fiber Optic</option>
                                         <option value="DSL">DSL</option>
                                         <option value="Cable">Cable</option>
                                         <option value="Wireless">Wireless</option>
                                         <option value="Satellite">Satellite</option>
+                                        <option value="Other">Other</option>
                                     </select>
+                                </div>
+                                <div id="typeOfConnectionOtherWrap" style="display:none;" class="mt-2">
+                                    <input type="text" class="form-control" id="typeOfConnectionOther"
+                                           placeholder="Specify connection type...">
                                 </div>
                             </div>
                             <div class="col-md-4">
@@ -335,18 +340,6 @@
                                         <option value="static">Static IP</option>
                                         <option value="not_sure">Not Sure</option>
                                     </select>
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="ispContactPerson">ISP Contact Person</label>
-                                    <input type="text" class="form-control" id="ispContactPerson">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="form-group">
-                                    <label for="ispContactNumber">ISP Contact Number</label>
-                                    <input type="text" class="form-control" id="ispContactNumber">
                                 </div>
                             </div>
                         </div>
@@ -416,6 +409,18 @@
                                 <div class="form-check">
                                     <input class="form-check-input" type="checkbox" id="isWired">
                                     <label class="form-check-label" for="isWired">Wired</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-center pt-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="isWireless">
+                                    <label class="form-check-label" for="isWireless">Wireless</label>
+                                </div>
+                            </div>
+                            <div class="col-md-3 d-flex align-items-center pt-2">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" id="isShared">
+                                    <label class="form-check-label" for="isShared">Shared</label>
                                 </div>
                             </div>
                             <div class="col-md-3 d-flex align-items-center pt-2">
