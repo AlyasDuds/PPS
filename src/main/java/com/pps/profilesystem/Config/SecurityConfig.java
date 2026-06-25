@@ -161,7 +161,7 @@ public class SecurityConfig {
                 headers.contentSecurityPolicy(csp -> csp
                     .policyDirectives(
                         "default-src 'self'; " +
-                        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://code.jquery.com https://cdn.datatables.net; " +
+                        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://code.jquery.com https://cdn.datatables.net https://cdnjs.cloudflare.com; " +
                         "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://cdn.datatables.net; " +
                         "img-src 'self' data: https://ui-avatars.com https://*.tile.openstreetmap.org; " +
                         "font-src 'self' https://unpkg.com https://cdnjs.cloudflare.com; " +
