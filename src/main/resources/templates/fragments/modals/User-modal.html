@@ -68,6 +68,7 @@
 
             <div class="modal-body">
                 <form id="userForm" autocomplete="off">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                     <input type="hidden" id="userId"  name="userId">
                     <input type="hidden" id="isEdit"  name="isEdit" value="false">
 

@@ -7,6 +7,9 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.AccessDeniedHandler;
+import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
 
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -14,8 +17,17 @@ import jakarta.servlet.http.HttpServletResponse;
 public class SecurityConfig {
 
     @Bean
+    public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration() {
+        FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>();
+        registration.setFilter(new RateLimitFilter());
+        registration.addUrlPatterns("/*");
+        registration.setOrder(1); // Run before Spring Security filter
+        return registration;
+    }
+
+    @Bean
     public PasswordEncoder passwordEncoder() {
-        return new Md5PasswordEncoder();
+        return new HybridPasswordEncoder();
     }
 
     @Bean
@@ -66,7 +78,10 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            .csrf(csrf -> csrf.disable())
+            .csrf(csrf -> csrf
+                .csrfTokenRepository(new CookieCsrfTokenRepository())
+                .ignoringRequestMatchers("/login", "/error", "/error/**", "/access-denied")
+            )
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     "/login",
@@ -118,6 +133,13 @@ public class SecurityConfig {
                 .failureUrl("/login?error=true")
                 .permitAll()
             )
+            .sessionManagement(session -> session
+                .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED)
+                .sessionFixation().migrateSession()
+                .maximumSessions(1)
+                .maxSessionsPreventsLogin(false)
+                .expiredUrl("/login?expired=true")
+            )
             .logout(logout -> logout
                 .logoutUrl("/logout")
                 .logoutSuccessUrl("/login?logout=true")
@@ -132,10 +154,38 @@ public class SecurityConfig {
             // Configure frame options for profile popup - allow same origin
             // Also add cache control headers so authenticated pages are never cached.
             // This prevents the browser Back button from showing protected pages after logout.
-            .headers(headers -> headers
-                .frameOptions(frameOptions -> frameOptions.sameOrigin())
-                .cacheControl(cache -> {})
-            );
+            // Content Security Policy (CSP) to mitigate XSS and data injection attacks
+            .headers(headers -> {
+                headers.frameOptions(frameOptions -> frameOptions.sameOrigin());
+                headers.xssProtection(xss -> xss.disable());
+                headers.contentSecurityPolicy(csp -> csp
+                    .policyDirectives(
+                        "default-src 'self'; " +
+                        "script-src 'self' 'unsafe-inline' https://unpkg.com https://cdn.jsdelivr.net https://code.jquery.com https://cdn.datatables.net; " +
+                        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://cdn.datatables.net; " +
+                        "img-src 'self' data: https://ui-avatars.com https://*.tile.openstreetmap.org; " +
+                        "font-src 'self' https://unpkg.com https://cdnjs.cloudflare.com; " +
+                        "connect-src 'self' https://cdn.jsdelivr.net https://unpkg.com; " +
+                        "frame-src 'self'; " +
+                        "object-src 'none'; " +
+                        "base-uri 'self'; " +
+                        "form-action 'self';"
+                    )
+                );
+                headers.httpStrictTransportSecurity(hsts -> hsts
+                    .includeSubDomains(true)
+                    .maxAgeInSeconds(31536000)
+                );
+                headers.referrerPolicy(referrer -> referrer
+                    .policy(ReferrerPolicy.SAME_ORIGIN)
+                );
+                headers.permissionsPolicy(permissions -> permissions
+                    .policy("geolocation=(), microphone=(), camera=()")
+                );
+                headers.cacheControl(cache -> {});
+                headers.addHeaderWriter(new org.springframework.security.web.header.writers.XContentTypeOptionsHeaderWriter());
+                headers.addHeaderWriter(new org.springframework.security.web.header.writers.XXssProtectionHeaderWriter());
+            });
 
         return http.build();
     }

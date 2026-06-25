@@ -75,6 +75,7 @@
             <!-- Modal Body / Form -->
             <div class="modal-body p-0">
                 <form id="insertPostalOfficeForm" novalidate>
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
 
                     <!-- ══ STEP 1: Basic Information ══ -->
                     <div class="wizard-step active p-4" id="step-1">

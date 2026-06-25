@@ -59,59 +59,99 @@
         // Never open a second connection if one is already live
         if (es && es.readyState !== EventSource.CLOSED) return;
 
-        es = new EventSource('/api/notifications/stream');
-
-        // ── Badge event ──────────────────────────────────────────────────────
-        es.addEventListener('badge', function (e) {
-            var count = (e.data || '').trim();
-            if (count !== '' && count !== '0') {
-                badge.textContent   = count;
-                badge.style.display = 'inline-block';
-            } else {
-                badge.textContent   = '';
-                badge.style.display = 'none';
-            }
-            
-            // Update sidebar badge if it exists
-            if (sidebarBadge) {
-                if (count && count !== '0') {
-                    sidebarBadge.textContent = count;
-                    sidebarBadge.style.display = 'inline-block';
-                } else {
-                    sidebarBadge.style.display = 'none';
+        // Check if user is authenticated before connecting
+        fetch('/api/user/current')
+            .then(response => {
+                if (!response.ok) {
+                    // User not authenticated, don't establish SSE connection
+                    console.log('User not authenticated, skipping SSE connection');
+                    return;
                 }
-            }
-        });
+                // User is authenticated, establish SSE connection
+                es = new EventSource('/api/notifications/stream');
 
-        // ── Notification HTML event ───────────────────────────────────────────
-        // Server sends only inner content (no outer .dropdown-menu wrapper).
-        es.addEventListener('notification', function (e) {
-            var html = (e.data || '').trim();
-            if (!html) return;
+                // ── Badge event ──────────────────────────────────────────────────────
+                es.addEventListener('badge', function (e) {
+                    var count = (e.data || '').trim();
+                    if (count !== '' && count !== '0') {
+                        badge.textContent   = count;
+                        badge.style.display = 'inline-block';
+                    } else {
+                        badge.textContent   = '';
+                        badge.style.display = 'none';
+                    }
+                    
+                    // Update sidebar badge if it exists
+                    if (sidebarBadge) {
+                        if (count && count !== '0') {
+                            sidebarBadge.textContent = count;
+                            sidebarBadge.style.display = 'inline-block';
+                        } else {
+                            sidebarBadge.style.display = 'none';
+                        }
+                    }
+                });
 
-            notifContent.innerHTML = html;
+                // ── Notification HTML event ───────────────────────────────────────────
+                // Server sends only inner content (no outer .dropdown-menu wrapper).
+                es.addEventListener('notification', function (e) {
+                    var html = (e.data || '').trim();
+                    if (!html) return;
 
-            // Shake the bell to signal new/updated notifications
-            bellLi.classList.remove('bell-shake');
-            void bellLi.offsetWidth;             // force reflow to restart animation
-            bellLi.classList.add('bell-shake');
-        });
+                    notifContent.innerHTML = html;
 
-        // ── Error / reconnect ─────────────────────────────────────────────────
-        es.onerror = function () {
-            es.close();
-            es = null;
-            // Schedule reconnect — store timer ref so beforeunload can cancel it
-            retryTimer = setTimeout(function () {
-                retryTimer = null;
-                connect();
-            }, retryDelay);
-            retryDelay = Math.min(retryDelay * 2, 30000); // exponential back-off, cap 30 s
-        };
+                    // Shake the bell to signal new/updated notifications
+                    bellLi.classList.remove('bell-shake');
+                    void bellLi.offsetWidth;             // force reflow to restart animation
+                    bellLi.classList.add('bell-shake');
+                });
 
-        es.onopen = function () {
-            retryDelay = 3000; // reset back-off on successful connection
-        };
+                // ── Error / reconnect ─────────────────────────────────────────────────
+                es.onerror = function () {
+                    es.close();
+                    es = null;
+                    // Check if user is still authenticated before retrying
+                    fetch('/api/user/current')
+                        .then(response => {
+                            if (response.ok) {
+                                // User still authenticated, schedule reconnect
+                                retryTimer = setTimeout(function () {
+                                    retryTimer = null;
+                                    connect();
+                                }, retryDelay);
+                                retryDelay = Math.min(retryDelay * 2, 30000); // exponential back-off, cap 30 s
+                            } else {
+                                // User no longer authenticated, stop retrying
+                                console.log('User no longer authenticated, stopping SSE retries');
+                            }
+                        })
+                        .catch(() => {
+                            // Network error, still retry with backoff
+                            retryTimer = setTimeout(function () {
+                                retryTimer = null;
+                                connect();
+                            }, retryDelay);
+                            retryDelay = Math.min(retryDelay * 2, 30000);
+                        });
+                };
+
+                es.onopen = function () {
+                    retryDelay = 3000; // reset back-off on successful connection
+                };
+            })
+            .catch(() => {
+                // Network error, try connecting anyway
+                es = new EventSource('/api/notifications/stream');
+                es.onerror = function () {
+                    es.close();
+                    es = null;
+                    retryTimer = setTimeout(function () {
+                        retryTimer = null;
+                        connect();
+                    }, retryDelay);
+                    retryDelay = Math.min(retryDelay * 2, 30000);
+                };
+            });
     }
 
     // ── Initialize ────────────────────────────────────────────────────────────

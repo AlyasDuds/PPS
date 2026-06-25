@@ -276,6 +276,7 @@
                                   style="display:inline"
                                   onsubmit="return confirm('Delete this item permanently?')"
                                   sec:authorize="hasAnyRole('ADMIN', 'ASSET')">
+                                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                                 <button type="submit" class="act-btn del" title="Delete"><i class="fas fa-trash-alt"></i></button>
                             </form>
                         </div>
@@ -333,6 +334,7 @@
                 <button class="modal-x" type="button" onclick="closeModal()">✕</button>
             </div>
             <form id="itemForm" th:action="@{/inventory/save}" method="post">
+                <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                 <input type="hidden" id="f-id" name="inventoryId"/>
                 <div class="modal-body">
                     <div class="form-grid">

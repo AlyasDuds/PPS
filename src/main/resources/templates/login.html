@@ -7,9 +7,9 @@
   <title>POST OFFICE - Login</title>
   <link rel="icon" th:href="@{/images/icon.ico}" type="image/x-icon">
   <link rel="stylesheet" th:href="@{/css/login.css}">
-  <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js"></script>
-  <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js"></script>
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <script type="module" src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.esm.js" crossorigin="anonymous"></script>
+  <script nomodule src="https://unpkg.com/ionicons@5.5.2/dist/ionicons/ionicons.js" crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" crossorigin="anonymous">
 </head>
 
 <body>
@@ -41,6 +41,7 @@
         </div>
 
         <form id="loginForm" method="POST" th:action="@{/login}">
+          <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
           <div class="input-wrapper">
             <ion-icon name="mail-outline"></ion-icon>
             <input type="email" id="email" name="email" placeholder="Email" required>
