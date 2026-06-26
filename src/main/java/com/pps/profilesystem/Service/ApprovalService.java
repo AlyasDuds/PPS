@@ -431,23 +431,12 @@ public class ApprovalService {
                 // Already has an open record — just point activeConnectivity at it (no new record)
                 office.setActiveConnectivity(existingOpen.get());
             } else {
-                // Look for the most recent closed record — reopen it instead of creating a new one
-                // to preserve the original dateConnected (historical data)
-                Optional<Connectivity> latestClosed = connectivityRepository
-                        .findTopByPostalOfficeIdOrderByDateConnectedDesc(office.getId());
 
-                if (latestClosed.isPresent() && latestClosed.get().getDateDisconnected() != null) {
-                    // Reopen the latest closed record to preserve historical dateConnected
-                    Connectivity conn = latestClosed.get();
-                    conn.setDateDisconnected(null);
-                    Connectivity saved = connectivityRepository.save(conn);
-                    office.setActiveConnectivity(saved);
-                } else {
-                    // No existing record at all — create a fresh one
-                    Connectivity connectivity = createConnectivityRecord(office);
-                    Connectivity saved = connectivityRepository.save(connectivity);
-                    office.setActiveConnectivity(saved);
-                }
+                // Always create a fresh connectivity record when activating
+                Connectivity connectivity = createConnectivityRecord(office);
+                Connectivity saved = connectivityRepository.save(connectivity);
+                office.setActiveConnectivity(saved);
+
             }
         }
         else if (Boolean.TRUE.equals(oldStatus) && !Boolean.TRUE.equals(newStatus)) {

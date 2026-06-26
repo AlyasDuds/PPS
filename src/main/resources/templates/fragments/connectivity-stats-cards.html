@@ -99,44 +99,6 @@
         </div>
     </div>
 
-    <!-- Office Open -->
-    <div th:unless="${activePage == 'report' or activePage == 'quarters'}" class="col-xl col-md-4 col-sm-6 mb-4">
-        <div class="card shadow h-100 py-2" style="border-bottom: 0.25rem solid #17a2b8 !important;">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-uppercase mb-1" style="color:#17a2b8;">
-                            Office Open</div>
-                        <h2 id="statOpen" class="h5 mb-0 font-weight-bold text-gray-800"
-                            th:text="${openCount != null ? openCount : 0}">0</h2>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-door-open fa-2x" style="color:#17a2b8;"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Office Closed -->
-    <div th:unless="${activePage == 'report' or activePage == 'quarters'}" class="col-xl col-md-4 col-sm-6 mb-4">
-        <div class="card shadow h-100 py-2" style="border-bottom: 0.25rem solid #856404 !important;">
-            <div class="card-body">
-                <div class="row no-gutters align-items-center">
-                    <div class="col mr-2">
-                        <div class="text-xs font-weight-bold text-uppercase mb-1" style="color:#856404;">
-                            Office Closed</div>
-                        <h2 id="statClosed" class="h5 mb-0 font-weight-bold text-gray-800"
-                            th:text="${closedCount != null ? closedCount : 0}">0</h2>
-                    </div>
-                    <div class="col-auto">
-                        <i class="fas fa-door-closed fa-2x" style="color:#856404;"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
 </div>
 
 </html>

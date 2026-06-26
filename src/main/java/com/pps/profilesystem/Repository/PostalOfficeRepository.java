@@ -46,6 +46,11 @@ public interface PostalOfficeRepository extends JpaRepository<PostalOffice, Inte
            "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     List<PostalOffice> findAllWithAreaForMap();
 
+    @Query("SELECT po FROM PostalOffice po WHERE po.area.id = :areaId " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po) " +
+           "ORDER BY UPPER(po.name)")
+    List<PostalOffice> findByAreaId(@Param("areaId") Integer areaId);
+
     @Query("SELECT COUNT(DISTINCT c.postalOffice) FROM Connectivity c JOIN c.postalOffice po WHERE " +
            "YEAR(c.dateConnected) = :year AND MONTH(c.dateConnected) BETWEEN :startMonth AND :endMonth " +
            "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")

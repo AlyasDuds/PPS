@@ -124,7 +124,6 @@ public class ReportController {
         // table
         model.addAttribute("connectivityStats",
                 deriveStatsFromQuarters(quartersData, quarterFilter, statusFilter));
-        addOfficeStatusCounts(model, areaId);
 
         model.addAttribute("selectedYearFilter", year != null ? String.valueOf(year) : null);
         model.addAttribute("selectedAreaFilter", areaId != null && areaId != -1 ? areaId.toString() : "");

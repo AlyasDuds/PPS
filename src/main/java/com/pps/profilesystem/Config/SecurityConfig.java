@@ -1,5 +1,6 @@
 package com.pps.profilesystem.Config;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
@@ -15,6 +16,12 @@ import jakarta.servlet.http.HttpServletResponse;
 
 @Configuration
 public class SecurityConfig {
+
+    @Autowired(required = false)
+    private CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
+
+    @Autowired(required = false)
+    private CustomLogoutHandler customLogoutHandler;
 
     @Bean
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration() {
@@ -96,6 +103,7 @@ public class SecurityConfig {
                     "/images/**",
                     "/static/assets/**",
                     "/postal-offices/**",
+                    "/ws/**",                   // WebSocket endpoint
                     "/api/keep-alive",          // public ping for session check
                     "/api/user/current"         // public check for authentication status
                 ).permitAll()
@@ -124,15 +132,19 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/assets/age", "/assets/age/**").hasAnyRole("ADMIN", "ASSET")
                 .anyRequest().authenticated()
             )
-            .formLogin(form -> form
-                .loginPage("/login")
-                .loginProcessingUrl("/login")
-                .usernameParameter("email")
-                .passwordParameter("password")
-                .successHandler(new CustomAuthenticationSuccessHandler())
-                .failureUrl("/login?error=true")
-                .permitAll()
-            )
+            .formLogin(form -> {
+                form.loginPage("/login")
+                    .loginProcessingUrl("/login")
+                    .usernameParameter("email")
+                    .passwordParameter("password")
+                    .failureUrl("/login?error=true")
+                    .defaultSuccessUrl("/dashboard", true)
+                    .permitAll();
+                // Only add custom success handler if it exists
+                if (customAuthenticationSuccessHandler != null) {
+                    form.successHandler(customAuthenticationSuccessHandler);
+                }
+            })
             .sessionManagement(session -> session
                 .sessionCreationPolicy(org.springframework.security.config.http.SessionCreationPolicy.IF_REQUIRED)
                 .sessionFixation().migrateSession()
@@ -140,14 +152,18 @@ public class SecurityConfig {
                 .maxSessionsPreventsLogin(false)
                 .expiredUrl("/login?expired=true")
             )
-            .logout(logout -> logout
-                .logoutUrl("/logout")
-                .logoutSuccessUrl("/login?logout=true")
-                .invalidateHttpSession(true)
-                .clearAuthentication(true)
-                .deleteCookies("JSESSIONID")
-                .permitAll()
-            )
+            .logout(logout -> {
+                logout.logoutUrl("/logout")
+                    .logoutSuccessUrl("/login?logout=true")
+                    .invalidateHttpSession(true)
+                    .clearAuthentication(true)
+                    .deleteCookies("JSESSIONID")
+                    .permitAll();
+                // Only add custom logout handler if it exists
+                if (customLogoutHandler != null) {
+                    logout.addLogoutHandler(customLogoutHandler);
+                }
+            })
             .exceptionHandling(exception -> exception
                 .accessDeniedHandler(customAccessDeniedHandler())
             )
@@ -179,9 +195,9 @@ public class SecurityConfig {
                 headers.referrerPolicy(referrer -> referrer
                     .policy(ReferrerPolicy.SAME_ORIGIN)
                 );
-                headers.permissionsPolicy(permissions -> permissions
-                    .policy("geolocation=(), microphone=(), camera=()")
-                );
+                headers.addHeaderWriter(new org.springframework.security.web.header.writers.PermissionsPolicyHeaderWriter(
+                    "geolocation=(), microphone=(), camera=()"
+                ));
                 headers.cacheControl(cache -> {});
                 headers.addHeaderWriter(new org.springframework.security.web.header.writers.XContentTypeOptionsHeaderWriter());
                 headers.addHeaderWriter(new org.springframework.security.web.header.writers.XXssProtectionHeaderWriter());

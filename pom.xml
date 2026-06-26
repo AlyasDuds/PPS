@@ -104,6 +104,12 @@
 			<version>8.10.1</version>
 		</dependency>
 
+		<!-- WebSocket for real-time online users -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-websocket</artifactId>
+		</dependency>
+
 	</dependencies>
 
 	<build>

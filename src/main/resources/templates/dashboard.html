@@ -5,6 +5,9 @@
 <title>Dashboard - PHLPost</title>
 
 <main th:fragment="main">
+    <!-- WebSocket Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs/lib/stomp.min.js"></script>
     <div id="dashboardRoleFlags" class="d-none" aria-hidden="true" th:data-is-system-admin="${isSystemAdmin}"
         th:data-is-area-admin="${isAreaAdmin}" th:data-is-srd-operation="${isSrdOperation}"
         th:data-can-dashboard-edit="${canDashboardEdit}" th:data-can-dashboard-archive="${canDashboardArchive}"></div>
@@ -14,6 +17,92 @@
 
         <!-- Stats Cards Row -->
         <div th:replace="~{fragments/connectivity-stats-cards :: connectivityStatsCards}"></div>
+
+        <!-- Online Users Combined Card -->
+        <div class="row mb-4" th:if="${showOnlineStatus}">
+            <div class="col-12">
+                <div class="card shadow-sm">
+                    <div class="card-header py-2 d-flex justify-content-between align-items-center" style="background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                        <div class="d-flex align-items-center">
+                            <h6 class="m-0 font-weight-bold text-success mr-3">
+                                <i class="fas fa-users mr-2"></i>Online Users
+                            </h6>
+                            <span class="badge badge-success" id="onlineUsersCount">0</span>
+                            <div class="online-indicator ml-2" style="width: 20px; height: 20px; border-radius: 50%; background-color: #28a745; display: flex; align-items: center; justify-content: center;">
+                                <i class="fas fa-circle text-white fa-xs" style="animation: pulse 2s infinite; font-size: 8px;"></i>
+                            </div>
+                        </div>
+                        <button class="btn btn-sm btn-outline-success" onclick="updateOnlineUsersDetails()">
+                            <i class="fas fa-sync-alt mr-1"></i>Refresh
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover table-striped mb-0">
+                                <thead class="thead-light">
+                                    <tr>
+                                        <th style="width: 25%;">Username</th>
+                                        <th style="width: 25%;">Office</th>
+                                        <th style="width: 25%;">Area</th>
+                                        <th style="width: 25%;">Login Time</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="onlineUsersList">
+                                    <tr>
+                                        <td colspan="4" class="text-center">Loading...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Area Connectivity Percentage Card -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card shadow h-100 py-2" style="border-bottom: 0.25rem solid #6610f2 !important;">
+                    <div class="card-body">
+                        <div class="row no-gutters align-items-center">
+                            <div class="col mr-2">
+                                <div class="text-xs font-weight-bold text-uppercase mb-1" style="color:#6610f2;">
+                                    <i class="fas fa-chart-pie mr-1"></i>Area Percentages</div>
+                                <div class="area-carousel-container mt-2" style="overflow: hidden; position: relative;">
+                                    <div class="area-carousel-track d-flex" id="areaCarousel" style="transition: transform 0.5s ease-in-out;">
+                                        <th:block th:each="entry : ${areaConnectivityStats}">
+                                            <div class="area-carousel-item" style="min-width: 300px; padding: 0 10px;">
+                                                <div class="small font-weight-bold text-muted mb-1" th:text="${entry.key}">Area 1</div>
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <span class="small" style="color:#28a745;">
+                                                        <i class="fas fa-wifi mr-1"></i>Connected
+                                                    </span>
+                                                    <span class="small font-weight-bold" style="color:#28a745;" th:text="${#numbers.formatDecimal(entry.value.connected, 1, 1) + '%'}">75.0%</span>
+                                                </div>
+                                                <div class="progress mb-2" style="height:6px;">
+                                                    <div class="progress-bar" role="progressbar" style="background-color:#28a745;"
+                                                        th:style="'width:' + ${entry.value.connected} + '%'"></div>
+                                                </div>
+                                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                                    <span class="small" style="color:#dc3545;">
+                                                        <i class="fas fa-wifi-slash mr-1"></i>Inactive
+                                                    </span>
+                                                    <span class="small font-weight-bold" style="color:#dc3545;" th:text="${#numbers.formatDecimal(entry.value.inactive, 1, 1) + '%'}">25.0%</span>
+                                                </div>
+                                                <div class="progress" style="height:6px;">
+                                                    <div class="progress-bar" role="progressbar" style="background-color:#dc3545;"
+                                                        th:style="'width:' + ${entry.value.inactive} + '%'"></div>
+                                                </div>
+                                            </div>
+                                        </th:block>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Filter Panel -->
         <div class="table-filter-panel mb-2">
@@ -70,16 +159,6 @@
                         </select>
                     </div>
 
-                    <!-- Office Status — all roles -->
-                    <div class="col-md-2 col-sm-6 mb-2" style="padding:0 5px;">
-                        <label class="filter-label"><i class="fas fa-door-open mr-1"></i>Office Status</label>
-                        <select id="filterOfficeStatus" class="form-control filter-select">
-                            <option value="">All Status</option>
-                            <option value="Open">Open</option>
-                            <option value="Closed">Closed</option>
-                            <option value="TBD">TBD</option>
-                        </select>
-                    </div>
 
                     <!-- Apply/Reset buttons -->
                     <div class="col-md-2 col-sm-12 mb-2" style="padding:0 5px;">
@@ -194,7 +273,6 @@
                                 <th>Province</th>
                                 <th>City/Municipality</th>
                                 <th class="text-center">Connectivity</th>
-                                <th class="text-center">Office Status</th>
                                 <th class="text-center" style="width:120px;" sec:authorize="!hasRole('SRD_OPERATION')">
                                     Actions</th>
                             </tr>
@@ -224,16 +302,6 @@
                                     <span th:unless="${office.connectionStatus == true}" class="badge badge-danger">
                                         <i class="fas fa-times-circle mr-1"></i>Inactive
                                     </span>
-                                </td>
-                                <td class="text-center">
-                                    <span th:if="${office.officeStatus == 'OPEN'}" class="badge badge-open">
-                                        <i class="fas fa-door-open mr-1"></i>Open
-                                    </span>
-                                    <span th:if="${office.officeStatus == 'CLOSED'}" class="badge badge-closed">
-                                        <i class="fas fa-door-closed mr-1"></i>Closed
-                                    </span>
-                                    <span th:if="${office.officeStatus == null or office.officeStatus == ''}"
-                                        class="badge badge-unknown">—</span>
                                 </td>
                                 <td class="text-center action-buttons" sec:authorize="!hasRole('SRD_OPERATION')">
                                     <button class="btn btn-sm btn-warning btn-edit" th:data-office-id="${office.id}"

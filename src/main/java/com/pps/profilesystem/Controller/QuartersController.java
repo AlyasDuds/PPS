@@ -103,7 +103,6 @@ public class QuartersController {
         // Pass filter-aware stats (same logic as Connectivity Report)
         model.addAttribute("connectivityStats",
                 reportController.computeConnectivityStats(currentYear, selectedQuarter, areaId, statusFilter));
-        reportController.addOfficeStatusCounts(model, areaId);
 
         model.addAttribute("selectedAreaFilter", areaId != null && areaId != -1 ? areaId.toString() : "");
         model.addAttribute("selectedQuarterFilter", selectedQuarter);

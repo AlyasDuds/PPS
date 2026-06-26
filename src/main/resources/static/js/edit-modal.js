@@ -63,6 +63,28 @@ $(function () {
         }
     };
 
+    /* Auto-set date fields when Connection Status changes */
+    $(document).on('change', '#editStatus', function () {
+        const today = new Date().toISOString().split('T')[0];
+        const status = $(this).val();
+        const dateConnected = $('#editDateConnected');
+        const dateDisconnected = $('#editDateDisconnected');
+
+        if (status === 'true') {
+            // Active - set dateConnected to today if empty
+            if (!dateConnected.val()) {
+                dateConnected.val(today);
+            }
+            // Clear dateDisconnected when activating
+            dateDisconnected.val('');
+        } else if (status === 'false') {
+            // Inactive - set dateDisconnected to today if empty
+            if (!dateDisconnected.val()) {
+                dateDisconnected.val(today);
+            }
+        }
+    });
+
     /* Cascading location dropdowns (Area → Province → City → Barangay) */
     $(document).on('change', '#editAreaId', function () {
         _resetSelect('#editProvinceId', '-- Select Province --',          true);
@@ -209,6 +231,12 @@ window.openModal = function (d) {
             _applyAreaLock();
             _resetPhotoUI();
             if (typeof window.syncStatusTogglesToModal === 'function') window.syncStatusTogglesToModal();
+            // Set modal title dynamically
+            if (d.name) {
+                $('#editModalTitle').text('Edit - ' + d.name + ' P.O.');
+            } else {
+                $('#editModalTitle').text('Edit Post Office');
+            }
             $('#editOfficeModal').modal('show');
             if (d.id && typeof editModalLoadPhotos === 'function') editModalLoadPhotos(d.id);
         },
@@ -217,6 +245,12 @@ window.openModal = function (d) {
             _fillModal(d);
             _applyAreaLock();
             _resetPhotoUI();
+            // Set modal title dynamically
+            if (d.name) {
+                $('#editModalTitle').text('Edit - ' + d.name + ' P.O.');
+            } else {
+                $('#editModalTitle').text('Edit Post Office');
+            }
             $('#editOfficeModal').modal('show');
             if (d.id && typeof editModalLoadPhotos === 'function') editModalLoadPhotos(d.id);
         }

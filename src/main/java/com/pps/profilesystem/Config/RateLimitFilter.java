@@ -2,7 +2,6 @@ package com.pps.profilesystem.Config;
 
 import io.github.bucket4j.Bandwidth;
 import io.github.bucket4j.Bucket;
-import io.github.bucket4j.Refill;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -59,10 +58,14 @@ public class RateLimitFilter implements Filter {
         // Create a bucket with two refill rates:
         // - 100 requests per minute
         // - 20 requests per second (burst capacity)
-        Bandwidth minuteLimit = Bandwidth.classic(REQUESTS_PER_MINUTE, 
-            Refill.intervally(REQUESTS_PER_MINUTE, Duration.ofMinutes(1)));
-        Bandwidth secondLimit = Bandwidth.classic(REQUESTS_PER_SECOND,
-            Refill.intervally(REQUESTS_PER_SECOND, Duration.ofSeconds(1)));
+        Bandwidth minuteLimit = Bandwidth.builder()
+            .capacity(REQUESTS_PER_MINUTE)
+            .refillIntervally(REQUESTS_PER_MINUTE, Duration.ofMinutes(1))
+            .build();
+        Bandwidth secondLimit = Bandwidth.builder()
+            .capacity(REQUESTS_PER_SECOND)
+            .refillIntervally(REQUESTS_PER_SECOND, Duration.ofSeconds(1))
+            .build();
         
         return Bucket.builder()
             .addLimit(minuteLimit)

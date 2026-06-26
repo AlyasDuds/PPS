@@ -180,6 +180,43 @@ function onRoleChange() {
         $('#areaHintNormal').hide();
         $('#areaHintAdmin').hide();
     }
+    
+    // Hide postal office dropdown when role changes
+    $('#postalOfficeGroup').hide();
+    $('#postalOfficeId').val('');
+}
+
+async function onAreaChange() {
+    const areaId = $('#areaId').val();
+    
+    if (!areaId || areaId === '0') {
+        $('#postalOfficeGroup').hide();
+        $('#postalOfficeId').val('');
+        return;
+    }
+    
+    // Load postal offices for the selected area
+    try {
+        const response = await fetch(`/api/postal-office/by-area/${areaId}`);
+        if (!response.ok) throw new Error('Failed to load postal offices');
+        const offices = await response.json();
+        
+        const dropdown = $('#postalOfficeId');
+        dropdown.empty();
+        dropdown.append('<option value="">-- Select Postal Office --</option>');
+        
+        // Sort offices A to Z
+        offices.sort((a, b) => a.name.localeCompare(b.name));
+        
+        offices.forEach(office => {
+            dropdown.append(`<option value="${office.id}">${office.name.toUpperCase()}</option>`);
+        });
+        
+        $('#postalOfficeGroup').show();
+    } catch (error) {
+        console.error('Error loading postal offices:', error);
+        $('#postalOfficeGroup').hide();
+    }
 }
 
 // ============================================================
@@ -299,6 +336,13 @@ async function editUser(userId) {
         } else {
             $('#areaId').val(user.areaId || '');
         }
+        
+        // Load postal offices if area is selected
+        if (user.areaId && user.areaId !== 0) {
+            onAreaChange().then(() => {
+                $('#postalOfficeId').val(user.postalOfficeId || '');
+            });
+        }
 
         // Password optional for edit
         $('#password').val('');
@@ -356,7 +400,8 @@ async function saveUser() {
         email:    $('#email').val().trim(),
         role:     roleVal,
         enabled:  $('#enabled').is(':checked'),
-        areaId:   areaId
+        areaId:   areaId,
+        postalOfficeId: $('#postalOfficeId').val() ? parseInt($('#postalOfficeId').val()) : null
     };
 
     const password = $('#password').val();
