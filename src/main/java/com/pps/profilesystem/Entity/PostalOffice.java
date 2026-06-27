@@ -68,9 +68,14 @@ public class PostalOffice {
     private Double latitude;
 
     // --- Connection Status ---
-    @Column(name = "connection_status")
-    private Boolean connectionStatus = false;
+    @Column(name = "acting_postmaster")
+    private Boolean actingPostmaster = false;
 
+    @Column(name = "is_connected")
+    private Boolean isConnected = false;
+
+    @Column(name = "is_active")
+    private Boolean isActive = true;
 
     // --- Office Open/Closed Status ---
     @Column(name = "office_status", nullable = true)
@@ -189,7 +194,7 @@ public class PostalOffice {
         } catch (Exception ignored) {
             // Lazy proxy edge case — fall back to column flag
         }
-        return Boolean.TRUE.equals(connectionStatus);
+        return Boolean.TRUE.equals(isConnected);
     }
 
     public String getCurrentProviderName() {

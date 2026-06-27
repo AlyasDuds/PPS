@@ -305,7 +305,7 @@ private Map<String, Long> getConnectivityStats(
         }
         
         return postalOfficeRepository.findByIsArchivedFalse().stream()
-                .filter(po -> Boolean.TRUE.equals(po.getConnectionStatus()))
+                .filter(po -> Boolean.TRUE.equals(po.getIsConnected()))
                 .filter(po -> po.getArea() != null && areaId.equals(po.getArea().getId()))
                 .count();
     }

@@ -220,8 +220,8 @@ public class MapController {
         }
         dto.put("latitude",                    lat);
         dto.put("longitude",                   lng);
-        dto.put("connectionStatus",            office.getConnectionStatus());
-        dto.put("status",                      office.getConnectionStatus());
+        dto.put("connectionStatus",            office.getIsConnected());
+        dto.put("status",                      office.getIsConnected());
         dto.put("speed",                       office.getSpeed());
 
         // area is eagerly fetched via JOIN FETCH — safe to access
@@ -259,8 +259,8 @@ public class MapController {
         dto.put("postalOfficeContactNumber",   office.getPostalOfficeContactNumber());
         dto.put("latitude",                    office.getLatitude());
         dto.put("longitude",                   office.getLongitude());
-        dto.put("connectionStatus",            office.getConnectionStatus());
-        dto.put("status",                      office.getConnectionStatus());
+        dto.put("connectionStatus",            office.getIsConnected());
+        dto.put("status",                      office.getIsConnected());
         dto.put("speed",                       office.getSpeed());
         dto.put("officeStatus",                office.getOfficeStatus());
         dto.put("remarks",                     office.getRemarks());

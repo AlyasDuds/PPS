@@ -19,7 +19,7 @@ import java.util.Optional;
 @Repository
 public interface PostalOfficeRepository extends JpaRepository<PostalOffice, Integer> {
 
-    @Query("SELECT po FROM PostalOffice po WHERE po.connectionStatus = :status " +
+    @Query("SELECT po FROM PostalOffice po WHERE po.isConnected = :status " +
            "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     List<PostalOffice> findByConnectionStatus(@Param("status") Boolean status);
 

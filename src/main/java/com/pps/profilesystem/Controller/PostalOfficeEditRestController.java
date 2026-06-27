@@ -91,7 +91,7 @@ public class PostalOfficeEditRestController {
                     catch (Exception e) { d.put("barangayId", null); }
 
                     // Connectivity
-                    d.put("connectionStatus",           o.getConnectionStatus());
+                    d.put("connectionStatus",           o.getIsConnected());
                     d.put("officeStatus",               o.getOfficeStatus());
                     
                     // Fetch latest connectivity record to populate dates and Plan & Billing fields
@@ -165,38 +165,53 @@ public class PostalOfficeEditRestController {
             boolean isAreaAdmin = auth.getAuthorities().stream()
                     .anyMatch(a -> a.getAuthority().equals("ROLE_AREA_ADMIN"));
 
-            // Validate: Prevent editing connectivity dates for previous year records
+            // Validate: Prevent editing connectivity for completed quarters in current year
+            // Allow editing connectionStatus for historical years (2025) to correct data
             int currentYear = java.time.LocalDateTime.now().getYear();
+            int currentMonth = java.time.LocalDateTime.now().getMonthValue();
+            String currentQuarter = getCurrentQuarter(currentMonth);
+            
             connectivityRepository.findTopByPostalOfficeIdOrderByDateConnectedDesc(o.getId())
                 .ifPresent(conn -> {
-                    if (conn.getDateConnected() != null && conn.getDateConnected().getYear() < currentYear) {
-                        // Allow editing other fields, but block actual connectivity date changes for previous year records
-                        // Only block if the date values are actually being changed
-                        if (body.containsKey("dateConnected")) {
-                            Object val = body.get("dateConnected");
-                            if (val != null && !String.valueOf(val).trim().isEmpty()) {
-                                try {
-                                    String dConnStr = val.toString().trim();
-                                    LocalDateTime newDate = java.time.LocalDate.parse(dConnStr).atStartOfDay();
-                                    if (!newDate.toLocalDate().equals(conn.getDateConnected().toLocalDate())) {
-                                        throw new IllegalStateException("Cannot modify connectivity dates for records from " + conn.getDateConnected().getYear() + ". Quarterly updates for previous years are complete. Only current year connectivity dates can be edited.");
+                    if (conn.getDateConnected() != null) {
+                        int connYear = conn.getDateConnected().getYear();
+                        String connQuarter = getCurrentQuarter(conn.getDateConnected().getMonthValue());
+                        
+                        // Block editing connectionStatus for completed quarters in CURRENT year only
+                        // Historical years (2025) can still be edited to correct data
+                        if (connYear == currentYear && !connQuarter.equals(currentQuarter) && body.containsKey("connectionStatus")) {
+                            throw new IllegalStateException("Cannot modify connection status for " + connQuarter + " " + currentYear + ". Quarterly updates for completed quarters are final. Only " + currentQuarter + " " + currentYear + " can be edited.");
+                        }
+                        
+                        // Block editing connectivity dates for previous year records
+                        // This prevents changing the actual dates, but allows changing connectionStatus
+                        if (connYear < currentYear) {
+                            if (body.containsKey("dateConnected")) {
+                                Object val = body.get("dateConnected");
+                                if (val != null && !String.valueOf(val).trim().isEmpty()) {
+                                    try {
+                                        String dConnStr = val.toString().trim();
+                                        LocalDateTime newDate = java.time.LocalDate.parse(dConnStr).atStartOfDay();
+                                        if (!newDate.toLocalDate().equals(conn.getDateConnected().toLocalDate())) {
+                                            throw new IllegalStateException("Cannot modify connectivity dates for records from " + connYear + ". Quarterly updates for previous years are complete. Only current year connectivity dates can be edited.");
+                                        }
+                                    } catch (Exception e) {
+                                        // Invalid date format, let it fail later
                                     }
-                                } catch (Exception e) {
-                                    // Invalid date format, let it fail later
                                 }
                             }
-                        }
-                        if (body.containsKey("dateDisconnected")) {
-                            Object val = body.get("dateDisconnected");
-                            if (val != null && !String.valueOf(val).trim().isEmpty()) {
-                                try {
-                                    String dDisStr = val.toString().trim();
-                                    LocalDateTime newDate = java.time.LocalDate.parse(dDisStr).atTime(23, 59, 59);
-                                    if (conn.getDateDisconnected() == null || !newDate.toLocalDate().equals(conn.getDateDisconnected().toLocalDate())) {
-                                        throw new IllegalStateException("Cannot modify connectivity dates for records from " + conn.getDateConnected().getYear() + ". Quarterly updates for previous years are complete. Only current year connectivity dates can be edited.");
+                            if (body.containsKey("dateDisconnected")) {
+                                Object val = body.get("dateDisconnected");
+                                if (val != null && !String.valueOf(val).trim().isEmpty()) {
+                                    try {
+                                        String dDisStr = val.toString().trim();
+                                        LocalDateTime newDate = java.time.LocalDate.parse(dDisStr).atTime(23, 59, 59);
+                                        if (conn.getDateDisconnected() == null || !newDate.toLocalDate().equals(conn.getDateDisconnected().toLocalDate())) {
+                                            throw new IllegalStateException("Cannot modify connectivity dates for records from " + connYear + ". Quarterly updates for previous years are complete. Only current year connectivity dates can be edited.");
+                                        }
+                                    } catch (Exception e) {
+                                        // Invalid date format, let it fail later
                                     }
-                                } catch (Exception e) {
-                                    // Invalid date format, let it fail later
                                 }
                             }
                         }
@@ -209,9 +224,9 @@ public class PostalOfficeEditRestController {
 
             if (isSystemAdmin) {
                 // System admin can directly update
-                Boolean oldStatus = o.getConnectionStatus();
+                Boolean oldStatus = o.getIsConnected();
                 applyChanges(o, body);
-                Boolean newStatus = o.getConnectionStatus();
+                Boolean newStatus = o.getIsConnected();
                 handleConnectivityStatusChange(o, oldStatus, newStatus);
                 
                 // System admin can edit dates of the latest connectivity record (only for current year)
@@ -432,14 +447,14 @@ public class PostalOfficeEditRestController {
         set(body, "longitude",  v -> { try { o.setLongitude(Double.parseDouble(v.toString())); } catch (Exception ignored) {} });
 
         // Location hierarchy
-        set(body, "areaId",     v -> { Integer x = num(v); if (x != null) areaRepository.findById(x).ifPresent(o::setArea);                       else o.setArea(null); });
-        set(body, "regionId",   v -> { Integer x = num(v); if (x != null) regionsRepository.findById(x).ifPresent(o::setRegion);                   else o.setRegion(null); });
-        set(body, "provinceId", v -> { Integer x = num(v); if (x != null) provinceRepository.findById(x).ifPresent(o::setProvince);                else o.setProvince(null); });
-        set(body, "cityMunId",  v -> { Integer x = num(v); if (x != null) cityMunicipalityRepository.findById(x).ifPresent(o::setCityMunicipality); else o.setCityMunicipality(null); });
-        set(body, "barangayId", v -> { Integer x = num(v); if (x != null) barangayRepository.findById(x).ifPresent(o::setBarangay);                else o.setBarangay(null); });
+        set(body, "areaId",     v -> { Integer x = num(v); if (x != null) areaRepository.findById(x).ifPresent(o::setArea); });
+        set(body, "regionId",   v -> { Integer x = num(v); if (x != null) regionsRepository.findById(x).ifPresent(o::setRegion); });
+        set(body, "provinceId", v -> { Integer x = num(v); if (x != null) provinceRepository.findById(x).ifPresent(o::setProvince); });
+        set(body, "cityMunId",  v -> { Integer x = num(v); if (x != null) cityMunicipalityRepository.findById(x).ifPresent(o::setCityMunicipality); });
+        set(body, "barangayId", v -> { Integer x = num(v); if (x != null) barangayRepository.findById(x).ifPresent(o::setBarangay); });
 
         // Connectivity
-        set(body, "connectionStatus",         v -> o.setConnectionStatus(bool(v)));
+        set(body, "connectionStatus",         v -> o.setIsConnected(bool(v)));
         set(body, "officeStatus",             v -> o.setOfficeStatus(str(v)));
         set(body, "internetServiceProvider",  v -> o.setInternetServiceProvider(str(v)));
         set(body, "typeOfConnection",         v -> o.setTypeOfConnection(str(v)));
@@ -469,8 +484,8 @@ public class PostalOfficeEditRestController {
         cmp(lines, "Services",       b.serviceProvided,  a.getServiceProvided());
         cmp(lines, "Address",        b.address,          a.getAddress());
         cmp(lines, "Zip Code",       b.zipCode,          a.getZipCode());
-        if (!Objects.equals(b.connectionStatus, a.getConnectionStatus()))
-            lines.add("Status: " + label(b.connectionStatus) + " -> " + label(a.getConnectionStatus()));
+        if (!Objects.equals(b.connectionStatus, a.getIsConnected()))
+            lines.add("Status: " + label(b.connectionStatus) + " -> " + label(a.getIsConnected()));
         cmp(lines, "ISP",        b.isp,      a.getInternetServiceProvider());
         cmp(lines, "Conn. Type", b.connType, a.getTypeOfConnection());
         cmp(lines, "Speed",      b.speed,    a.getSpeed());
@@ -517,8 +532,8 @@ public class PostalOfficeEditRestController {
     private String label(Boolean b){ return Boolean.TRUE.equals(b) ? "Active" : "Inactive"; }
 
     private ConnectivityNotification.Type resolveType(Snapshot b, PostalOffice a) {
-        if (!Objects.equals(b.connectionStatus, a.getConnectionStatus()))
-            return Boolean.TRUE.equals(a.getConnectionStatus())
+        if (!Objects.equals(b.connectionStatus, a.getIsConnected()))
+            return Boolean.TRUE.equals(a.getIsConnected())
                    ? ConnectivityNotification.Type.CONNECTED
                    : ConnectivityNotification.Type.DISCONNECTED;
         return ConnectivityNotification.Type.UPDATED;
@@ -545,7 +560,7 @@ public class PostalOfficeEditRestController {
             s.address          = o.getAddress();
             s.zipCode          = o.getZipCode();
             s.officeStatus     = o.getOfficeStatus();
-            s.connectionStatus = o.getConnectionStatus();
+            s.connectionStatus = o.getIsConnected();
             s.isp              = o.getInternetServiceProvider();
             s.connType         = o.getTypeOfConnection();
             s.speed            = o.getSpeed();
@@ -613,9 +628,9 @@ public class PostalOfficeEditRestController {
                     // Reuse — same year open record (e.g. toggled by mistake and reverted)
                     office.setActiveConnectivity(open);
                 } else {
-                    // Prev-year open record — leave it alone, create fresh current year record
-                    Connectivity newConn = createConnectivityRecord(office);
-                    office.setActiveConnectivity(connectivityRepository.save(newConn));
+                    // Prev-year open record — update it directly to correct historical data
+                    // This allows correcting historical data and properly updates newly connected counts
+                    office.setActiveConnectivity(open);
                 }
             } else {
                 // No open record — create fresh
@@ -640,12 +655,10 @@ public class PostalOfficeEditRestController {
                         && conn.getDateConnected().getYear() < currentYear;
 
                 if (isPrevYear) {
-                    // Do NOT touch the prev-year record — create a new current year record
-                    // that represents the disconnection this year
-                    Connectivity newConn = createConnectivityRecord(office);
-                    newConn.setDateConnected(LocalDateTime.of(currentYear, 1, 1, 0, 0, 0));
-                    newConn.setDateDisconnected(LocalDateTime.now());
-                    connectivityRepository.save(newConn);
+                    // For historical years (2025), update the existing record directly
+                    // This allows correcting historical data and properly updates newly disconnected counts
+                    conn.setDateDisconnected(LocalDateTime.now());
+                    connectivityRepository.save(conn);
                     office.setActiveConnectivity(null);
                 } else {
                     // Current-year record — close normally
@@ -684,6 +697,13 @@ public class PostalOfficeEditRestController {
             return "This office already has a request waiting for SRD Operation final approval.";
         }
         return "This office already has a pending request waiting for Area Admin review.";
+    }
+
+    private String getCurrentQuarter(int month) {
+        if (month <= 3) return "Q1";
+        if (month <= 6) return "Q2";
+        if (month <= 9) return "Q3";
+        return "Q4";
     }
 
     private void saveConnectivityPlanFields(PostalOffice office, Map<String, Object> body) {

@@ -355,7 +355,7 @@ public class ApprovalService {
         if (opt.isEmpty()) throw new RuntimeException("Office not found: " + officeId);
 
         PostalOffice o = opt.get();
-        Boolean oldStatus = o.getConnectionStatus();
+        Boolean oldStatus = o.getIsConnected();
 
         applyStr(values, "name",                      o::setName);
         applyStr(values, "postmaster",                o::setPostmaster);
@@ -376,8 +376,8 @@ public class ApprovalService {
 
         if (values.containsKey("connectionStatus")) {
             Object v = values.get("connectionStatus");
-            if (v instanceof Boolean) o.setConnectionStatus((Boolean) v);
-            else if (v != null)       o.setConnectionStatus(Boolean.parseBoolean(v.toString()));
+            if (v instanceof Boolean) o.setIsConnected((Boolean) v);
+            else if (v != null)       o.setIsConnected(Boolean.parseBoolean(v.toString()));
         }
         if (values.containsKey("noOfEmployees"))     applyInt(values, "noOfEmployees",     o::setNoOfEmployees);
         if (values.containsKey("noOfPostalTellers")) applyInt(values, "noOfPostalTellers", o::setNoOfPostalTellers);
@@ -390,7 +390,7 @@ public class ApprovalService {
         applyFk(values, "cityMunId",  id -> cityMunicipalityRepository.findById(id).ifPresent(o::setCityMunicipality));
         applyFk(values, "barangayId", id -> barangayRepository.findById(id).ifPresent(o::setBarangay));
 
-        Boolean newStatus = o.getConnectionStatus();
+        Boolean newStatus = o.getIsConnected();
         handleConnectivityStatusChange(o, oldStatus, newStatus);
 
         postalOfficeRepository.save(o);
@@ -411,10 +411,10 @@ public class ApprovalService {
         applyStr(values, "remarks",                   o::setRemarks);
         if (values.containsKey("connectionStatus")) {
             Object v = values.get("connectionStatus");
-            o.setConnectionStatus(v instanceof Boolean ? (Boolean) v : Boolean.parseBoolean(String.valueOf(v)));
+            o.setIsConnected(v instanceof Boolean ? (Boolean) v : Boolean.parseBoolean(String.valueOf(v)));
         }
         PostalOffice savedOffice = postalOfficeRepository.save(o);
-        if (Boolean.TRUE.equals(savedOffice.getConnectionStatus())) {
+        if (Boolean.TRUE.equals(savedOffice.getIsConnected())) {
             handleConnectivityStatusChange(savedOffice, null, true);
             postalOfficeRepository.save(savedOffice);
         }

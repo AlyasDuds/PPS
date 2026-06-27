@@ -328,7 +328,8 @@ function saveOfficeChanges() {
 
     var payload = {};
     Object.keys(candidate).forEach(function (k) {
-        if (!_isEqual(candidate[k], _editOriginal ? _editOriginal[k] : undefined)) {
+        // Always include name and areaId even if unchanged to prevent data loss
+        if (k === 'name' || k === 'areaId' || !_isEqual(candidate[k], _editOriginal ? _editOriginal[k] : undefined)) {
             payload[k] = candidate[k];
         }
     });

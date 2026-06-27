@@ -286,7 +286,7 @@ public class PostalOfficeImportService {
                     resolveLocation(dto, office, regionMap, provinceMap, cityMap, barangayMap, zipMap, rowNum, warnings);
 
                     if (!blank(dto.getConnectivityStatus())) {
-                        office.setConnectionStatus(parseConnectionStatus(dto.getConnectivityStatus()));
+                        office.setIsConnected(parseConnectionStatus(dto.getConnectivityStatus()));
                     }
 
                     if (isNew) office.setActiveConnectivity(null);
@@ -384,7 +384,7 @@ public class PostalOfficeImportService {
             int rowNum,
             List<String> warnings) {
 
-        boolean isConnected    = Boolean.TRUE.equals(savedOffice.getConnectionStatus());
+        boolean isConnected    = Boolean.TRUE.equals(savedOffice.getIsConnected());
         LocalDateTime dateConn = dto.getDateConnected();
         LocalDateTime dateDisc = dto.getDateDisconnected();
 

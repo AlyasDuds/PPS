@@ -141,7 +141,7 @@ public class PostalOfficeInsertController {
                 Integer actorRoleId = ConnectivityNotificationService.roleIdFromAuthorities(
                         auth != null ? auth.getAuthorities() : null
                 );
-                boolean hasConn = Boolean.TRUE.equals(saved.getConnectionStatus());
+                boolean hasConn = Boolean.TRUE.equals(saved.getIsConnected());
                 String notifyName = saved.getName();
                 if (notifyName != null && notifyName.length() > 512) {
                     notifyName = notifyName.substring(0, 512);
@@ -265,7 +265,7 @@ public class PostalOfficeInsertController {
         String ownedShared  = strVal(req.get("ownedOrShared"));
         boolean hasPlanPrice = planPriceRaw != null && !planPriceRaw.toString().trim().isEmpty();
 
-        boolean hasConnData = Boolean.TRUE.equals(savedOffice.getConnectionStatus())
+        boolean hasConnData = Boolean.TRUE.equals(savedOffice.getIsConnected())
                 || planName != null || accountNum != null || hasPlanPrice || planContract != null;
         if (!hasConnData) return;
 
@@ -300,7 +300,7 @@ public class PostalOfficeInsertController {
 
         Connectivity savedConn = connectivityRepository.save(conn);
 
-        if (Boolean.TRUE.equals(savedOffice.getConnectionStatus())) {
+        if (Boolean.TRUE.equals(savedOffice.getIsConnected())) {
             savedOffice.setActiveConnectivity(savedConn);
             postalOfficeRepository.save(savedOffice);
         }
@@ -367,7 +367,7 @@ public class PostalOfficeInsertController {
         String staticIp = saved.getStaticIpAddress();
         if (staticIp != null && !staticIp.isBlank()) sb.append(" · IP: ").append(staticIp);
         
-        if (!Boolean.TRUE.equals(saved.getConnectionStatus())) sb.append(" · Status: Inactive");
+        if (!Boolean.TRUE.equals(saved.getIsConnected())) sb.append(" · Status: Inactive");
         
         // Plan & Billing fields
         String pln = strVal(req.get("planName"));
@@ -524,9 +524,9 @@ public class PostalOfficeInsertController {
 
         // Connection Status
         Object statusVal = requestData.get("connectionStatus");
-        if (statusVal instanceof Boolean) office.setConnectionStatus((Boolean) statusVal);
-        else if (statusVal instanceof String) office.setConnectionStatus(Boolean.parseBoolean((String) statusVal));
-        else office.setConnectionStatus(false);
+        if (statusVal instanceof Boolean) office.setIsConnected((Boolean) statusVal);
+        else if (statusVal instanceof String) office.setIsConnected(Boolean.parseBoolean((String) statusVal));
+        else office.setIsConnected(false);
 
         return office;
     }

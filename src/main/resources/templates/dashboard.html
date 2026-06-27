@@ -69,7 +69,7 @@
                                 <div class="text-xs font-weight-bold text-uppercase mb-1" style="color:#6610f2;">
                                     <i class="fas fa-chart-pie mr-1"></i>Area Percentages</div>
                                 <div class="area-carousel-container mt-2" style="overflow: hidden; position: relative;">
-                                    <div class="area-carousel-track d-flex" id="areaCarousel" style="transition: transform 0.5s ease-in-out;">
+                                    <div class="area-carousel-track d-flex" id="areaCarousel" style="transition: transform 0.2s ease-in-out;">
                                         <th:block th:each="entry : ${areaConnectivityStats}">
                                             <div class="area-carousel-item" style="min-width: 300px; padding: 0 10px;">
                                                 <div class="small font-weight-bold text-muted mb-1" th:text="${entry.key}">Area 1</div>
@@ -197,10 +197,6 @@
 
                                     <span class="th-sub">Internet Status</span>
                                 </th>
-                                <th class="text-center" style="width:105px;">
-                                    Office
-                                    <span class="th-sub">Status</span>
-                                </th>
                                 <th class="text-center" style="width:120px;" sec:authorize="!hasRole('SRD_OPERATION')">
                                     Actions</th>
                             </tr>
@@ -228,16 +224,6 @@
                                     <span th:unless="${office.connectionStatus == true}" class="badge badge-danger">
                                         <i class="fas fa-times-circle mr-1"></i>Inactive
                                     </span>
-                                </td>
-                                <td class="text-center">
-                                    <span th:if="${office.officeStatus == 'OPEN'}" class="badge badge-open">
-                                        <i class="fas fa-door-open mr-1"></i>Open
-                                    </span>
-                                    <span th:if="${office.officeStatus == 'CLOSED'}" class="badge badge-closed">
-                                        <i class="fas fa-door-closed mr-1"></i>Closed
-                                    </span>
-                                    <span th:if="${office.officeStatus == null or office.officeStatus == ''}"
-                                        class="badge badge-unknown"></span>
                                 </td>
                                 <td class="text-center action-buttons" sec:authorize="!hasRole('SRD_OPERATION')">
                                     <button class="btn btn-sm btn-warning btn-edit" th:data-office-id="${office.id}"

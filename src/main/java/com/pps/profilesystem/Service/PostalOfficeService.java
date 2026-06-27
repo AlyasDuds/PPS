@@ -81,7 +81,7 @@ public class PostalOfficeService {
         PostalOffice savedOffice = postalOfficeRepository.save(postalOffice);
         
         // Step 2: If the office is active, create and link a connectivity record
-        if (Boolean.TRUE.equals(postalOffice.getConnectionStatus())) {
+        if (Boolean.TRUE.equals(postalOffice.getIsConnected())) {
             Connectivity connectivity = createConnectivityRecord(savedOffice);
             
             // Step 3: Save the connectivity record (this sets connectivity.OfficeID)
@@ -107,12 +107,12 @@ public class PostalOfficeService {
         }
         
         PostalOffice office = existing.get();
-        Boolean oldStatus = office.getConnectionStatus();
+        Boolean oldStatus = office.getIsConnected();
         
         // Update fields
         updateOfficeFields(office, updatedOffice);
         
-        Boolean newStatus = office.getConnectionStatus();
+        Boolean newStatus = office.getIsConnected();
         
         // Handle connectivity status changes
         handleConnectivityStatusChange(office, oldStatus, newStatus);
@@ -203,7 +203,7 @@ public class PostalOfficeService {
         }
         
         PostalOffice office = officeOpt.get();
-        office.setConnectionStatus(false);
+        office.setIsConnected(false);
         
         // Disconnect and unlink active connectivity
         if (office.getActiveConnectivity() != null) {
@@ -307,7 +307,7 @@ public class PostalOfficeService {
         // dateConnected will be set by @PrePersist hook if null, or by user input
         Connectivity savedConn = connectivityRepository.save(newConn);
         office.setActiveConnectivity(savedConn);
-        office.setConnectionStatus(true);
+        office.setIsConnected(true);
         
         return office;
     }
@@ -348,11 +348,11 @@ public class PostalOfficeService {
         // Apply additional status filter if specified (but not newly_connected/disconnected which are already handled)
         if ("active".equals(statusFilter)) {
             offices = offices.stream()
-                .filter(office -> Boolean.TRUE.equals(office.getConnectionStatus()))
+                .filter(office -> Boolean.TRUE.equals(office.getIsConnected()))
                 .collect(Collectors.toList());
         } else if ("inactive".equals(statusFilter)) {
             offices = offices.stream()
-                .filter(office -> !Boolean.TRUE.equals(office.getConnectionStatus()))
+                .filter(office -> !Boolean.TRUE.equals(office.getIsConnected()))
                 .collect(Collectors.toList());
         }
         
@@ -370,7 +370,7 @@ public class PostalOfficeService {
         map.put("name", po.getName());
         map.put("lat", po.getLatitude());
         map.put("lng", po.getLongitude());
-        map.put("status", po.getConnectionStatus() != null ? po.getConnectionStatus() : false);
+        map.put("status", po.getIsConnected() != null ? po.getIsConnected() : false);
         map.put("areaId", po.getArea() != null ? po.getArea().getId() : null);
         map.put("address", po.getAddress());
         map.put("postmaster", po.getPostmaster());
@@ -480,7 +480,7 @@ public class PostalOfficeService {
         if (source.getLongitude() != null && isValidLongitude(source.getLongitude())) {
             target.setLongitude(source.getLongitude());
         }
-        if (source.getConnectionStatus() != null) target.setConnectionStatus(source.getConnectionStatus());
+        if (source.getIsConnected() != null) target.setIsConnected(source.getIsConnected());
         if (source.getInternetServiceProvider() != null) target.setInternetServiceProvider(source.getInternetServiceProvider());
     }
 

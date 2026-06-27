@@ -1,12 +1,15 @@
 package com.pps.profilesystem.Controller;
 
 import com.pps.profilesystem.Entity.Area;
+import com.pps.profilesystem.Entity.QuarterlySnapshot;
 import com.pps.profilesystem.Entity.User;
 import com.pps.profilesystem.Repository.ArchivedOfficeRepository;
 import com.pps.profilesystem.Repository.AreaRepository;
 import com.pps.profilesystem.Repository.ConnectivityRepository;
 import com.pps.profilesystem.Repository.PostalOfficeRepository;
+import com.pps.profilesystem.Repository.QuarterlySnapshotRepository;
 import com.pps.profilesystem.Repository.UserRepository;
+import com.pps.profilesystem.Service.QuarterlySnapshotService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -42,6 +45,12 @@ public class ReportController {
 
     @Autowired
     private UserRepository userRepository;
+
+    @Autowired
+    private QuarterlySnapshotService snapshotService;
+
+    @Autowired
+    private QuarterlySnapshotRepository snapshotRepository;
 
     // Offices to ignore when counting "newly connected" (data exceptions)
     private static final java.util.Set<Integer> NEWLY_CONNECTED_IGNORE = java.util.Set.of(1364, 1365, 1366, 1374);
@@ -130,6 +139,10 @@ public class ReportController {
         model.addAttribute("selectedQuarterFilter", quarterFilter);
         model.addAttribute("selectedStatusFilter", statusFilter);
         model.addAttribute("activePage", "report");
+
+        // Add snapshot history data
+        List<QuarterlySnapshot> snapshots = snapshotRepository.findByYear(currentYear);
+        model.addAttribute("snapshotHistory", snapshots);
 
         Map<String, Boolean> userAccess = new HashMap<>();
         userAccess.put("can_access_all_areas", roleId != null && (roleId == 1 || roleId == 4));
@@ -235,7 +248,8 @@ public class ReportController {
                             toLong(combRow.get("disconnected")) + toLong(areaRow.get("disconnected")));
                     combRow.put("newlyDisconnected",
                             toLong(combRow.get("newlyDisconnected")) + toLong(areaRow.get("newlyDisconnected")));
-                    combRow.put("total", toLong(combRow.get("total")) + toLong(areaRow.get("total")));
+                    // Use global total for "All Areas" instead of summing individual area totals
+                    combRow.put("total", countTotal(null));
 
                     ((List<String>) combRow.get("connectedNames")).addAll((List<String>) areaRow.get("connectedNames"));
                     ((List<String>) combRow.get("disconnectedNames"))
@@ -273,7 +287,8 @@ public class ReportController {
 
             long baseConnected = toLong(lastQ.get("connected")) + toLong(lastQ.get("newlyConnected"));
             long baseDisconnected = toLong(lastQ.get("disconnected")) + toLong(lastQ.get("newlyDisconnected"));
-            long baseTotal = baseConnected + baseDisconnected;
+            // Use constant total from countTotal instead of calculating from connected/disconnected
+            long baseTotal = countTotal(areaId);
 
             List<String> connNames = new ArrayList<>((List<String>) lastQ.get("connectedNames"));
             connNames.addAll((List<String>) lastQ.get("newlyConnectedNames"));
@@ -348,7 +363,10 @@ public class ReportController {
             LocalDateTime qStart = LocalDateTime.of(year, qMonths[i][0], 1, 0, 0, 0);
             LocalDateTime qEnd = LocalDateTime.of(year, qMonths[i][1],
                     YearMonth.of(year, qMonths[i][1]).lengthOfMonth(), 23, 59, 59);
-            LocalDateTime snapshotEnd = (currentYearMatch && !qStart.isAfter(now) && !qEnd.isBefore(now)) ? now : qEnd;
+            // Only use current time (now) for the CURRENT ongoing quarter
+            // For completed quarters, use the quarter end date to freeze the data
+            boolean isCurrentQuarter = currentYearMatch && !qStart.isAfter(now) && !qEnd.isBefore(now);
+            LocalDateTime snapshotEnd = isCurrentQuarter ? now : qEnd;
             allNewlyConnected.add(getNewlyConnectedNames(qStart, snapshotEnd, areaId));
             allNewlyDisconnected.add(getNewlyDisconnectedNames(qStart, snapshotEnd, areaId));
         }
@@ -379,6 +397,29 @@ public class ReportController {
                 continue;
             }
 
+            // Check if snapshot exists for this quarter (historical data)
+            QuarterlySnapshot snapshot = snapshotService.getSnapshot(year, q, areaId);
+            if (snapshot != null && !isCurrent) {
+                // Use frozen snapshot data for historical quarters
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put("quarter", q);
+                row.put("year", year);
+                row.put("isCurrent", isCurrent);
+                row.put("isFuture", false);
+                row.put("connected", snapshot.getConnectedCount());
+                row.put("newlyConnected", snapshot.getNewlyConnectedCount());
+                row.put("disconnected", snapshot.getDisconnectedCount());
+                row.put("newlyDisconnected", snapshot.getNewlyDisconnectedCount());
+                row.put("total", snapshot.getTotalOffices());
+                row.put("totalHint", null);
+                row.put("connectedNames", new ArrayList<String>());
+                row.put("disconnectedNames", new ArrayList<String>());
+                row.put("newlyConnectedNames", new ArrayList<String>());
+                row.put("newlyDisconnectedNames", new ArrayList<String>());
+                rowsByQuarter.put(i, row);
+                continue;
+            }
+
             List<String> newlyConnectedNames = allNewlyConnected.get(i);
             List<String> newlyDisconnectedNames = allNewlyDisconnected.get(i);
 
@@ -393,6 +434,11 @@ public class ReportController {
             java.util.Set<String> newlyDiscSet = new java.util.HashSet<>(newlyDisconnectedNames);
             baseDisconnectedNames.removeIf(newlyDiscSet::contains);
 
+            // Connected at end of quarter = base connected + newly connected
+            // Use Set to avoid duplicates
+            java.util.Set<String> endOfQuarterConnectedSet = new java.util.HashSet<>(baseConnectedNames);
+            endOfQuarterConnectedSet.addAll(newlyConnectedNames);
+
             Map<String, Object> row = new LinkedHashMap<>();
             row.put("quarter", q);
             row.put("year", year);
@@ -404,23 +450,28 @@ public class ReportController {
             row.put("newlyConnectedNames", newlyConnectedNames);
             row.put("newlyDisconnectedNames", newlyDisconnectedNames);
 
-            row.put("connected", baseConnectedNames.size());
+            row.put("connected", endOfQuarterConnectedSet.size());
             row.put("newlyConnected", newlyConnectedNames.size());
             row.put("disconnected", baseDisconnectedNames.size());
             row.put("newlyDisconnected", newlyDisconnectedNames.size());
-            // Total = base connected + newly connected this quarter + base disconnected +
-            // newly disconnected this quarter
-            // This ensures newly inserted offices (connected for the first time this
-            // quarter) are counted in total
-            row.put("total", baseConnectedNames.size() + newlyConnectedNames.size() +
-                    baseDisconnectedNames.size() + newlyDisconnectedNames.size());
+            // Total = total non-archived offices for the area (constant across quarters)
+            // This ensures total only changes when new offices are inserted or archived
+            long totalOffices = countTotal(areaId);
+            row.put("total", totalOffices);
             row.put("totalHint", null);
 
             rowsByQuarter.put(i, row);
 
             // Prepare for PREVIOUS quarter
+            // When going backwards, we need to add newly DISCONNECTED offices back to the running connected list
+            // because they were connected before this quarter
+            // We also need to REMOVE newly connected offices from running connected list
+            // because they were NOT connected in the previous quarter
             runningConnectedNames = new ArrayList<>(baseConnectedNames);
             runningConnectedNames.addAll(newlyDisconnectedNames);
+            // Note: newly connected offices are already excluded from baseConnectedNames,
+            // so runningConnectedNames now correctly represents the connected state at the START of this quarter
+            // (which is the END of the previous quarter)
 
             runningDisconnectedNames = new ArrayList<>(baseDisconnectedNames);
             // We DO NOT add newlyConnectedNames to runningDisconnectedNames.
@@ -676,6 +727,15 @@ public class ReportController {
                 .filter(entry -> !entry.isEmpty())
                 .sorted(java.util.Comparator.comparing(e -> e.contains("::") ? e.substring(e.indexOf("::") + 2) : e))
                 .collect(java.util.stream.Collectors.toList());
+    }
+
+    // ── Helper: count total non-archived offices ──────────────────────────────
+    private long countTotal(Integer areaId) {
+        if (areaId != null && areaId == -1) return 0;
+        if (areaId == null) return postalOfficeRepository.countNonArchived();
+        return postalOfficeRepository.findByIsArchivedFalse().stream()
+                .filter(po -> po.getArea() != null && areaId.equals(po.getArea().getId()))
+                .count();
     }
 
     // ── All active offices at a snapshot date ─────────────────────────────────
