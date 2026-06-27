@@ -58,7 +58,9 @@ public class LocationHierarchyService {
                                 "Pangasinan",
                                 "Ilocos Sur",
                                 "Pampanga",
-                                "Tarlac", "Bataan"));
+                                "Tarlac",
+                                "Bataan",
+                                "Zambales"));
 
                 // Area 3 — NCR + surrounding
                 AREA_PROVINCE_MAP.put(3, Arrays.asList(
@@ -108,19 +110,21 @@ public class LocationHierarchyService {
                                 "Negros Oriental",
                                 "Siquijor"));
 
-                // Area 7 — Davao + SOCCSKSARGEN + part of Caraga
+                // Area 7 — Davao + Maguindanao
                 AREA_PROVINCE_MAP.put(7, Arrays.asList(
-                                "Davao de Oro",
-                                "Davao del Norte",
-                                "Davao del Sur",
+                                "Davao De Oro",
+                                "Davao Del Norte",
+                                "Davao Del Sur",
                                 "Davao Occidental",
                                 "Davao Oriental",
-                                "Cotabato", // North Cotabato is often stored as "Cotabato"
                                 "Sarangani",
+                                "Maguindanao del Norte",
+                                "Maguindanao del Sur",
+                                "Sultan Kudarat",
+                                "Agusan del Sur",
+                                "Surigao Del Sur",
                                 "South Cotabato",
-                                "Surigao del Sur",
-                                "Maguindanao",
-                                "Sultan Kudarat"));
+                                "North Cotabato"));
 
                 // Area 8 — Northern Mindanao + Caraga
                 AREA_PROVINCE_MAP.put(8, Arrays.asList(
@@ -130,7 +134,6 @@ public class LocationHierarchyService {
                                 "Misamis Oriental",
                                 "Dinagat Islands",
                                 "Agusan del Norte",
-                                "Agusan del Sur",
                                 "Surigao del Norte",
                                 "Lanao del Sur"));
 

@@ -34,10 +34,14 @@ public class ArchivedOffice {
     public ArchivedOffice() {}
 
     public ArchivedOffice(PostalOffice postalOffice, String archiveReason, String archivedBy) {
+        this(postalOffice, archiveReason, archivedBy, LocalDateTime.now());
+    }
+
+    public ArchivedOffice(PostalOffice postalOffice, String archiveReason, String archivedBy, LocalDateTime archivedAt) {
         this.postalOffice  = postalOffice;
         this.archiveReason = archiveReason;
         this.archivedBy    = archivedBy;
-        this.archivedAt    = LocalDateTime.now();
+        this.archivedAt    = archivedAt;
     }
 
     public Integer getId() { return id; }

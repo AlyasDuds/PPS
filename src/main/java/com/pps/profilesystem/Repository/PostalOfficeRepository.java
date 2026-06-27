@@ -19,7 +19,7 @@ import java.util.Optional;
 @Repository
 public interface PostalOfficeRepository extends JpaRepository<PostalOffice, Integer> {
 
-    @Query("SELECT po FROM PostalOffice po WHERE po.connectionStatus = :status " +
+    @Query("SELECT po FROM PostalOffice po WHERE po.isConnected = :status " +
            "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     List<PostalOffice> findByConnectionStatus(@Param("status") Integer status);
 
@@ -45,6 +45,11 @@ public interface PostalOfficeRepository extends JpaRepository<PostalOffice, Inte
            "WHERE po.latitude IS NOT NULL AND po.longitude IS NOT NULL " +
            "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
     List<PostalOffice> findAllWithAreaForMap();
+
+    @Query("SELECT po FROM PostalOffice po WHERE po.area.id = :areaId " +
+           "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po) " +
+           "ORDER BY UPPER(po.name)")
+    List<PostalOffice> findByAreaId(@Param("areaId") Integer areaId);
 
     @Query("SELECT COUNT(DISTINCT c.postalOffice) FROM Connectivity c JOIN c.postalOffice po WHERE " +
            "YEAR(c.dateConnected) = :year AND MONTH(c.dateConnected) BETWEEN :startMonth AND :endMonth " +

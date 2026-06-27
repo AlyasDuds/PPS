@@ -90,8 +90,19 @@ public class ArchiveController {
         }
 
         String reason = body != null ? body.getOrDefault("reason", "") : "";
+        String archiveDateStr = body != null ? body.get("archiveDate") : null;
+        java.time.LocalDateTime archiveDate = null;
+        
+        if (archiveDateStr != null && !archiveDateStr.isEmpty()) {
+            try {
+                archiveDate = java.time.LocalDateTime.parse(archiveDateStr);
+            } catch (Exception e) {
+                return err("Invalid archive date format. Use ISO format: yyyy-MM-ddTHH:mm:ss");
+            }
+        }
+        
         try {
-            PostalOffice office = archiveService.archiveOffice(id, reason, actorLabel(user));
+            PostalOffice office = archiveService.archiveOffice(id, reason, actorLabel(user), archiveDate);
             return ok(true, "'" + office.getName() + "' has been archived.", null);
         } catch (Exception e) {
             return err(e.getMessage());

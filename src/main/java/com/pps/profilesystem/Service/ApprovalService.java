@@ -355,7 +355,7 @@ public class ApprovalService {
         if (opt.isEmpty()) throw new RuntimeException("Office not found: " + officeId);
 
         PostalOffice o = opt.get();
-        Integer oldStatus = o.getConnectionStatus();
+        Boolean oldStatus = o.getIsConnected();
 
         applyStr(values, "name",                      o::setName);
         applyStr(values, "postmaster",                o::setPostmaster);
@@ -376,11 +376,8 @@ public class ApprovalService {
 
         if (values.containsKey("connectionStatus")) {
             Object v = values.get("connectionStatus");
-            if (v instanceof Boolean) o.setConnectionStatus((Boolean) v ? 1 : 0);
-            else if (v != null) {
-                if (v instanceof Integer) o.setConnectionStatus((Integer) v);
-                else o.setConnectionStatus(Boolean.parseBoolean(v.toString()) ? 1 : 0);
-            }
+            if (v instanceof Boolean) o.setIsConnected((Boolean) v);
+            else if (v != null)       o.setIsConnected(Boolean.parseBoolean(v.toString()));
         }
         if (values.containsKey("noOfEmployees"))     applyInt(values, "noOfEmployees",     o::setNoOfEmployees);
         if (values.containsKey("noOfPostalTellers")) applyInt(values, "noOfPostalTellers", o::setNoOfPostalTellers);
@@ -393,7 +390,7 @@ public class ApprovalService {
         applyFk(values, "cityMunId",  id -> cityMunicipalityRepository.findById(id).ifPresent(o::setCityMunicipality));
         applyFk(values, "barangayId", id -> barangayRepository.findById(id).ifPresent(o::setBarangay));
 
-        Integer newStatus = o.getConnectionStatus();
+        Boolean newStatus = o.getIsConnected();
         handleConnectivityStatusChange(o, oldStatus, newStatus);
 
         postalOfficeRepository.save(o);
@@ -414,13 +411,11 @@ public class ApprovalService {
         applyStr(values, "remarks",                   o::setRemarks);
         if (values.containsKey("connectionStatus")) {
             Object v = values.get("connectionStatus");
-            if (v instanceof Boolean) o.setConnectionStatus((Boolean) v ? 1 : 0);
-            else if (v instanceof Integer) o.setConnectionStatus((Integer) v);
-            else o.setConnectionStatus(Boolean.parseBoolean(String.valueOf(v)) ? 1 : 0);
+            o.setIsConnected(v instanceof Boolean ? (Boolean) v : Boolean.parseBoolean(String.valueOf(v)));
         }
         PostalOffice savedOffice = postalOfficeRepository.save(o);
-        if (Integer.valueOf(1).equals(savedOffice.getConnectionStatus())) {
-            handleConnectivityStatusChange(savedOffice, null, 1);
+        if (Boolean.TRUE.equals(savedOffice.getIsConnected())) {
+            handleConnectivityStatusChange(savedOffice, null, true);
             postalOfficeRepository.save(savedOffice);
         }
     }
@@ -436,23 +431,12 @@ public class ApprovalService {
                 // Already has an open record — just point activeConnectivity at it (no new record)
                 office.setActiveConnectivity(existingOpen.get());
             } else {
-                // Look for the most recent closed record — reopen it instead of creating a new one
-                // to preserve the original dateConnected (historical data)
-                Optional<Connectivity> latestClosed = connectivityRepository
-                        .findTopByPostalOfficeIdOrderByDateConnectedDesc(office.getId());
 
-                if (latestClosed.isPresent() && latestClosed.get().getDateDisconnected() != null) {
-                    // Reopen the latest closed record to preserve historical dateConnected
-                    Connectivity conn = latestClosed.get();
-                    conn.setDateDisconnected(null);
-                    Connectivity saved = connectivityRepository.save(conn);
-                    office.setActiveConnectivity(saved);
-                } else {
-                    // No existing record at all — create a fresh one
-                    Connectivity connectivity = createConnectivityRecord(office);
-                    Connectivity saved = connectivityRepository.save(connectivity);
-                    office.setActiveConnectivity(saved);
-                }
+                // Always create a fresh connectivity record when activating
+                Connectivity connectivity = createConnectivityRecord(office);
+                Connectivity saved = connectivityRepository.save(connectivity);
+                office.setActiveConnectivity(saved);
+
             }
         }
         else if (Boolean.TRUE.equals(oldStatus) && !Boolean.TRUE.equals(newStatus)) {
@@ -533,6 +517,7 @@ public class ApprovalService {
                 + " · Requested by: " + (request.getRequestedBy() != null ? request.getRequestedBy() : "unknown");
 
         String actor = request.getAreaAdminProcessedBy() != null ? request.getAreaAdminProcessedBy() : "system";
+        Integer areaId = getAreaIdForOffice(request.getOfficeId());
         notifService.pushAudit(
                 ConnectivityNotification.Type.UPDATED,
                 officeName,
@@ -543,7 +528,8 @@ public class ApprovalService {
                 null,
                 "APPROVAL",
                 "ApprovalRequest",
-                request.getId()
+                request.getId(),
+                areaId
         );
     }
 
@@ -554,6 +540,7 @@ public class ApprovalService {
                 + " · Requested by: " + (request.getRequestedBy() != null ? request.getRequestedBy() : "unknown");
 
         String actor = request.getRequestedBy() != null ? request.getRequestedBy() : "system";
+        Integer areaId = getAreaIdForOffice(request.getOfficeId());
         notifService.pushAudit(
                 ConnectivityNotification.Type.UPDATED,
                 officeName,
@@ -564,7 +551,8 @@ public class ApprovalService {
                 null,
                 "APPROVAL",
                 "ApprovalRequest",
-                request.getId()
+                request.getId(),
+                areaId
         );
     }
 
@@ -574,6 +562,7 @@ public class ApprovalService {
                 + " · " + statusMessage
                 + " · Requested by: " + (request.getRequestedBy() != null ? request.getRequestedBy() : "unknown");
 
+        Integer areaId = getAreaIdForOffice(request.getOfficeId());
         notifService.pushAudit(
                 ConnectivityNotification.Type.UPDATED,
                 officeName,
@@ -584,7 +573,8 @@ public class ApprovalService {
                 request.getRequestedBy(),
                 "APPROVAL",
                 "ApprovalRequest",
-                request.getId()
+                request.getId(),
+                areaId
         );
     }
 
@@ -596,6 +586,7 @@ public class ApprovalService {
                 + " · " + statusMessage
                 + " · Area Admin: " + request.getAreaAdminProcessedBy();
 
+        Integer areaId = getAreaIdForOffice(request.getOfficeId());
         notifService.pushAudit(
                 ConnectivityNotification.Type.UPDATED,
                 officeName,
@@ -606,7 +597,15 @@ public class ApprovalService {
                 request.getAreaAdminProcessedBy(),
                 "APPROVAL",
                 "ApprovalRequest",
-                request.getId()
+                request.getId(),
+                areaId
         );
+    }
+
+    private Integer getAreaIdForOffice(Integer officeId) {
+        if (officeId == null) return null;
+        return postalOfficeRepository.findById(officeId)
+                .map(po -> po.getArea() != null ? po.getArea().getId() : null)
+                .orElse(null);
     }
 }

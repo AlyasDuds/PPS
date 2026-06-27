@@ -185,19 +185,12 @@ public class QuarterConnectivityService {
 
     private long countActiveAt(LocalDateTime snap, Integer areaId) {
         if (areaId != null && areaId == -1) return 0;
-        
-        // Use historical connectivity data from Connectivity table to match ReportController
-        // This ensures synchronization between Connectivity Report and Internet Connectivity
-        List<Connectivity> activeAtDate = connectivityRepository.findActiveAtDate(snap);
-        
-        return activeAtDate.stream()
-                .filter(c -> c.getPostalOffice() != null)
-                .filter(c -> !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
-                .filter(c -> !NEWLY_CONNECTED_IGNORE.contains(c.getPostalOffice().getId()))
-                .filter(c -> areaId == null || (c.getPostalOffice().getArea() != null 
-                        && areaId.equals(c.getPostalOffice().getArea().getId())))
-                .map(c -> c.getPostalOffice().getId())
-                .distinct()
+        if (areaId == null) {
+            return postalOfficeRepository.countNonArchivedByConnectionStatus(true);
+        }
+        return postalOfficeRepository.findByIsArchivedFalse().stream()
+                .filter(po -> Boolean.TRUE.equals(po.getIsConnected()))
+                .filter(po -> po.getArea() != null && areaId.equals(po.getArea().getId()))
                 .count();
     }
 

@@ -3,6 +3,8 @@ package com.pps.profilesystem.Service;
 import com.pps.profilesystem.DTO.ConnectivityNotification;
 import com.pps.profilesystem.Entity.ConnectivityNotificationEntity;
 import com.pps.profilesystem.Repository.ConnectivityNotificationRepository;
+import com.pps.profilesystem.Repository.UserRepository;
+import com.pps.profilesystem.Entity.User;
 
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +43,9 @@ public class ConnectivityNotificationService {
 
     @Autowired
     private ConnectivityNotificationRepository notifRepo;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     private PlatformTransactionManager transactionManager;
@@ -118,7 +123,7 @@ public class ConnectivityNotificationService {
 
     public void push(ConnectivityNotification.Type type,
             String officeName, Integer officeId,
-            String changedBy, String detail) {
+            String changedBy, String detail, Integer areaId) {
         pushAudit(
                 type,
                 officeName,
@@ -129,14 +134,15 @@ public class ConnectivityNotificationService {
                 null,
                 "CONNECTIVITY",
                 "PostalOffice",
-                officeId != null ? officeId.longValue() : null);
+                officeId != null ? officeId.longValue() : null,
+                areaId);
     }
 
     @Transactional
     public void pushToRecipient(ConnectivityNotification.Type type,
             String officeName, Integer officeId,
             String changedBy, String detail,
-            String recipientEmail) {
+            String recipientEmail, Integer areaId) {
         pushAudit(
                 type,
                 officeName,
@@ -147,7 +153,8 @@ public class ConnectivityNotificationService {
                 recipientEmail,
                 "APPROVAL",
                 "ApprovalRequest",
-                null);
+                null,
+                areaId);
     }
 
     /**
@@ -165,10 +172,25 @@ public class ConnectivityNotificationService {
             String eventSource,
             String entityType,
             Long entityId) {
+        pushAudit(type, officeName, officeId, changedBy, actorRoleId, detail, recipientEmail, eventSource, entityType, entityId, null);
+    }
+
+    @Transactional
+    public void pushAudit(ConnectivityNotification.Type type,
+            String officeName, Integer officeId,
+            String changedBy,
+            Integer actorRoleId,
+            String detail,
+            String recipientEmail,
+            String eventSource,
+            String entityType,
+            Long entityId,
+            Integer areaId) {
         ConnectivityNotificationEntity e = new ConnectivityNotificationEntity();
         e.setType(type);
         e.setOfficeName(officeName != null ? officeName : "");
         e.setOfficeId(officeId);
+        e.setAreaId(areaId);
         String actor = changedBy != null ? changedBy : "";
         e.setChangedBy(actor);
         if (!actor.isBlank()) {
@@ -223,8 +245,10 @@ public class ConnectivityNotificationService {
     }
 
     public List<ConnectivityNotification> getAllForUser(String userEmail) {
+        Integer userAreaId = getUserAreaId(userEmail);
         return loadRecentDtos().stream()
                 .filter(n -> n.isVisibleTo(userEmail))
+                .filter(n -> n.isVisibleToArea(userAreaId))
                 .toList();
     }
 
@@ -262,8 +286,10 @@ public class ConnectivityNotificationService {
         for (Map.Entry<String, List<SseEmitter>> entry : emittersByUser.entrySet()) {
             String userKey = entry.getKey();
             String vis = "_anonymous".equals(userKey) ? null : userKey;
+            Integer userAreaId = getUserAreaId(vis);
             List<ConnectivityNotification> forUser = all.stream()
                     .filter(n -> n.isVisibleTo(vis))
+                    .filter(n -> n.isVisibleToArea(userAreaId))
                     .toList();
             long unread = forUser.stream().filter(n -> !n.isReadBy(vis)).count();
             List<SseEmitter> dead = new ArrayList<>();
@@ -272,10 +298,17 @@ public class ConnectivityNotificationService {
                     flush(e, forUser, unread, vis);
                 } catch (IOException ex) {
                     dead.add(e);
+                } catch (Exception ex) {
+                    // Catch any exception (including AsyncRequestNotUsableException)
+                    // to prevent a single dead client from crashing the broadcast loop
+                    dead.add(e);
                 }
             }
             if (!dead.isEmpty()) {
                 entry.getValue().removeAll(dead);
+                if (entry.getValue().isEmpty()) {
+                    emittersByUser.remove(userKey);
+                }
             }
         }
     }
@@ -299,6 +332,7 @@ public class ConnectivityNotificationService {
                 e.getType(),
                 e.getOfficeName(),
                 e.getOfficeId(),
+                e.getAreaId(),
                 e.getChangedBy(),
                 e.getDetail(),
                 e.getRecipientEmail(),
@@ -416,6 +450,23 @@ public class ConnectivityNotificationService {
         if (userEmail == null || userEmail.isBlank())
             return "_anonymous";
         return userEmail.trim().toLowerCase();
+    }
+
+    private Integer getUserAreaId(String userEmail) {
+        if (userEmail == null || userEmail.isBlank()) {
+            return null;
+        }
+        User user = userRepository.findByEmail(userEmail.trim().toLowerCase()).orElse(null);
+        if (user == null) {
+            return null;
+        }
+        Integer roleId = user.getRole();
+        Integer areaId = user.getAreaId();
+        // System admins (roleId 1) and SRD Operation (roleId 4) can see all areas
+        if (roleId != null && (roleId == 1 || roleId == 4)) {
+            return null;
+        }
+        return areaId;
     }
 
     private String esc(String s) {

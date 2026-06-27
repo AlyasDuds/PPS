@@ -29,6 +29,9 @@ public class User {
     @Column(name = "area_id")  // ← DAGDAG kung meron sa DB
     private Integer areaId;
 
+    @Column(name = "postal_office_id")
+    private Integer postalOfficeId;
+
     // Getters and Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -50,4 +53,7 @@ public class User {
     
     public Integer getAreaId() { return areaId; }
     public void setAreaId(Integer areaId) { this.areaId = areaId; }
+
+    public Integer getPostalOfficeId() { return postalOfficeId; }
+    public void setPostalOfficeId(Integer postalOfficeId) { this.postalOfficeId = postalOfficeId; }
 }

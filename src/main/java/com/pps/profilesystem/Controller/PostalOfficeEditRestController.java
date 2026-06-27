@@ -35,6 +35,25 @@ public class PostalOfficeEditRestController {
     @Autowired private ProviderRepository             providerRepository;
 
     // -- GET --
+    
+    @GetMapping("/by-area/{areaId}")
+    public ResponseEntity<?> getOfficesByArea(@PathVariable Integer areaId) {
+        try {
+            List<PostalOffice> offices = postalOfficeRepository.findByAreaId(areaId);
+            List<Map<String, Object>> officeList = new ArrayList<>();
+            
+            for (PostalOffice office : offices) {
+                Map<String, Object> officeMap = new HashMap<>();
+                officeMap.put("id", office.getId());
+                officeMap.put("name", office.getName());
+                officeList.add(officeMap);
+            }
+            
+            return ResponseEntity.ok(officeList);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body(Map.of("error", "Failed to load offices: " + e.getMessage()));
+        }
+    }
 
     @GetMapping("/{id}")
     @Transactional(readOnly = true)
@@ -72,14 +91,23 @@ public class PostalOfficeEditRestController {
                     catch (Exception e) { d.put("barangayId", null); }
 
                     // Connectivity
-                    d.put("connectionStatus",           o.getConnectionStatus());
+                    d.put("connectionStatus",           o.getIsConnected());
                     d.put("officeStatus",               o.getOfficeStatus());
                     
-                    // Fetch latest connectivity record to populate dates
+                    // Fetch latest connectivity record to populate dates and Plan & Billing fields
                     connectivityRepository.findTopByPostalOfficeIdOrderByDateConnectedDesc(o.getId())
                         .ifPresent(conn -> {
                             d.put("dateConnected", conn.getDateConnected() != null ? conn.getDateConnected().toLocalDate().toString() : null);
                             d.put("dateDisconnected", conn.getDateDisconnected() != null ? conn.getDateDisconnected().toLocalDate().toString() : null);
+                            // Plan & Billing fields from Connectivity
+                            d.put("planName", conn.getPlanName());
+                            d.put("planPrice", conn.getPlanPrice() != null ? conn.getPlanPrice().toString() : null);
+                            d.put("accountNumber", conn.getAccountNumber());
+                            d.put("planContract", conn.getPlanContract());
+                            d.put("isWired", conn.getIsWired());
+                            d.put("isWireless", conn.getIsWireless());
+                            d.put("isShared", conn.getIsShared());
+                            d.put("isFree", conn.getIsFree());
                         });
                     d.put("internetServiceProvider",    o.getInternetServiceProvider());
                     d.put("typeOfConnection",           o.getTypeOfConnection());
@@ -137,21 +165,79 @@ public class PostalOfficeEditRestController {
             boolean isAreaAdmin = auth.getAuthorities().stream()
                     .anyMatch(a -> a.getAuthority().equals("ROLE_AREA_ADMIN"));
 
+            // Validate: Prevent editing connectivity for completed quarters in current year
+            // Allow editing connectionStatus for historical years (2025) to correct data
+            int currentYear = java.time.LocalDateTime.now().getYear();
+            int currentMonth = java.time.LocalDateTime.now().getMonthValue();
+            String currentQuarter = getCurrentQuarter(currentMonth);
+            
+            connectivityRepository.findTopByPostalOfficeIdOrderByDateConnectedDesc(o.getId())
+                .ifPresent(conn -> {
+                    if (conn.getDateConnected() != null) {
+                        int connYear = conn.getDateConnected().getYear();
+                        String connQuarter = getCurrentQuarter(conn.getDateConnected().getMonthValue());
+                        
+                        // Block editing connectionStatus for completed quarters in CURRENT year only
+                        // Historical years (2025) can still be edited to correct data
+                        if (connYear == currentYear && !connQuarter.equals(currentQuarter) && body.containsKey("connectionStatus")) {
+                            throw new IllegalStateException("Cannot modify connection status for " + connQuarter + " " + currentYear + ". Quarterly updates for completed quarters are final. Only " + currentQuarter + " " + currentYear + " can be edited.");
+                        }
+                        
+                        // Block editing connectivity dates for previous year records
+                        // This prevents changing the actual dates, but allows changing connectionStatus
+                        if (connYear < currentYear) {
+                            if (body.containsKey("dateConnected")) {
+                                Object val = body.get("dateConnected");
+                                if (val != null && !String.valueOf(val).trim().isEmpty()) {
+                                    try {
+                                        String dConnStr = val.toString().trim();
+                                        LocalDateTime newDate = java.time.LocalDate.parse(dConnStr).atStartOfDay();
+                                        if (!newDate.toLocalDate().equals(conn.getDateConnected().toLocalDate())) {
+                                            throw new IllegalStateException("Cannot modify connectivity dates for records from " + connYear + ". Quarterly updates for previous years are complete. Only current year connectivity dates can be edited.");
+                                        }
+                                    } catch (Exception e) {
+                                        // Invalid date format, let it fail later
+                                    }
+                                }
+                            }
+                            if (body.containsKey("dateDisconnected")) {
+                                Object val = body.get("dateDisconnected");
+                                if (val != null && !String.valueOf(val).trim().isEmpty()) {
+                                    try {
+                                        String dDisStr = val.toString().trim();
+                                        LocalDateTime newDate = java.time.LocalDate.parse(dDisStr).atTime(23, 59, 59);
+                                        if (conn.getDateDisconnected() == null || !newDate.toLocalDate().equals(conn.getDateDisconnected().toLocalDate())) {
+                                            throw new IllegalStateException("Cannot modify connectivity dates for records from " + connYear + ". Quarterly updates for previous years are complete. Only current year connectivity dates can be edited.");
+                                        }
+                                    } catch (Exception e) {
+                                        // Invalid date format, let it fail later
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+
             // Prepare changes for approval request if needed
             Map<String, Object> oldValues = createOldValuesMap(before);
             Map<String, Object> newValues = createNewValuesMap(body);
 
             if (isSystemAdmin) {
                 // System admin can directly update
-                Integer oldStatus = o.getConnectionStatus();
+                Boolean oldStatus = o.getIsConnected();
                 applyChanges(o, body);
-                Integer newStatus = o.getConnectionStatus();
+                Boolean newStatus = o.getIsConnected();
                 handleConnectivityStatusChange(o, oldStatus, newStatus);
                 
-                // System admin can edit dates of the latest connectivity record
+                // System admin can edit dates of the latest connectivity record (only for current year)
                 if (body.containsKey("dateConnected") || body.containsKey("dateDisconnected")) {
                     connectivityRepository.findTopByPostalOfficeIdOrderByDateConnectedDesc(o.getId())
                         .ifPresent(conn -> {
+                            // Skip editing if this is a previous year record (already validated above, but double-check)
+                            if (conn.getDateConnected() != null && conn.getDateConnected().getYear() < currentYear) {
+                                return;
+                            }
+                            
                             boolean changed = false;
                             
                             if (body.containsKey("dateConnected")) {
@@ -193,6 +279,9 @@ public class PostalOfficeEditRestController {
                             }
                         });
                 }
+                
+                // Save Plan & Billing fields to Connectivity record
+                saveConnectivityPlanFields(o, body);
 
                 postalOfficeRepository.save(o);
 
@@ -203,6 +292,7 @@ public class PostalOfficeEditRestController {
                     Integer actorRoleId = ConnectivityNotificationService.roleIdFromAuthorities(
                             auth != null ? auth.getAuthorities() : null
                     );
+                    Integer areaId = o.getArea() != null ? o.getArea().getId() : null;
                     notifService.pushAudit(
                             type,
                             o.getName(),
@@ -213,7 +303,8 @@ public class PostalOfficeEditRestController {
                             null,
                             "CONNECTIVITY",
                             "PostalOffice",
-                            o.getId() != null ? o.getId().longValue() : null
+                            o.getId() != null ? o.getId().longValue() : null,
+                            areaId
                     );
                 }
 
@@ -293,6 +384,15 @@ public class PostalOfficeEditRestController {
         oldValues.put("ispContactPerson", before.ispContactPerson);
         oldValues.put("ispContactNumber", before.ispContactNumber);
         oldValues.put("remarks", before.remarks);
+        // Plan & Billing fields (from Connectivity)
+        oldValues.put("planName", before.planName);
+        oldValues.put("planPrice", before.planPrice);
+        oldValues.put("accountNumber", before.accountNumber);
+        oldValues.put("planContract", before.planContract);
+        oldValues.put("isWired", before.isWired);
+        oldValues.put("isWireless", before.isWireless);
+        oldValues.put("isShared", before.isShared);
+        oldValues.put("isFree", before.isFree);
         return oldValues;
     }
 
@@ -318,6 +418,7 @@ public class PostalOfficeEditRestController {
         copyIfPresent(body, newValues, "ispContactPerson");
         copyIfPresent(body, newValues, "ispContactNumber");
         copyIfPresent(body, newValues, "remarks");
+        // Plan & Billing fields are handled separately through Connectivity, not in approval maps
         copyIfPresent(body, newValues, "areaId");
         copyIfPresent(body, newValues, "regionId");
         copyIfPresent(body, newValues, "provinceId");
@@ -346,14 +447,14 @@ public class PostalOfficeEditRestController {
         set(body, "longitude",  v -> { try { o.setLongitude(Double.parseDouble(v.toString())); } catch (Exception ignored) {} });
 
         // Location hierarchy
-        set(body, "areaId",     v -> { Integer x = num(v); if (x != null) areaRepository.findById(x).ifPresent(o::setArea);                       else o.setArea(null); });
-        set(body, "regionId",   v -> { Integer x = num(v); if (x != null) regionsRepository.findById(x).ifPresent(o::setRegion);                   else o.setRegion(null); });
-        set(body, "provinceId", v -> { Integer x = num(v); if (x != null) provinceRepository.findById(x).ifPresent(o::setProvince);                else o.setProvince(null); });
-        set(body, "cityMunId",  v -> { Integer x = num(v); if (x != null) cityMunicipalityRepository.findById(x).ifPresent(o::setCityMunicipality); else o.setCityMunicipality(null); });
-        set(body, "barangayId", v -> { Integer x = num(v); if (x != null) barangayRepository.findById(x).ifPresent(o::setBarangay);                else o.setBarangay(null); });
+        set(body, "areaId",     v -> { Integer x = num(v); if (x != null) areaRepository.findById(x).ifPresent(o::setArea); });
+        set(body, "regionId",   v -> { Integer x = num(v); if (x != null) regionsRepository.findById(x).ifPresent(o::setRegion); });
+        set(body, "provinceId", v -> { Integer x = num(v); if (x != null) provinceRepository.findById(x).ifPresent(o::setProvince); });
+        set(body, "cityMunId",  v -> { Integer x = num(v); if (x != null) cityMunicipalityRepository.findById(x).ifPresent(o::setCityMunicipality); });
+        set(body, "barangayId", v -> { Integer x = num(v); if (x != null) barangayRepository.findById(x).ifPresent(o::setBarangay); });
 
         // Connectivity
-        set(body, "connectionStatus",         v -> o.setConnectionStatus(bool(v) ? 1 : 0));
+        set(body, "connectionStatus",         v -> o.setIsConnected(bool(v)));
         set(body, "officeStatus",             v -> o.setOfficeStatus(str(v)));
         set(body, "internetServiceProvider",  v -> o.setInternetServiceProvider(str(v)));
         set(body, "typeOfConnection",         v -> o.setTypeOfConnection(str(v)));
@@ -383,8 +484,8 @@ public class PostalOfficeEditRestController {
         cmp(lines, "Services",       b.serviceProvided,  a.getServiceProvided());
         cmp(lines, "Address",        b.address,          a.getAddress());
         cmp(lines, "Zip Code",       b.zipCode,          a.getZipCode());
-        if (!Objects.equals(b.connectionStatus, a.getConnectionStatus()))
-            lines.add("Status: " + label(b.connectionStatus) + " -> " + label(a.getConnectionStatus()));
+        if (!Objects.equals(b.connectionStatus, a.getIsConnected()))
+            lines.add("Status: " + label(b.connectionStatus) + " -> " + label(a.getIsConnected()));
         cmp(lines, "ISP",        b.isp,      a.getInternetServiceProvider());
         cmp(lines, "Conn. Type", b.connType, a.getTypeOfConnection());
         cmp(lines, "Speed",      b.speed,    a.getSpeed());
@@ -397,6 +498,20 @@ public class PostalOfficeEditRestController {
         cmp(lines, "ISP Contact",    b.ispContactPerson, a.getIspContactPerson());
         cmp(lines, "ISP #",          b.ispContactNumber, a.getIspContactNumber());
         cmp(lines, "Remarks",        b.remarks,          a.getRemarks());
+        
+        // Plan & Billing fields (from Connectivity) - compare with current connectivity
+        Connectivity currentConn = a.getActiveConnectivity();
+        if (currentConn != null) {
+            cmp(lines, "Plan Name",     b.planName,     currentConn.getPlanName());
+            cmp(lines, "Plan Price",    b.planPrice,    currentConn.getPlanPrice() != null ? currentConn.getPlanPrice().toString() : null);
+            cmp(lines, "Account #",     b.accountNumber, currentConn.getAccountNumber());
+            cmp(lines, "Contract",      b.planContract, currentConn.getPlanContract());
+            cmpBool(lines, "Wired",      b.isWired,      currentConn.getIsWired());
+            cmpBool(lines, "Wireless",   b.isWireless,   currentConn.getIsWireless());
+            cmpBool(lines, "Shared",     b.isShared,     currentConn.getIsShared());
+            cmpBool(lines, "Free",       b.isFree,       currentConn.getIsFree());
+        }
+        
         return lines;
     }
 
@@ -408,12 +523,17 @@ public class PostalOfficeEditRestController {
         String av = a == null ? "?" : String.valueOf(a);
         if (!bv.equals(av)) out.add(lbl + ": " + bv + " -> " + av);
     }
+    private void cmpBool(List<String> out, String lbl, Boolean b, Boolean a) {
+        String bv = b == null ? "?" : (b ? "Yes" : "No");
+        String av = a == null ? "?" : (a ? "Yes" : "No");
+        if (!bv.equals(av)) out.add(lbl + ": " + bv + " -> " + av);
+    }
     private String blank(String s) { return (s == null || s.isBlank()) ? "?" : s.trim(); }
     private String label(Integer b){ return Integer.valueOf(1).equals(b) ? "Active" : "Inactive"; }
 
     private ConnectivityNotification.Type resolveType(Snapshot b, PostalOffice a) {
-        if (!Objects.equals(b.connectionStatus, a.getConnectionStatus()))
-            return Integer.valueOf(1).equals(a.getConnectionStatus())
+        if (!Objects.equals(b.connectionStatus, a.getIsConnected()))
+            return Boolean.TRUE.equals(a.getIsConnected())
                    ? ConnectivityNotification.Type.CONNECTED
                    : ConnectivityNotification.Type.DISCONNECTED;
         return ConnectivityNotification.Type.UPDATED;
@@ -427,6 +547,9 @@ public class PostalOfficeEditRestController {
         String  isp, connType, speed, staticIp;
         Integer employees, tellers, carriers;
         String  contactPerson, contactNumber, ispContactPerson, ispContactNumber, remarks;
+        // Plan & Billing fields (from Connectivity)
+        String  planName, planPrice, accountNumber, planContract;
+        Boolean isWired, isWireless, isShared, isFree;
 
         static Snapshot of(PostalOffice o) {
             Snapshot s = new Snapshot();
@@ -437,7 +560,7 @@ public class PostalOfficeEditRestController {
             s.address          = o.getAddress();
             s.zipCode          = o.getZipCode();
             s.officeStatus     = o.getOfficeStatus();
-            s.connectionStatus = o.getConnectionStatus();
+            s.connectionStatus = o.getIsConnected();
             s.isp              = o.getInternetServiceProvider();
             s.connType         = o.getTypeOfConnection();
             s.speed            = o.getSpeed();
@@ -450,6 +573,18 @@ public class PostalOfficeEditRestController {
             s.ispContactPerson = o.getIspContactPerson();
             s.ispContactNumber = o.getIspContactNumber();
             s.remarks          = o.getRemarks();
+            // Plan & Billing fields from Connectivity
+            if (o.getActiveConnectivity() != null) {
+                Connectivity c = o.getActiveConnectivity();
+                s.planName      = c.getPlanName();
+                s.planPrice     = c.getPlanPrice() != null ? c.getPlanPrice().toString() : null;
+                s.accountNumber = c.getAccountNumber();
+                s.planContract  = c.getPlanContract();
+                s.isWired       = c.getIsWired();
+                s.isWireless    = c.getIsWireless();
+                s.isShared      = c.getIsShared();
+                s.isFree        = c.getIsFree();
+            }
             return s;
         }
     }
@@ -476,50 +611,61 @@ public class PostalOfficeEditRestController {
         return ResponseEntity.status(status).body(Map.of("success", false, "message", msg));
     }
 
-    private void handleConnectivityStatusChange(PostalOffice office, Integer oldStatus, Integer newStatus) {
-        if (!Integer.valueOf(1).equals(oldStatus) && Integer.valueOf(1).equals(newStatus)) {
-            // Switching to ACTIVE — reuse existing open record if available, else create new
-            // Check if the office already has an open connectivity record with no dateDisconnected
+    private void handleConnectivityStatusChange(PostalOffice office, Boolean oldStatus, Boolean newStatus) {
+        int currentYear = LocalDateTime.now().getYear();
+
+        if (!Boolean.TRUE.equals(oldStatus) && Boolean.TRUE.equals(newStatus)) {
+            // ── Switching to ACTIVE ──────────────────────────────────────────────
             Optional<Connectivity> existingOpen = connectivityRepository
                     .findByPostalOfficeIdAndDateDisconnectedIsNull(office.getId());
 
             if (existingOpen.isPresent()) {
-                // Already has an open record — just point activeConnectivity at it (no new record)
-                office.setActiveConnectivity(existingOpen.get());
-            } else {
-                // Look for the most recent closed record — reopen it instead of creating a new one
-                // to preserve the original dateConnected (historical data)
-                Optional<Connectivity> latestClosed = connectivityRepository
-                        .findTopByPostalOfficeIdOrderByDateConnectedDesc(office.getId());
+                Connectivity open = existingOpen.get();
+                boolean isCurrentYear = open.getDateConnected() != null
+                        && open.getDateConnected().getYear() == currentYear;
 
-                if (latestClosed.isPresent() && latestClosed.get().getDateDisconnected() != null) {
-                    // Reopen the latest closed record to preserve historical dateConnected
-                    Connectivity conn = latestClosed.get();
-                    conn.setDateDisconnected(null);
-                    Connectivity saved = connectivityRepository.save(conn);
-                    office.setActiveConnectivity(saved);
+                if (isCurrentYear) {
+                    // Reuse — same year open record (e.g. toggled by mistake and reverted)
+                    office.setActiveConnectivity(open);
                 } else {
-                    // No existing record at all — create a fresh one
-                    Connectivity connectivity = createConnectivityRecord(office);
-                    Connectivity saved = connectivityRepository.save(connectivity);
-                    office.setActiveConnectivity(saved);
+                    // Prev-year open record — update it directly to correct historical data
+                    // This allows correcting historical data and properly updates newly connected counts
+                    office.setActiveConnectivity(open);
                 }
+            } else {
+                // No open record — create fresh
+                Connectivity newConn = createConnectivityRecord(office);
+                office.setActiveConnectivity(connectivityRepository.save(newConn));
             }
         }
-        else if (Integer.valueOf(1).equals(oldStatus) && !Integer.valueOf(1).equals(newStatus)) {
-            // Switching to INACTIVE — close the active connectivity record
+        else if (Boolean.TRUE.equals(oldStatus) && !Boolean.TRUE.equals(newStatus)) {
+            // ── Switching to INACTIVE ────────────────────────────────────────────
+            Connectivity conn = null;
+
             if (office.getActiveConnectivity() != null) {
-                Connectivity conn = office.getActiveConnectivity();
-                conn.setDateDisconnected(LocalDateTime.now());
-                connectivityRepository.save(conn);
-                office.setActiveConnectivity(null);
+                conn = office.getActiveConnectivity();
             } else {
-                // No activeConnectivity pointer — find and close the open record directly
-                connectivityRepository.findByPostalOfficeIdAndDateDisconnectedIsNull(office.getId())
-                        .ifPresent(conn -> {
-                            conn.setDateDisconnected(LocalDateTime.now());
-                            connectivityRepository.save(conn);
-                        });
+                conn = connectivityRepository
+                        .findByPostalOfficeIdAndDateDisconnectedIsNull(office.getId())
+                        .orElse(null);
+            }
+
+            if (conn != null) {
+                boolean isPrevYear = conn.getDateConnected() != null
+                        && conn.getDateConnected().getYear() < currentYear;
+
+                if (isPrevYear) {
+                    // For historical years (2025), update the existing record directly
+                    // This allows correcting historical data and properly updates newly disconnected counts
+                    conn.setDateDisconnected(LocalDateTime.now());
+                    connectivityRepository.save(conn);
+                    office.setActiveConnectivity(null);
+                } else {
+                    // Current-year record — close normally
+                    conn.setDateDisconnected(LocalDateTime.now());
+                    connectivityRepository.save(conn);
+                    office.setActiveConnectivity(null);
+                }
             }
         }
     }
@@ -551,5 +697,107 @@ public class PostalOfficeEditRestController {
             return "This office already has a request waiting for SRD Operation final approval.";
         }
         return "This office already has a pending request waiting for Area Admin review.";
+    }
+
+    private String getCurrentQuarter(int month) {
+        if (month <= 3) return "Q1";
+        if (month <= 6) return "Q2";
+        if (month <= 9) return "Q3";
+        return "Q4";
+    }
+
+    private void saveConnectivityPlanFields(PostalOffice office, Map<String, Object> body) {
+        // Get or create the active connectivity record
+        Connectivity conn = office.getActiveConnectivity();
+        if (conn == null) {
+            // If no active connectivity, try to find the latest one
+            Optional<Connectivity> latest = connectivityRepository.findTopByPostalOfficeIdOrderByDateConnectedDesc(office.getId());
+            if (latest.isPresent()) {
+                conn = latest.get();
+            } else {
+                // Create a new connectivity record if none exists
+                Provider defaultProvider = providerRepository.findAll().stream()
+                    .findFirst()
+                    .orElseGet(() -> {
+                        Provider newProvider = new Provider();
+                        newProvider.setName("Default Provider");
+                        return providerRepository.save(newProvider);
+                    });
+                conn = new Connectivity();
+                conn.setPostalOffice(office);
+                conn.setProvider(defaultProvider);
+                conn.setDateConnected(LocalDateTime.now());
+            }
+        }
+
+        boolean changed = false;
+
+        // Save Plan & Billing fields
+        if (body.containsKey("planName")) {
+            String val = str(body.get("planName"));
+            if (!Objects.equals(val, conn.getPlanName())) {
+                conn.setPlanName(val);
+                changed = true;
+            }
+        }
+        if (body.containsKey("planPrice")) {
+            String val = str(body.get("planPrice"));
+            if (val != null && !val.isBlank()) {
+                try {
+                    java.math.BigDecimal price = new java.math.BigDecimal(val);
+                    if (!price.equals(conn.getPlanPrice())) {
+                        conn.setPlanPrice(price);
+                        changed = true;
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+        if (body.containsKey("accountNumber")) {
+            String val = str(body.get("accountNumber"));
+            if (!Objects.equals(val, conn.getAccountNumber())) {
+                conn.setAccountNumber(val);
+                changed = true;
+            }
+        }
+        if (body.containsKey("planContract")) {
+            String val = str(body.get("planContract"));
+            if (!Objects.equals(val, conn.getPlanContract())) {
+                conn.setPlanContract(val);
+                changed = true;
+            }
+        }
+        if (body.containsKey("isWired")) {
+            Boolean val = bool(body.get("isWired"));
+            if (!Objects.equals(val, conn.getIsWired())) {
+                conn.setIsWired(val);
+                changed = true;
+            }
+        }
+        if (body.containsKey("isWireless")) {
+            Boolean val = bool(body.get("isWireless"));
+            if (!Objects.equals(val, conn.getIsWireless())) {
+                conn.setIsWireless(val);
+                changed = true;
+            }
+        }
+        if (body.containsKey("isShared")) {
+            Boolean val = bool(body.get("isShared"));
+            if (!Objects.equals(val, conn.getIsShared())) {
+                conn.setIsShared(val);
+                changed = true;
+            }
+        }
+        if (body.containsKey("isFree")) {
+            Boolean val = bool(body.get("isFree"));
+            if (!Objects.equals(val, conn.getIsFree())) {
+                conn.setIsFree(val);
+                changed = true;
+            }
+        }
+
+        if (changed) {
+            Connectivity saved = connectivityRepository.save(conn);
+            office.setActiveConnectivity(saved);
+        }
     }
 }

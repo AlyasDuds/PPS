@@ -28,6 +28,26 @@
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
+/* Online Users Indicator Pulse Animation */
+@keyframes pulse {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 0.5;
+        transform: scale(0.8);
+    }
+    100% {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.online-indicator {
+    box-shadow: 0 0 10px rgba(40, 167, 69, 0.5);
+}
+
 .stat-card:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);

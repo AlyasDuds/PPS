@@ -300,47 +300,81 @@
             </div>
         </div>
 
-    </div><!-- end container-fluid -->
-
-    <!-- ── External Styles ───────────────────────────────────────────────────────────────────── -->
-    <link rel="stylesheet" th:href="@{/css/report.css}" />
-
-<!-- ── Archive Reason Modal ──────────────────────────────────────────── -->
-    <div class="modal fade" id="reportArchiveModal" tabindex="-1" role="dialog" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered" role="document">
-            <div class="modal-content">
-                <div class="modal-header bg-warning text-white">
-                    <h5 class="modal-title font-weight-bold">
-                        <i class="fas fa-archive mr-2"></i>Archive Post Office
-                    </h5>
-                    <button type="button" class="close text-white" data-dismiss="modal">
-                        <span>&times;</span>
-                    </button>
-                </div>
-                <div class="modal-body">
-                    <p class="text-muted mb-3">
-                        You are about to archive <strong id="reportArchiveOfficeName"></strong>.
-                        This office will be hidden from all views but can be restored later.
-                    </p>
-                    <div class="form-group">
-                        <label for="reportArchiveReasonInput">
-                            Reason for archiving <small class="text-muted">(optional)</small>
-                        </label>
-                        <textarea id="reportArchiveReasonInput" class="form-control" rows="3"
-                                  placeholder="e.g. Office closed, Duplicate record, Under review..."></textarea>
+        <!-- ===== SNAPSHOT HISTORY ===== -->
+        <div class="row mb-4" th:if="${snapshotHistory != null and !#lists.isEmpty(snapshotHistory)}">
+            <div class="col-12">
+                <div class="bg-white rounded shadow-sm p-3">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h5 class="font-weight-bold text-dark mb-0">
+                            <i class="fas fa-history text-primary mr-2"></i>
+                            Snapshot History (Frozen Data)
+                        </h5>
+                        <span class="badge badge-info">
+                            <i class="fas fa-lock mr-1"></i>Historical data cannot be modified
+                        </span>
                     </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-dismiss="modal">
-                        <i class="fas fa-times mr-1"></i>Cancel
-                    </button>
-                    <button type="button" class="btn btn-warning" id="reportConfirmArchiveBtn">
-                        <i class="fas fa-archive mr-1"></i>Archive
-                    </button>
+
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover mb-0">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th style="width:70px;">Year</th>
+                                    <th style="width:80px;">Quarter</th>
+                                    <th>Area</th>
+                                    <th class="text-center text-success">
+                                        <i class="fas fa-wifi mr-1"></i>Connected
+                                    </th>
+                                    <th class="text-center text-success">
+                                        <i class="fas fa-plus-circle mr-1"></i>Newly Connected
+                                    </th>
+                                    <th class="text-center text-danger">
+                                        <i class="fas fa-wifi-slash mr-1"></i>Disconnected
+                                    </th>
+                                    <th class="text-center text-danger">
+                                        <i class="fas fa-minus-circle mr-1"></i>Newly Disconnected
+                                    </th>
+                                    <th class="text-center text-primary">
+                                        <i class="fas fa-building mr-1"></i>Total
+                                    </th>
+                                    <th class="text-center">Frozen On</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr th:each="snapshot : ${snapshotHistory}">
+                                    <td th:text="${snapshot.year}">2026</td>
+                                    <td class="font-weight-bold" th:text="${snapshot.quarter}">Q1</td>
+                                    <td th:text="${snapshot.area != null ? snapshot.area.areaName : 'All Areas'}">Area 1</td>
+                                    <td class="text-center font-weight-bold text-success" th:text="${snapshot.connectedCount}">0</td>
+                                    <td class="text-center">
+                                        <span th:if="${snapshot.newlyConnectedCount != null and snapshot.newlyConnectedCount > 0}"
+                                              class="badge badge-success"
+                                              th:text="${'+' + snapshot.newlyConnectedCount}">+0</span>
+                                        <span th:unless="${snapshot.newlyConnectedCount != null and snapshot.newlyConnectedCount > 0}"
+                                              class="text-muted">—</span>
+                                    </td>
+                                    <td class="text-center font-weight-bold text-danger" th:text="${snapshot.disconnectedCount}">0</td>
+                                    <td class="text-center">
+                                        <span th:if="${snapshot.newlyDisconnectedCount != null and snapshot.newlyDisconnectedCount > 0}"
+                                              class="badge badge-danger"
+                                              th:text="${'+' + snapshot.newlyDisconnectedCount}">+0</span>
+                                        <span th:unless="${snapshot.newlyDisconnectedCount != null and snapshot.newlyDisconnectedCount > 0}"
+                                              class="text-muted">—</span>
+                                    </td>
+                                    <td class="text-center font-weight-bold text-primary" th:text="${snapshot.totalOffices}">0</td>
+                                    <td class="text-center text-muted" style="font-size:12px;"
+                                        th:text="${#temporals.format(snapshot.createdAt, 'MMM dd, yyyy HH:mm')}">Jan 01, 2026</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
+
+    </div><!-- end container-fluid -->
+
+    <!-- Archive Reason Modal -->
+    <div th:replace="~{fragments/modals/archive-modal :: archiveModal}"></div>
 
 </div><!-- end th:fragment="content" -->
 

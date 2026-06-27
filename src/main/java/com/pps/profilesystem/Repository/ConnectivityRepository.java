@@ -110,6 +110,9 @@ public interface ConnectivityRepository extends JpaRepository<Connectivity, Inte
     /** Find the open (not yet disconnected) connectivity record for an office. */
     java.util.Optional<Connectivity> findByPostalOfficeIdAndDateDisconnectedIsNull(Integer postalOfficeId);
 
+    /** Find all open (not yet disconnected) connectivity records. */
+    List<Connectivity> findByDateDisconnectedIsNull();
+
     /** Find the most recent connectivity record for an office (open or closed). */
     java.util.Optional<Connectivity> findTopByPostalOfficeIdOrderByDateConnectedDesc(Integer postalOfficeId);
 }

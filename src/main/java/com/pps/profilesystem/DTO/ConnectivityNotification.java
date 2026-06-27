@@ -26,6 +26,7 @@ public class ConnectivityNotification {
     private final Type type;
     private final String officeName;
     private final Integer officeId;
+    private final Integer areaId;          // area id for area-based filtering
     private final String changedBy;        // username of the actor
     private final String detail;           // e.g. provider name, plan, etc.
     private final String recipientEmail;   // null = visible to all, otherwise only this user
@@ -38,12 +39,13 @@ public class ConnectivityNotification {
                                     String officeName, Integer officeId,
                                     String changedBy, String detail,
                                     String recipientEmail) {
-        this(id, type, officeName, officeId, changedBy, detail, recipientEmail, LocalDateTime.now());
+        this(id, type, officeName, officeId, null, changedBy, detail, recipientEmail, LocalDateTime.now());
     }
 
     /** Full constructor (used when hydrating from persistent storage). */
     public ConnectivityNotification(long id, Type type,
                                     String officeName, Integer officeId,
+                                    Integer areaId,
                                     String changedBy, String detail,
                                     String recipientEmail,
                                     LocalDateTime timestamp) {
@@ -51,6 +53,7 @@ public class ConnectivityNotification {
         this.type       = type;
         this.officeName = officeName;
         this.officeId   = officeId;
+        this.areaId     = areaId;
         this.changedBy  = changedBy;
         this.detail     = detail;
         this.recipientEmail = recipientEmail;
@@ -98,6 +101,20 @@ public class ConnectivityNotification {
         return recipientEmail == null || recipientEmail.isBlank()
                 || (email != null && recipientEmail.equalsIgnoreCase(email));
     }
+
+    public boolean isVisibleToArea(Integer userAreaId) {
+        // If user has no area assigned, show all notifications
+        if (userAreaId == null) {
+            return true;
+        }
+        // If notification has no area, don't show it to users with area assigned
+        // Only system admins (who have null userAreaId) see notifications without area
+        if (areaId == null) {
+            return false;
+        }
+        // Only show notification if it matches user's area
+        return areaId.equals(userAreaId);
+    }
     public boolean isReadBy(String email) {
         return email != null && readByEmails.stream().anyMatch(e -> e.equalsIgnoreCase(email));
     }
@@ -113,6 +130,7 @@ public class ConnectivityNotification {
     public Type          getType()       { return type; }
     public String        getOfficeName() { return officeName; }
     public Integer       getOfficeId()   { return officeId; }
+    public Integer       getAreaId()     { return areaId; }
     public String        getChangedBy()  { return changedBy; }
     public String        getDetail()     { return detail; }
     public LocalDateTime getTimestamp()  { return timestamp; }

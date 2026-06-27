@@ -283,7 +283,7 @@ public class PostalOfficeImportService {
                     resolveLocation(dto, office, regionMap, provinceMap, cityMap, barangayMap, zipMap, rowNum, warnings);
 
                     if (!blank(dto.getConnectivityStatus())) {
-                        office.setConnectionStatus(parseConnectionStatus(dto.getConnectivityStatus()));
+                        office.setIsConnected(parseConnectionStatus(dto.getConnectivityStatus()));
                     }
 
                     // Save the postal office - database trigger will automatically create connectivity record
@@ -359,6 +359,60 @@ public class PostalOfficeImportService {
         }
 
         return null; // truly new office
+    }
+
+    // ── Connectivity handler ──────────────────────────────────────────────────
+
+    /**
+     * - Every connected office gets a connectivity record, date or no date.
+     * - Deduplication logic:
+     *     • If dateConnected is non-null  → deduplicate by matching dateConnected value.
+     *     • If dateConnected IS null      → deduplicate by any existing record that also
+     *                                       has null dateConnected (prevents duplicate
+     *                                       null-date rows on reimport).
+     * - dateConnected / dateDisconnected are stored as null when the Excel cell is empty.
+     */
+    private void handleConnectivity(
+            PostalOffice savedOffice,
+            PostalOfficeImportDTO dto,
+            Provider defaultProvider,
+            int rowNum,
+            List<String> warnings) {
+
+        boolean isConnected    = Boolean.TRUE.equals(savedOffice.getIsConnected());
+        LocalDateTime dateConn = dto.getDateConnected();
+        LocalDateTime dateDisc = dto.getDateDisconnected();
+
+        // Skip entirely if not connected and no dates provided
+        if (!isConnected && dateConn == null && dateDisc == null) return;
+
+        List<Connectivity> existing = connectivityRepository.findByPostalOfficeId(savedOffice.getId());
+
+        // Deduplicate:
+        //   - dateConn non-null → match by exact dateConn value
+        //   - dateConn null     → match any existing record that also has null dateConn
+        boolean alreadyExists = existing.stream().anyMatch(c ->
+                dateConn != null
+                    ? dateConn.equals(c.getDateConnected())
+                    : c.getDateConnected() == null
+        );
+        if (alreadyExists) return;
+
+        Connectivity conn = new Connectivity();
+        conn.setPostalOffice(savedOffice);
+        conn.setProvider(defaultProvider);
+        conn.setDateConnected(dateConn);     // stored as null when cell is empty
+        conn.setDateDisconnected(dateDisc);  // stored as null when cell is empty
+
+        Connectivity saved = connectivityRepository.save(conn);
+
+        if (isConnected && dateDisc == null) {
+            savedOffice.setActiveConnectivity(saved);
+            postalOfficeRepository.save(savedOffice);
+        } else if (!isConnected && savedOffice.getActiveConnectivity() != null) {
+            savedOffice.setActiveConnectivity(null);
+            postalOfficeRepository.save(savedOffice);
+        }
     }
 
     // ── Location resolver ─────────────────────────────────────────────────────

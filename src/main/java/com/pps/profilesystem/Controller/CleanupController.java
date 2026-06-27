@@ -25,7 +25,7 @@ public class CleanupController {
         int deleted = 0;
         List<PostalOffice> allOffices = postalOfficeRepository.findAll();
         for (PostalOffice office : allOffices) {
-            if (Boolean.TRUE.equals(office.getConnectionStatus())) {
+            if (Boolean.TRUE.equals(office.getIsConnected())) {
                 List<Connectivity> conns = connectivityRepository.findByPostalOfficeId(office.getId());
                 // Sort by date connected descending so the latest is first
                 conns.sort((a, b) -> {

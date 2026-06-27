@@ -145,11 +145,12 @@ public class PostalOfficeInsertController {
                 Integer actorRoleId = ConnectivityNotificationService.roleIdFromAuthorities(
                         auth != null ? auth.getAuthorities() : null
                 );
-                boolean hasConn = Integer.valueOf(1).equals(saved.getConnectionStatus());
+                boolean hasConn = Boolean.TRUE.equals(saved.getIsConnected());
                 String notifyName = saved.getName();
                 if (notifyName != null && notifyName.length() > 512) {
                     notifyName = notifyName.substring(0, 512);
                 }
+                Integer areaId = saved.getArea() != null ? saved.getArea().getId() : null;
                 notifService.pushAudit(
                         hasConn ? ConnectivityNotification.Type.CONNECTED : ConnectivityNotification.Type.NEW,
                         notifyName != null ? notifyName : name,
@@ -160,7 +161,8 @@ public class PostalOfficeInsertController {
                         null,
                         "CONNECTIVITY",
                         "PostalOffice",
-                        saved.getId() != null ? saved.getId().longValue() : null
+                        saved.getId() != null ? saved.getId().longValue() : null,
+                        areaId
                 );
             } catch (Exception notifEx) {
                 log.warn("Insert office {}: notification not sent: {}", saved.getId(), notifEx.getMessage());
@@ -274,22 +276,33 @@ public class PostalOfficeInsertController {
         String ownedShared  = strVal(req.get("ownedOrShared"));
         boolean hasPlanPrice = planPriceRaw != null && !planPriceRaw.toString().trim().isEmpty();
 
-        // Always create a connectivity record for new offices to ensure they are counted
-        // in quarter and report pages, regardless of connectionStatus or plan data
+        boolean hasConnData = Boolean.TRUE.equals(savedOffice.getIsConnected())
+                || planName != null || accountNum != null || hasPlanPrice || planContract != null;
+        if (!hasConnData) return;
+
         Provider provider = getOrCreateDefaultProvider();
 
         Connectivity conn = new Connectivity();
         conn.setPostalOffice(savedOffice);
         conn.setProvider(provider);
+        conn.setOfficeName(savedOffice.getName());
+        conn.setArea(savedOffice.getArea());
         conn.setIsWired(parseBool(req.get("isWired"), false));
+        conn.setIsWireless(parseBool(req.get("isWireless"), false));
         conn.setIsFree(parseBool(req.get("isFree"), false));
+
+        boolean isSharedVal = parseBool(req.get("isShared"), false);
+        if (!isSharedVal && ownedShared != null) {
+            isSharedVal = "Shared".equalsIgnoreCase(ownedShared);
+        }
+        conn.setIsShared(isSharedVal);
+
         if (planName != null) conn.setPlanName(planName);
         if (accountNum != null) conn.setAccountNumber(accountNum);
         if (planContract != null) conn.setPlanContract(planContract);
         if (hasPlanPrice) {
             try { conn.setPlanPrice(new BigDecimal(planPriceRaw.toString().trim())); } catch (Exception ignored) {}
         }
-        if (ownedShared != null) conn.setIsShared("Shared".equalsIgnoreCase(ownedShared));
 
         boolean isActive = Integer.valueOf(1).equals(savedOffice.getConnectionStatus());
         LocalDateTime connected = parseDateTime(req.get("dateConnected"));
@@ -305,7 +318,7 @@ public class PostalOfficeInsertController {
 
         Connectivity savedConn = connectivityRepository.save(conn);
 
-        if (isActive) {
+        if (Boolean.TRUE.equals(savedOffice.getIsConnected())) {
             savedOffice.setActiveConnectivity(savedConn);
         } else {
             savedOffice.setActiveConnectivity(null);
@@ -360,15 +373,41 @@ public class PostalOfficeInsertController {
 
     private String buildInsertDetail(PostalOffice saved, Map<String, Object> req) {
         StringBuilder sb = new StringBuilder("New office added");
+        
+        // Connectivity fields
         String isp = saved.getInternetServiceProvider();
         if (isp   != null && !isp.isBlank())   sb.append(" · ISP: ").append(isp);
-        String spd = saved.getSpeed();
-        if (spd   != null && !spd.isBlank())   sb.append(" · ").append(spd);
+        
         String typ = saved.getTypeOfConnection();
-        if (typ   != null && !typ.isBlank())   sb.append(" · ").append(typ);
+        if (typ   != null && !typ.isBlank())   sb.append(" · Type: ").append(typ);
+        
+        String spd = saved.getSpeed();
+        if (spd   != null && !spd.isBlank())   sb.append(" · Speed: ").append(spd);
+        
+        String staticIp = saved.getStaticIpAddress();
+        if (staticIp != null && !staticIp.isBlank()) sb.append(" · IP: ").append(staticIp);
+        
+        if (!Boolean.TRUE.equals(saved.getIsConnected())) sb.append(" · Status: Inactive");
+        
+        // Plan & Billing fields
         String pln = strVal(req.get("planName"));
         if (pln   != null)                     sb.append(" · Plan: ").append(pln);
-        if (!Integer.valueOf(1).equals(saved.getConnectionStatus())) sb.append(" · Status: Inactive");
+        
+        String price = strVal(req.get("planPrice"));
+        if (price != null)                     sb.append(" · Price: ").append(price);
+        
+        String acct = strVal(req.get("accountNumber"));
+        if (acct  != null)                     sb.append(" · Account: ").append(acct);
+        
+        String contract = strVal(req.get("planContract"));
+        if (contract != null)                  sb.append(" · Contract: ").append(contract);
+        
+        // Boolean flags
+        if (parseBool(req.get("isWired"), false))    sb.append(" · Wired");
+        if (parseBool(req.get("isWireless"), false)) sb.append(" · Wireless");
+        if (parseBool(req.get("isShared"), false))   sb.append(" · Shared");
+        if (parseBool(req.get("isFree"), false))      sb.append(" · Free");
+        
         return sb.toString();
     }
 
@@ -505,9 +544,9 @@ public class PostalOfficeInsertController {
 
         // Connection Status
         Object statusVal = requestData.get("connectionStatus");
-        if (statusVal instanceof Boolean) office.setConnectionStatus((Boolean) statusVal ? 1 : 0);
-        else if (statusVal instanceof String) office.setConnectionStatus(Boolean.parseBoolean((String) statusVal) ? 1 : 0);
-        else office.setConnectionStatus(0);
+        if (statusVal instanceof Boolean) office.setIsConnected((Boolean) statusVal);
+        else if (statusVal instanceof String) office.setIsConnected(Boolean.parseBoolean((String) statusVal));
+        else office.setIsConnected(false);
 
         return office;
     }

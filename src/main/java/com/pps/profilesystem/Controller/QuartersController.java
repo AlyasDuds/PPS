@@ -104,7 +104,6 @@ public class QuartersController {
         // Pass filter-aware stats (same logic as Connectivity Report)
         model.addAttribute("connectivityStats",
                 reportController.computeConnectivityStats(currentYear, selectedQuarter, areaId, statusFilter));
-        reportController.addOfficeStatusCounts(model, areaId);
 
         model.addAttribute("selectedAreaFilter", areaId != null && areaId != -1 ? areaId.toString() : "");
         model.addAttribute("selectedQuarterFilter", selectedQuarter);
@@ -323,14 +322,9 @@ private Map<String, Long> getConnectivityStats(
         // This ensures synchronization between Connectivity Report and Internet Connectivity
         List<Connectivity> activeAtDate = connectivityRepository.findActiveAtDate(snap);
         
-        return activeAtDate.stream()
-                .filter(c -> c.getPostalOffice() != null)
-                .filter(c -> !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
-                .filter(c -> !NEWLY_CONNECTED_IGNORE.contains(c.getPostalOffice().getId()))
-                .filter(c -> areaId == null || (c.getPostalOffice().getArea() != null 
-                        && areaId.equals(c.getPostalOffice().getArea().getId())))
-                .map(c -> c.getPostalOffice().getId())
-                .distinct()
+        return postalOfficeRepository.findByIsArchivedFalse().stream()
+                .filter(po -> Boolean.TRUE.equals(po.getIsConnected()))
+                .filter(po -> po.getArea() != null && areaId.equals(po.getArea().getId()))
                 .count();
     }
 

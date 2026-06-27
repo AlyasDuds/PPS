@@ -101,7 +101,7 @@ class ProfilesystemApplicationTests {
             boolean isConnectedAtEnd = activeAtQEndIds.contains(po.getId());
             boolean isNewlyConnected = newlyConnectedIds.contains(po.getId());
             System.out.println(String.format("ID: %d | Name: %s | ConnAtStart: %b | ConnAtEnd: %b | NewlyConn: %b | ConnStatusCol: %b",
-                po.getId(), po.getName(), isConnectedAtStart, isConnectedAtEnd, isNewlyConnected, po.getConnectionStatus()));
+                po.getId(), po.getName(), isConnectedAtStart, isConnectedAtEnd, isNewlyConnected, po.getIsConnected()));
         }
     }
 

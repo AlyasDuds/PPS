@@ -20,6 +20,14 @@
                     <textarea id="archiveReasonInput" class="form-control" rows="3"
                               placeholder="e.g. Office closed, Duplicate record, Under review..."></textarea>
                 </div>
+                <div class="form-group">
+                    <label for="archiveDateInput">
+                        Archive Date <small class="text-muted">(optional - defaults to current date)</small>
+                    </label>
+                    <input type="datetime-local" id="archiveDateInput" class="form-control"
+                           placeholder="Select archive date">
+                    <small class="text-muted">Leave empty to use current date</small>
+                </div>
             </div>
             <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-dismiss="modal">

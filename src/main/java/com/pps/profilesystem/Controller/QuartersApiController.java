@@ -1,10 +1,7 @@
 package com.pps.profilesystem.Controller;
 
-import com.pps.profilesystem.Entity.Connectivity;
 import com.pps.profilesystem.Entity.PostalOffice;
 import com.pps.profilesystem.Entity.User;
-import com.pps.profilesystem.Repository.ArchivedOfficeRepository;
-import com.pps.profilesystem.Repository.ConnectivityRepository;
 import com.pps.profilesystem.Repository.PostalOfficeRepository;
 import com.pps.profilesystem.Repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,7 +12,6 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import java.time.LocalDateTime;
-import java.time.Month;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -27,19 +23,10 @@ public class QuartersApiController {
     private PostalOfficeRepository postalOfficeRepository;
 
     @Autowired
-    private ConnectivityRepository connectivityRepository;
-
-    @Autowired
-    private ArchivedOfficeRepository archivedOfficeRepository;
-
-    @Autowired
     private UserRepository userRepository;
 
     @Autowired
     private ReportController reportController;
-
-    // Offices to ignore when counting newly connected (same as QuartersController)
-    private static final java.util.Set<Integer> NEWLY_CONNECTED_IGNORE = java.util.Set.of(1364, 1365, 1366, 1374);
 
     /**
      * Main endpoint for the Quarters page table.
@@ -195,29 +182,6 @@ public class QuartersApiController {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    /**
-     * Like toUniqueDTOs but overrides the status field and marks newThisQuarter.
-     * @param statusOverride  the boolean status to set in the DTO (true=active, false=inactive)
-     * @param newThisQuarter  whether to mark offices with the "New This Quarter" badge
-     */
-    private List<Map<String, Object>> toUniqueDTOsWithFlag(
-            List<Connectivity> records, boolean statusOverride, boolean newThisQuarter) {
-        Map<Integer, PostalOffice> seen = new LinkedHashMap<>();
-        for (Connectivity c : records) {
-            PostalOffice po = c.getPostalOffice();
-            if (po == null || archivedOfficeRepository.existsByPostalOfficeId(po.getId())) continue;
-            // Exclude offices in the ignore list for newly connected calculations
-            if (NEWLY_CONNECTED_IGNORE.contains(po.getId())) continue;
-            seen.putIfAbsent(po.getId(), po);
-        }
-        return seen.values().stream().map(po -> {
-            Map<String, Object> dto = convertToDTO(po);
-            dto.put("status", statusOverride);         // override with correct status
-            dto.put("newThisQuarter", newThisQuarter); // flag for badge
-            return dto;
-        }).collect(Collectors.toList());
-    }
-
     private Map<String, Object> convertToDTO(PostalOffice po) {
         Map<String, Object> dto = new HashMap<>();
         dto.put("id",       po.getId());
@@ -226,7 +190,7 @@ public class QuartersApiController {
         dto.put("zipCode",  po.getZipCode());
         dto.put("postmaster", po.getPostmaster());
         dto.put("speed",    po.getSpeed());
-        dto.put("status",   po.getConnectionStatus() != null ? po.getConnectionStatus() : 0);
+        dto.put("status",   po.getIsConnected());
         dto.put("officeStatus", po.getOfficeStatus());
         dto.put("areaId",   po.getArea() != null ? po.getArea().getId() : null);
         dto.put("area",     po.getArea() != null ? po.getArea().getAreaName() : null);
@@ -265,21 +229,5 @@ public class QuartersApiController {
             } catch (NumberFormatException e) { return null; }
         }
         return null;
-    }
-
-    private LocalDateTime[] getQuarterDateRange(int year, int quarter) {
-        Month startMonth, endMonth;
-        switch (quarter) {
-            case 1: startMonth = Month.JANUARY;  endMonth = Month.MARCH;     break;
-            case 2: startMonth = Month.APRIL;    endMonth = Month.JUNE;      break;
-            case 3: startMonth = Month.JULY;     endMonth = Month.SEPTEMBER; break;
-            case 4: startMonth = Month.OCTOBER;  endMonth = Month.DECEMBER;  break;
-            default: throw new IllegalArgumentException("Quarter must be 1-4");
-        }
-        boolean leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
-        return new LocalDateTime[]{
-            LocalDateTime.of(year, startMonth, 1, 0, 0, 0),
-            LocalDateTime.of(year, endMonth, endMonth.length(leap), 23, 59, 59)
-        };
     }
 }

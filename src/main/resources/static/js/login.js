@@ -39,20 +39,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ── Login form submission ─────────────────────────────────────────────────
-    // WHY native submit instead of fetch:
-    //   Using fetch('/login') and then setting window.location.href causes the
-    //   dashboard to load TWICE — once inside the fetch (Spring Security follows
-    //   the 302 redirect internally) and again when JS sets window.location.
-    //   Native form submit lets the browser handle the Spring Security redirect
-    //   chain in one step, so /dashboard is only hit once.
     loginForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-
         const email    = document.getElementById('email').value.trim();
         const password = document.getElementById('password').value;
         const button   = document.querySelector('.login-button');
 
         if (!email || !password) {
+            e.preventDefault();
             Swal.fire({
                 icon:               'warning',
                 title:              'Missing Fields',
@@ -65,26 +58,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         button.disabled    = true;
         button.textContent = 'Authenticating...';
-
-        // Build a real <form> and submit it so the browser follows Spring
-        // Security's 302 redirect natively — no double page load.
-        const form = document.createElement('form');
-        form.method  = 'POST';
-        form.action  = '/login';
-
-        const addField = (name, value) => {
-            const input = document.createElement('input');
-            input.type  = 'hidden';
-            input.name  = name;
-            input.value = value;
-            form.appendChild(input);
-        };
-
-        addField('email',    email);
-        addField('password', password);
-
-        document.body.appendChild(form);
-        form.submit();
+        // Let the native form submit handle the login
     });
 });
 

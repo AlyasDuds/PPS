@@ -34,11 +34,21 @@ public class Connectivity {
     @Column(name = "IsWired")
     private Boolean isWired;
 
+    @Column(name = "IsWireless")
+    private Boolean isWireless;
+
     @Column(name = "IsFree")
     private Boolean isFree;
 
     @Column(name = "IsShared")
     private Boolean isShared;
+
+    @Column(name = "office_name")
+    private String officeName;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "area_id")
+    private Area area;
 
     @Column(name = "PlanName", length = 100)
     private String planName;
@@ -82,8 +92,9 @@ public class Connectivity {
     protected void onCreate() {
         createdStamp = LocalDateTime.now();
         updatedStamp = LocalDateTime.now();
-        
-        // Automatically set connection date when creating new connectivity record
+
+        // Only set dateConnected to current date if not provided by user
+        // This allows users to specify custom connection dates (e.g., for historical data)
         if (dateConnected == null) {
             dateConnected = LocalDateTime.now();
         }
@@ -130,6 +141,14 @@ public class Connectivity {
         this.isWired = isWired;
     }
 
+    public Boolean getIsWireless() {
+        return isWireless;
+    }
+
+    public void setIsWireless(Boolean isWireless) {
+        this.isWireless = isWireless;
+    }
+
     public Boolean getIsFree() {
         return isFree;
     }
@@ -144,6 +163,22 @@ public class Connectivity {
 
     public void setIsShared(Boolean isShared) {
         this.isShared = isShared;
+    }
+
+    public String getOfficeName() {
+        return officeName;
+    }
+
+    public void setOfficeName(String officeName) {
+        this.officeName = officeName;
+    }
+
+    public Area getArea() {
+        return area;
+    }
+
+    public void setArea(Area area) {
+        this.area = area;
     }
 
     public String getPlanName() {

@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -25,6 +26,16 @@ public class RestApiExceptionHandler {
         body.put("success", false);
         body.put("message", rootMessage(e));
         return ResponseEntity.internalServerError().body(body);
+    }
+
+    /**
+     * Handle SSE client disconnects silently.
+     * This prevents HttpMessageNotWritableException when trying to write JSON
+     * to a text/event-stream response that has already been closed.
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public void handleAsyncDisconnect(AsyncRequestNotUsableException ex) {
+        log.debug("SSE client disconnected asynchronously: {}", ex.getMessage());
     }
 
     private static String rootMessage(Throwable t) {

@@ -15,6 +15,10 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
 
+    <!-- CSRF Token for AJAX requests -->
+    <meta name="_csrf" th:content="${_csrf.token}"/>
+    <meta name="_csrf_header" th:content="${_csrf.headerName}"/>
+
     <title th:replace="${title}">PHLPost Profile System</title>
 
     <!-- Bootstrap CSS -->
@@ -195,7 +199,7 @@
         <script th:if="${activePage == 'profile'}" th:src="@{/js/profile.js}"></script>
 
         <!-- 16. Session Timeout -->
-        <script th:src="@{/js/session-timeout.js}"></script>
+        <script th:src="@{/js/session-timeout.js}" defer></script>
 
         <!-- 17. Sidebar Dropdown -->
         <script th:src="@{/js/sidebar-dropdown.js}"></script>
@@ -224,6 +228,36 @@
 
         <!-- 24. Storage Monitor - Admin only -->
         <script th:src="@{/js/storage-monitor.js}"></script>
+
+        <!-- CSRF Token Setup for AJAX requests -->
+        <script>
+            (function() {
+                var token = $("meta[name='_csrf']").attr("content");
+                var header = $("meta[name='_csrf_header']").attr("content");
+                $(document).ajaxSend(function(e, xhr, options) {
+                    xhr.setRequestHeader(header, token);
+                });
+            })();
+        </script>
+
+        <!-- Fetch API CSRF interceptor -->
+        <script>
+            (function() {
+                const token = document.querySelector('meta[name="_csrf"]')?.getAttribute('content');
+                const header = document.querySelector('meta[name="_csrf_header"]')?.getAttribute('content');
+                
+                if (token && header) {
+                    const originalFetch = window.fetch;
+                    window.fetch = function(...args) {
+                        if (args[1] && typeof args[1] === 'object') {
+                            args[1].headers = new Headers(args[1].headers || {});
+                            args[1].headers.set(header, token);
+                        }
+                        return originalFetch.apply(this, args);
+                    };
+                }
+            })();
+        </script>
 
 </body>
 

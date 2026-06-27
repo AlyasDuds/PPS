@@ -84,8 +84,35 @@ public class DashboardController {
         model.addAttribute("totalCount",        connectivityStats.getOrDefault("totalOffices", 0L));
         model.addAttribute("activeCount",       connectivityStats.getOrDefault("totalConnected", 0L));
         model.addAttribute("inactiveCount",     connectivityStats.getOrDefault("totalDisconnected", 0L));
-        reportController.addOfficeStatusCounts(model, statsAreaId);
         model.addAttribute("areaCount",         postalOfficeRepository.countDistinctAreasNonArchived());
+        model.addAttribute("showOnlineStatus", roleId != null && (roleId == 1 || roleId == 4)); // Only for System Admin
+
+        // Calculate area connectivity percentages (connected vs inactive)
+        List<Area> allAreas = locationService.getAllAreas();
+        java.util.Map<String, java.util.Map<String, Double>> areaConnectivityStats = new java.util.LinkedHashMap<>();
+
+        for (Area area : allAreas) {
+            List<PostalOffice> areaOffices = offices.stream()
+                .filter(po -> po.getArea() != null && po.getArea().getId().equals(area.getId()))
+                .collect(Collectors.toList());
+
+            long areaTotal = areaOffices.size();
+            long areaConnected = areaOffices.stream()
+                .filter(PostalOffice::isEffectivelyConnected)
+                .count();
+            long areaInactive = areaTotal - areaConnected;
+
+            double connectedPercent = areaTotal > 0 ? (areaConnected * 100.0 / areaTotal) : 0.0;
+            double inactivePercent = areaTotal > 0 ? (areaInactive * 100.0 / areaTotal) : 0.0;
+
+            java.util.Map<String, Double> stats = new java.util.HashMap<>();
+            stats.put("connected", connectedPercent);
+            stats.put("inactive", inactivePercent);
+            stats.put("total", (double) areaTotal);
+
+            areaConnectivityStats.put(area.getAreaName(), stats);
+        }
+        model.addAttribute("areaConnectivityStats", areaConnectivityStats);
 
         // For modal dropdowns and filters
         List<Area> visibleAreas = locationService.getAllAreas();

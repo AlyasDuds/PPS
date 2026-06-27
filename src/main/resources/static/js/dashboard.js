@@ -59,6 +59,232 @@ document.addEventListener('DOMContentLoaded', function () {
 // Total / Connected / Disconnected come from the server (same logic as Connectivity Report).
 // Table search filters do not overwrite those quarterly snapshot cards.
 function initializeStatsCards() {
+    // Initialize WebSocket for real-time online users
+    initializeWebSocket();
+    
+    // Update online users details (includes count) - initial load
+    updateOnlineUsersDetails();
+
+    // Initialize area carousel
+    initializeAreaCarousel();
+}
+
+function initializeWebSocket() {
+    const socket = new SockJS('/ws');
+    const stompClient = Stomp.over(socket);
+
+    stompClient.connect({}, function (frame) {
+        console.log('Connected to WebSocket: ' + frame);
+        
+        // Subscribe to live updates
+        stompClient.subscribe('/topic/online-users', function (message) {
+            const data = JSON.parse(message.body);
+            updateOnlineUsersFromWebSocket(data);
+        });
+    }, function (error) {
+        console.log('WebSocket error: ' + error);
+        // Fallback to polling if WebSocket fails
+        setInterval(updateOnlineUsersDetails, 5000);
+    });
+}
+
+function updateOnlineUsersFromWebSocket(data) {
+    // Update count badge
+    const onlineCountEl = document.getElementById('onlineUsersCount');
+    if (onlineCountEl) {
+        onlineCountEl.textContent = data.count;
+    }
+    
+    // Update table
+    displayOnlineUsersFromWebSocket(data.users);
+}
+
+function displayOnlineUsersFromWebSocket(onlineUsers) {
+    const onlineUsersList = document.getElementById('onlineUsersList');
+    if (!onlineUsersList) return;
+
+    if (onlineUsers.length === 0) {
+        onlineUsersList.innerHTML = '<tr><td colspan="4" class="text-center">No users online</td></tr>';
+        return;
+    }
+
+    let html = '';
+    onlineUsers.forEach(function(user) {
+        html += `
+            <tr>
+                <td>${user.username || 'N/A'}</td>
+                <td>${user.officeName || 'N/A'}</td>
+                <td>${user.areaName || 'N/A'}</td>
+                <td>${user.connectedAt || 'N/A'}</td>
+            </tr>
+        `;
+    });
+
+    onlineUsersList.innerHTML = html;
+}
+
+function initializeAreaCarousel() {
+    const carousel = document.getElementById('areaCarousel');
+    if (!carousel) return;
+
+    let currentPosition = 0;
+    const scrollAmount = 310; // 300px min-width + 10px padding
+    const scrollInterval = 5000; // Scroll every 5 seconds
+    let autoScrollInterval;
+
+    // Auto-scroll function
+    function autoScroll() {
+        const containerWidth = carousel.parentElement.offsetWidth;
+        const trackWidth = carousel.scrollWidth;
+
+        currentPosition += scrollAmount;
+
+        // Reset to start if we've scrolled past the end
+        if (currentPosition >= trackWidth - containerWidth) {
+            currentPosition = 0;
+        }
+
+        carousel.style.transform = `translateX(-${currentPosition}px)`;
+    }
+
+    // Start auto-scroll
+    autoScrollInterval = setInterval(autoScroll, scrollInterval);
+
+    // Drag functionality
+    let isDragging = false;
+    let startX;
+    let scrollLeft;
+
+    carousel.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startX = e.pageX - carousel.offsetLeft;
+        scrollLeft = currentPosition;
+        carousel.style.cursor = 'grabbing';
+        carousel.style.transition = 'none'; // Disable transition during drag
+        clearInterval(autoScrollInterval); // Pause auto-scroll during drag
+    });
+
+    carousel.addEventListener('mouseleave', () => {
+        isDragging = false;
+        carousel.style.cursor = 'grab';
+        carousel.style.transition = 'transform 0.5s ease-in-out'; // Re-enable transition
+        autoScrollInterval = setInterval(autoScroll, scrollInterval); // Resume auto-scroll
+    });
+
+    carousel.addEventListener('mouseup', () => {
+        isDragging = false;
+        carousel.style.cursor = 'grab';
+        carousel.style.transition = 'transform 0.5s ease-in-out'; // Re-enable transition
+        autoScrollInterval = setInterval(autoScroll, scrollInterval); // Resume auto-scroll
+    });
+
+    carousel.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        e.preventDefault();
+        const x = e.pageX - carousel.offsetLeft;
+        const walk = (x - startX);
+        currentPosition = scrollLeft - walk;
+
+        // Boundary checks
+        const containerWidth = carousel.parentElement.offsetWidth;
+        const trackWidth = carousel.scrollWidth;
+        const maxPosition = trackWidth - containerWidth;
+
+        if (currentPosition < 0) currentPosition = 0;
+        if (currentPosition > maxPosition) currentPosition = maxPosition;
+
+        carousel.style.transform = `translateX(-${currentPosition}px)`;
+    });
+
+    // Touch support for mobile
+    carousel.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        startX = e.touches[0].pageX - carousel.offsetLeft;
+        scrollLeft = currentPosition;
+        carousel.style.transition = 'none';
+        clearInterval(autoScrollInterval);
+    });
+
+    carousel.addEventListener('touchend', () => {
+        isDragging = false;
+        carousel.style.transition = 'transform 0.5s ease-in-out';
+        autoScrollInterval = setInterval(autoScroll, scrollInterval);
+    });
+
+    carousel.addEventListener('touchmove', (e) => {
+        if (!isDragging) return;
+        const x = e.touches[0].pageX - carousel.offsetLeft;
+        const walk = (x - startX);
+        currentPosition = scrollLeft - walk;
+
+        const containerWidth = carousel.parentElement.offsetWidth;
+        const trackWidth = carousel.scrollWidth;
+        const maxPosition = trackWidth - containerWidth;
+
+        if (currentPosition < 0) currentPosition = 0;
+        if (currentPosition > maxPosition) currentPosition = maxPosition;
+
+        carousel.style.transform = `translateX(-${currentPosition}px)`;
+    });
+
+    carousel.style.cursor = 'grab';
+}
+
+function updateOnlineUsersCount() {
+    const onlineCountEl = document.getElementById('onlineUsersCount');
+    if (!onlineCountEl) return;
+
+    $.get('/api/user-sessions/online-count')
+        .done(function(response) {
+            if (response.success && response.onlineCount !== undefined) {
+                onlineCountEl.textContent = response.onlineCount;
+            }
+        })
+        .fail(function() {
+            // Silently fail - keep showing last known count or 0
+        });
+}
+
+function updateOnlineUsersDetails() {
+    $.get('/api/user-sessions/online-users')
+        .done(function(response) {
+            if (response.success && response.onlineUsers) {
+                // Update count badge
+                const onlineCountEl = document.getElementById('onlineUsersCount');
+                if (onlineCountEl) {
+                    onlineCountEl.textContent = response.onlineCount;
+                }
+                // Update table
+                displayOnlineUsers(response.onlineUsers);
+            }
+        })
+        .fail(function() {
+            // Silently fail
+        });
+}
+
+function displayOnlineUsers(onlineUsers) {
+    const onlineUsersList = document.getElementById('onlineUsersList');
+    if (!onlineUsersList) return;
+
+    if (onlineUsers.length === 0) {
+        onlineUsersList.innerHTML = '<tr><td colspan="4" class="text-center">No users online</td></tr>';
+        return;
+    }
+
+    let html = '';
+    onlineUsers.forEach(function(user) {
+        html += `
+            <tr>
+                <td>${user.username || 'N/A'}</td>
+                <td>${user.officeName || 'N/A'}</td>
+                <td>${user.areaName || 'N/A'}</td>
+                <td>${user.loginTime || 'N/A'}</td>
+            </tr>
+        `;
+    });
+
+    onlineUsersList.innerHTML = html;
 }
 
 // ── Filter Panel Functionality ───────────────────────────────────────────

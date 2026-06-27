@@ -211,23 +211,24 @@
                 
                 <!-- Upload Form -->
                 <form th:action="@{/postal-offices/import}" method="post" enctype="multipart/form-data" id="uploadForm">
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
                     <div class="upload-area" id="uploadArea">
                         <div class="upload-icon">📄</div>
                         <div class="upload-text">Click to browse or drag and drop</div>
                         <div class="upload-subtext">Supported formats: .xlsx, .xls</div>
-                        <input type="file" 
-                               name="file" 
-                               id="fileInput" 
-                               class="file-input" 
+                        <input type="file"
+                               name="file"
+                               id="fileInput"
+                               class="file-input"
                                accept=".xlsx,.xls"
                                required>
                         <div class="file-name" id="fileName"></div>
                     </div>
-                    
+
                     <button type="submit" class="btn-upload" id="submitBtn" disabled>
                         Upload and Import
                     </button>
-                    
+
                     <div class="progress-bar" id="progressBar">
                         <div class="progress-bar-fill"></div>
                     </div>
