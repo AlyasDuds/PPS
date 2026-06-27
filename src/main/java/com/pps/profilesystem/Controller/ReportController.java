@@ -337,7 +337,7 @@ public class ReportController {
                 }
                 result.add(row);
             }
-            return result;
+            return list;
         }
 
         List<Map<String, Object>> list = new ArrayList<>();
@@ -506,7 +506,7 @@ public class ReportController {
      * as the baseline since the table shows them per-quarter already).
      */
     private Map<String, Long> deriveStatsFromQuarters(
-            List<Map<String, Object>> quartersData, String quarterFilter, String statusFilter) {
+            List<Map<String, Object>> quartersData, String quarterFilter, String statusFilter, Integer areaId) {
 
         Map<String, Long> stats = new HashMap<>();
 

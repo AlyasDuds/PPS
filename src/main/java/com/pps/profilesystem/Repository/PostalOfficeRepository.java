@@ -21,7 +21,7 @@ public interface PostalOfficeRepository extends JpaRepository<PostalOffice, Inte
 
     @Query("SELECT po FROM PostalOffice po WHERE po.isConnected = :status " +
            "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
-    List<PostalOffice> findByConnectionStatus(@Param("status") Boolean status);
+    List<PostalOffice> findByConnectionStatus(@Param("status") Integer status);
 
     @Query("SELECT po FROM PostalOffice po WHERE LOWER(po.name) LIKE LOWER(CONCAT('%', :name, '%')) " +
            "AND NOT EXISTS (SELECT 1 FROM ArchivedOffice ao WHERE ao.postalOffice = po)")
@@ -34,7 +34,7 @@ public interface PostalOfficeRepository extends JpaRepository<PostalOffice, Inte
     @Query(value = "SELECT COUNT(*) FROM postal_offices WHERE connection_status = :status " +
                    "AND id NOT IN (SELECT postal_office_id FROM archived_offices)",
            nativeQuery = true)
-    long countByConnectionStatus(@Param("status") Boolean status);
+    long countByConnectionStatus(@Param("status") Integer status);
 
     @Query(value = "SELECT COUNT(DISTINCT area_id) FROM postal_offices " +
                    "WHERE area_id IS NOT NULL AND id NOT IN (SELECT postal_office_id FROM archived_offices)",
@@ -140,7 +140,7 @@ public interface PostalOfficeRepository extends JpaRepository<PostalOffice, Inte
     @Query(value = "SELECT COUNT(*) FROM postal_offices WHERE connection_status = :status " +
                    "AND id NOT IN (SELECT postal_office_id FROM archived_offices)",
            nativeQuery = true)
-    long countNonArchivedByConnectionStatus(@Param("status") Boolean status);
+    long countNonArchivedByConnectionStatus(@Param("status") Integer status);
 
     @Query(value = "SELECT COUNT(DISTINCT area_id) FROM postal_offices " +
                    "WHERE area_id IS NOT NULL AND id NOT IN (SELECT postal_office_id FROM archived_offices)",

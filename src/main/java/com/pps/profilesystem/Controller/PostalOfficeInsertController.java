@@ -121,8 +121,10 @@ public class PostalOfficeInsertController {
     public ResponseEntity<Map<String, Object>> insertPostalOffice(
             @RequestBody Map<String, Object> requestData, Authentication auth) {
         try {
+            log.info("Insert postal office request received: {}", requestData);
             String name = strVal(requestData.get("name"));
             if (name == null) {
+                log.warn("Post office name is missing from request");
                 return insertError("Post office name is required.");
             }
 
@@ -131,8 +133,10 @@ public class PostalOfficeInsertController {
             if (office.getName() == null || office.getName().isBlank()) {
                 office.setName(name);
             }
+            log.info("Built office from request: name={}, connectionStatus={}", office.getName(), office.getConnectionStatus());
 
             PostalOffice saved = persistOffice(office);
+            log.info("Office saved successfully: id={}", saved.getId());
             saveConnectivityAfterOffice(saved, requestData);
 
             // Notification after commit — avoids holding insert connection during SSE broadcast
@@ -181,6 +185,9 @@ public class PostalOfficeInsertController {
     }
 
     /** Save office only — short transaction, releases locks quickly. */
+    @Autowired
+    private com.pps.profilesystem.Service.UserCacheService userCacheService;
+    
     private PostalOffice persistOffice(PostalOffice office) {
         try {
             return doPersistOffice(office);
@@ -195,6 +202,9 @@ public class PostalOfficeInsertController {
                 return doPersistOffice(office);
             }
             throw e;
+        } finally {
+            // Evict user cache to ensure counts are recalculated
+            userCacheService.evictAll();
         }
     }
 
@@ -228,7 +238,8 @@ public class PostalOfficeInsertController {
                 saveConnectivityRecord(managed, requestData);
             });
         } catch (Exception connEx) {
-            log.warn("Insert office {}: connectivity row not saved: {}", saved.getId(), connEx.getMessage());
+            log.error("Insert office {}: connectivity row not saved", saved.getId(), connEx);
+            throw new IllegalStateException("Office saved but connectivity record failed: " + rootMessage(connEx), connEx);
         }
     }
 
@@ -293,17 +304,26 @@ public class PostalOfficeInsertController {
             try { conn.setPlanPrice(new BigDecimal(planPriceRaw.toString().trim())); } catch (Exception ignored) {}
         }
 
+        boolean isActive = Integer.valueOf(1).equals(savedOffice.getConnectionStatus());
         LocalDateTime connected = parseDateTime(req.get("dateConnected"));
         LocalDateTime disconnected = parseDateTime(req.get("dateDisconnected"));
-        if (connected != null) conn.setDateConnected(connected);
-        if (disconnected != null) conn.setDateDisconnected(disconnected);
+
+        if (isActive) {
+            conn.setDateConnected(connected != null ? connected : LocalDateTime.now());
+            conn.setDateDisconnected(null);
+        } else {
+            conn.setDateConnected(null);
+            conn.setDateDisconnected(disconnected != null ? disconnected : LocalDateTime.now());
+        }
 
         Connectivity savedConn = connectivityRepository.save(conn);
 
         if (Boolean.TRUE.equals(savedOffice.getIsConnected())) {
             savedOffice.setActiveConnectivity(savedConn);
-            postalOfficeRepository.save(savedOffice);
+        } else {
+            savedOffice.setActiveConnectivity(null);
         }
+        postalOfficeRepository.save(savedOffice);
     }
 
     private Provider resolveDefaultProvider() {

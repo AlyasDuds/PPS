@@ -23,11 +23,11 @@ public class LocationService {
     }
 
     public long countActive() {
-        return poRepo.countNonArchivedByConnectionStatus(true);
+        return poRepo.countNonArchivedByConnectionStatus(1);
     }
 
     public long countInactive() {
-        return poRepo.countNonArchivedByConnectionStatus(false);
+        return poRepo.countNonArchivedByConnectionStatus(0);
     }
 
     public long countAreas() {

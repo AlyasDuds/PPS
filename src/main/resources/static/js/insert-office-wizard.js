@@ -596,7 +596,7 @@ document.addEventListener('DOMContentLoaded', function () {
                 officeStatus:                   getStr('officeStatus'),
 
                 // Connectivity
-                connectionStatus:               getBool('connectionStatus'),
+                connectionStatus:               document.getElementById('connectionStatusSelect')?.value === 'active',
                 internetServiceProvider:        getIsp(),
                 classification:                 getStr('classification'),
                 ownedOrShared:                  getStr('ownedOrShared'),
@@ -723,7 +723,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (ispEl) ispEl.textContent = getIspSummaryText();
 
             const statusEl  = document.getElementById('summaryStatus');
-            const connCheck = document.getElementById('connectionStatus');
+            const connSelect = document.getElementById('connectionStatusSelect');
             if (statusEl) {
                 statusEl.innerHTML = connCheck?.value === 'true'
                     ? '<span class="badge badge-success">Active</span>'

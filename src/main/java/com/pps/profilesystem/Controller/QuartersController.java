@@ -1,6 +1,7 @@
 package com.pps.profilesystem.Controller;
 
 import com.pps.profilesystem.Entity.Area;
+import com.pps.profilesystem.Entity.Connectivity;
 import com.pps.profilesystem.Entity.User;
 import com.pps.profilesystem.Repository.ArchivedOfficeRepository;
 import com.pps.profilesystem.Repository.AreaRepository;
@@ -132,6 +133,25 @@ public class QuartersController {
     @Cacheable(value = "connectivityStats", key = "#year + '_' + #quarterFilter + '_' + (#areaId == null ? 'null' : #areaId) + '_' + (#statusFilter == null ? 'null' : #statusFilter)")
 private Map<String, Long> getConnectivityStats(
             int year, String quarterFilter, Integer areaId, String statusFilter) {
+
+        // Check if there's any connectivity data for the requested year
+        boolean hasConnectivityDataForYear = connectivityRepository.findByDateConnectedBetween(
+            LocalDateTime.of(year, 1, 1, 0, 0, 0),
+            LocalDateTime.of(year, 12, 31, 23, 59, 59)
+        ).stream()
+        .filter(c -> c.getPostalOffice() != null)
+        .filter(c -> !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
+        .filter(c -> areaId == null || (c.getPostalOffice().getArea() != null && areaId.equals(c.getPostalOffice().getArea().getId())))
+        .count() > 0;
+
+        // If no connectivity data for the year, return all zeros
+        if (!hasConnectivityDataForYear) {
+            Map<String, Long> stats = new HashMap<>();
+            stats.put("totalConnected", 0L);
+            stats.put("totalDisconnected", 0L);
+            stats.put("totalOffices", 0L);
+            return stats;
+        }
 
         // 1. If areaId is null (All Areas), build by summing all individual areas (1 to 9)
         if (areaId == null) {
@@ -290,7 +310,7 @@ private Map<String, Long> getConnectivityStats(
         return quarterFilter.equalsIgnoreCase(currentQuarter);
     }
 
-    // ── Helper: count active offices = offices with connectionStatus=true ────────
+    // ── Helper: count active offices using historical connectivity data ────────
 
     private long countActiveAt(LocalDateTime snap, Integer areaId) {
         // If areaId is -1, return 0 (no access)
@@ -298,11 +318,9 @@ private Map<String, Long> getConnectivityStats(
             return 0;
         }
         
-        // Use current connection status from PostalOffice as the source of truth,
-        // which matches how the QuartersApiController filters the data table.
-        if (areaId == null) {
-            return postalOfficeRepository.countNonArchivedByConnectionStatus(true);
-        }
+        // Use historical connectivity data from Connectivity table to match ReportController
+        // This ensures synchronization between Connectivity Report and Internet Connectivity
+        List<Connectivity> activeAtDate = connectivityRepository.findActiveAtDate(snap);
         
         return postalOfficeRepository.findByIsArchivedFalse().stream()
                 .filter(po -> Boolean.TRUE.equals(po.getIsConnected()))
@@ -322,9 +340,7 @@ private Map<String, Long> getConnectivityStats(
         if (areaId == null) {
             return postalOfficeRepository.countNonArchived();
         }
-        return postalOfficeRepository.findByIsArchivedFalse().stream()
-                .filter(po -> po.getArea() != null && areaId.equals(po.getArea().getId()))
-                .count();
+        return postalOfficeRepository.countNonArchivedByArea(areaId);
     }
 
     // ── Helper: count newly connected in date range, optionally by area ───────

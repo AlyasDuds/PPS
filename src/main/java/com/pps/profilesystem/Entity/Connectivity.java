@@ -62,6 +62,12 @@ public class Connectivity {
     @Column(name = "AccountNumber", length = 50)
     private String accountNumber;
 
+    @Column(name = "area_name", length = 255)
+    private String areaName;
+
+    @Column(name = "status", length = 50)
+    private String status;
+
     @Column(name = "CreatedStamp", updatable = false)
     private LocalDateTime createdStamp;
 
@@ -205,6 +211,22 @@ public class Connectivity {
 
     public void setAccountNumber(String accountNumber) {
         this.accountNumber = accountNumber;
+    }
+
+    public String getAreaName() {
+        return areaName;
+    }
+
+    public void setAreaName(String areaName) {
+        this.areaName = areaName;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
     }
 
     public LocalDateTime getCreatedStamp() {

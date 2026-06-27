@@ -27,7 +27,6 @@ public class PostalOfficeImportService {
     @Autowired private CityMunicipalityRepository  cityMunicipalityRepository;
     @Autowired private BarangayRepository          barangayRepository;
     @Autowired private ConnectivityRepository      connectivityRepository;
-    @Autowired private ProviderRepository          providerRepository;
     @Autowired private ZipCodeRepository           zipCodeRepository;
 
     // ── Region alias map ──────────────────────────────────────────────────────
@@ -219,8 +218,6 @@ public class PostalOfficeImportService {
         Map<String, Barangay>         barangayMap = buildBarangayMap();
         Map<String, String>           zipMap      = buildZipToBarangayMap();
 
-        Provider defaultProvider = getOrCreateDefaultProvider();
-
         int inserted = 0, updated = 0;
         List<String> warnings = new ArrayList<>();
         List<String> errors   = new ArrayList<>();
@@ -289,10 +286,8 @@ public class PostalOfficeImportService {
                         office.setIsConnected(parseConnectionStatus(dto.getConnectivityStatus()));
                     }
 
-                    if (isNew) office.setActiveConnectivity(null);
+                    // Save the postal office - database trigger will automatically create connectivity record
                     PostalOffice savedOffice = postalOfficeRepository.save(office);
-
-                    handleConnectivity(savedOffice, dto, defaultProvider, rowNum, warnings);
 
                     if (isNew) inserted++; else updated++;
                 }
@@ -676,14 +671,6 @@ public class PostalOfficeImportService {
         return areaMap.get(normalize(converted));
     }
 
-    // ── Default provider ──────────────────────────────────────────────────────
-
-    private Provider getOrCreateDefaultProvider() {
-        return providerRepository.findAll().stream().findFirst().orElseGet(() -> {
-            Provider p = new Provider(); p.setName("Default Provider"); return providerRepository.save(p);
-        });
-    }
-
     // ── Value applicators ─────────────────────────────────────────────────────
 
     private void applyIfNotBlank(String value, java.util.function.Consumer<String> setter) {
@@ -737,10 +724,13 @@ public class PostalOfficeImportService {
 
     // ── Misc helpers ──────────────────────────────────────────────────────────
 
-    private boolean parseConnectionStatus(String raw) {
-        if (blank(raw)) return false;
+    private Integer parseConnectionStatus(String raw) {
+        if (blank(raw)) return 0;
         String v = raw.trim().toLowerCase();
-        return v.equals("connected") || v.equals("yes") || v.equals("true") || v.equals("1") || v.equals("active");
+        if (v.equals("connected") || v.equals("yes") || v.equals("true") || v.equals("1") || v.equals("active")) {
+            return 1;
+        }
+        return 0;
     }
 
     private String normalize(String s) { return s == null ? "" : s.trim().toLowerCase(); }

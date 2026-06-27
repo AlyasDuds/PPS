@@ -3,6 +3,7 @@ package com.pps.profilesystem.Service;
 import com.pps.profilesystem.Entity.*;
 import com.pps.profilesystem.Repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -72,7 +73,9 @@ public class PostalOfficeService {
     /**
      * Create new postal office with automatic connectivity tracking
      * â­ IMPROVED: Better handling of the bidirectional relationship
+     * Evicts caches to ensure counts are recalculated
      */
+    @CacheEvict(value = {"userByEmail"}, allEntries = true)
     @Transactional
     public PostalOffice createPostalOfficeWithConnectivity(PostalOffice postalOffice) {
         // Step 1: Save the postal office WITHOUT connectivity_id first
@@ -98,7 +101,9 @@ public class PostalOfficeService {
     /**
      * Update existing postal office
      * â­ IMPROVED: Better handling of connectivity status changes
+     * Evicts caches to ensure counts are recalculated
      */
+    @CacheEvict(value = {"userByEmail"}, allEntries = true)
     @Transactional
     public PostalOffice updatePostalOffice(Integer id, PostalOffice updatedOffice) {
         Optional<PostalOffice> existing = postalOfficeRepository.findById(id);
@@ -123,16 +128,16 @@ public class PostalOfficeService {
     /**
      * â­ IMPROVED: Handle connectivity linking when status changes
      */
-    private void handleConnectivityStatusChange(PostalOffice office, Boolean oldStatus, Boolean newStatus) {
+    private void handleConnectivityStatusChange(PostalOffice office, Integer oldStatus, Integer newStatus) {
         // Changed from inactive/null to active
-        if (!Boolean.TRUE.equals(oldStatus) && Boolean.TRUE.equals(newStatus)) {
+        if (!Integer.valueOf(1).equals(oldStatus) && Integer.valueOf(1).equals(newStatus)) {
             // Create new connectivity record and link it
             Connectivity connectivity = createConnectivityRecord(office);
             Connectivity savedConnectivity = connectivityRepository.save(connectivity);
             office.setActiveConnectivity(savedConnectivity);
         }
         // Changed from active to inactive
-        else if (Boolean.TRUE.equals(oldStatus) && !Boolean.TRUE.equals(newStatus)) {
+        else if (Integer.valueOf(1).equals(oldStatus) && !Integer.valueOf(1).equals(newStatus)) {
             // Disconnect current connectivity record
             if (office.getActiveConnectivity() != null) {
                 Connectivity conn = office.getActiveConnectivity();
@@ -224,11 +229,11 @@ public class PostalOfficeService {
     }
 
     public long getActiveCount() {
-        return postalOfficeRepository.countNonArchivedByConnectionStatus(true);
+        return postalOfficeRepository.countNonArchivedByConnectionStatus(1);
     }
 
     public long getInactiveCount() {
-        return postalOfficeRepository.countNonArchivedByConnectionStatus(false);
+        return postalOfficeRepository.countNonArchivedByConnectionStatus(0);
     }
 
     public long getDistinctAreasCount() {
@@ -238,7 +243,7 @@ public class PostalOfficeService {
     /**
      * Find by connection status
      */
-    public List<PostalOffice> findByConnectionStatus(Boolean status) {
+    public List<PostalOffice> findByConnectionStatus(Integer status) {
         return postalOfficeRepository.findByConnectionStatus(status);
     }
 

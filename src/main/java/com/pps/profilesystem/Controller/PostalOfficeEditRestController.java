@@ -529,7 +529,7 @@ public class PostalOfficeEditRestController {
         if (!bv.equals(av)) out.add(lbl + ": " + bv + " -> " + av);
     }
     private String blank(String s) { return (s == null || s.isBlank()) ? "?" : s.trim(); }
-    private String label(Boolean b){ return Boolean.TRUE.equals(b) ? "Active" : "Inactive"; }
+    private String label(Integer b){ return Integer.valueOf(1).equals(b) ? "Active" : "Inactive"; }
 
     private ConnectivityNotification.Type resolveType(Snapshot b, PostalOffice a) {
         if (!Objects.equals(b.connectionStatus, a.getIsConnected()))
@@ -543,7 +543,7 @@ public class PostalOfficeEditRestController {
 
     private static class Snapshot {
         String  name, postmaster, classification, serviceProvided, address, zipCode, officeStatus;
-        Boolean connectionStatus;
+        Integer connectionStatus;
         String  isp, connType, speed, staticIp;
         Integer employees, tellers, carriers;
         String  contactPerson, contactNumber, ispContactPerson, ispContactNumber, remarks;

@@ -54,7 +54,7 @@ public class QuarterConnectivityService {
         String currentQuarter = getCurrentQuarter();
 
         long total      = postalOfficeRepository.countNonArchived();
-        long connected  = postalOfficeRepository.countNonArchivedByConnectionStatus(true);
+        long connected  = postalOfficeRepository.countNonArchivedByConnectionStatus(1);
         long disconnected = Math.max(0, total - connected);
 
         Map<String, Object> result = new HashMap<>();
@@ -69,6 +69,25 @@ public class QuarterConnectivityService {
     // ── Internal stats logic (mirrors QuartersController.getConnectivityStats) ─
 
     public Map<String, Long> getConnectivityStats(int year, String quarterFilter, Integer areaId, String statusFilter) {
+
+        // Check if there's any connectivity data for the requested year
+        boolean hasConnectivityDataForYear = connectivityRepository.findByDateConnectedBetween(
+            LocalDateTime.of(year, 1, 1, 0, 0, 0),
+            LocalDateTime.of(year, 12, 31, 23, 59, 59)
+        ).stream()
+        .filter(c -> c.getPostalOffice() != null)
+        .filter(c -> !archivedOfficeRepository.existsByPostalOfficeId(c.getPostalOffice().getId()))
+        .filter(c -> areaId == null || (c.getPostalOffice().getArea() != null && areaId.equals(c.getPostalOffice().getArea().getId())))
+        .count() > 0;
+
+        // If no connectivity data for the year, return all zeros
+        if (!hasConnectivityDataForYear) {
+            Map<String, Long> stats = new HashMap<>();
+            stats.put("totalConnected", 0L);
+            stats.put("totalDisconnected", 0L);
+            stats.put("totalOffices", 0L);
+            return stats;
+        }
 
         // 1. All Areas: sum each individual area
         if (areaId == null) {
