@@ -226,10 +226,7 @@ public class PostalOfficeEditRestController {
                 Connectivity conn = latestConnOpt.get();
                 if (conn.getDateConnected() != null) {
                     int connYear = conn.getDateConnected().getYear();
-<<<<<<< HEAD
                     String connQuarter = getCurrentQuarter(conn.getDateConnected().getMonthValue());
-=======
->>>>>>> 01160e722ab6061d2726b3a6b904d700408477a5
 
                     // System admin can edit historical data - skip validation for system admin
                     if (!isSystemAdmin) {
@@ -267,7 +264,6 @@ public class PostalOfficeEditRestController {
                                                     + connYear + ". Only System Admin can edit.");
                                         }
                                     } catch (Exception ignored) {}
-<<<<<<< HEAD
                                 }
                             }
                         }
@@ -312,8 +308,6 @@ public class PostalOfficeEditRestController {
                                             }
                                         } catch (Exception ignored) {}
                                     }
-=======
->>>>>>> 01160e722ab6061d2726b3a6b904d700408477a5
                                 }
                             }
                         }
@@ -331,7 +325,7 @@ public class PostalOfficeEditRestController {
                 applyChanges(o, body);
                 Boolean newStatus = o.getIsConnected();
 
-                handleConnectivityStatusChange(o, oldStatus, newStatus, auth, latestConnOpt);
+                handleConnectivityStatusChange(o, oldStatus, newStatus, auth, latestConnOpt, true);
 
                 // System admin can edit dates of the latest connectivity record (only for current year)
                 if (body.containsKey("dateConnected") || body.containsKey("dateDisconnected")) {
@@ -719,93 +713,56 @@ public class PostalOfficeEditRestController {
         return ResponseEntity.status(status).body(Map.of("success", false, "message", msg));
     }
 
-    private void handleConnectivityStatusChange(PostalOffice office, Boolean oldStatus, Boolean newStatus, Authentication auth, Optional<Connectivity> latestBeforeChange) {
+    private void handleConnectivityStatusChange(PostalOffice office, Boolean oldStatus, Boolean newStatus, Authentication auth, Optional<Connectivity> latestBeforeChange, boolean isSystemAdmin) {
         int currentYear = LocalDateTime.now().getYear();
         int currentMonth = LocalDateTime.now().getMonthValue();
         String currentQuarter = getCurrentQuarter(currentMonth);
-        
-        boolean isSystemAdmin = auth.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN")
-                            || a.getAuthority().equals("ROLE_SRD_OPERATION"));
+
+        // Validate: Cannot change status if latest connectivity record is from 2024 or 2025 (unless System Admin)
+        if (!isSystemAdmin && latestBeforeChange.isPresent()) {
+            Connectivity conn = latestBeforeChange.get();
+            if (conn.getDateConnected() != null) {
+                int connYear = conn.getDateConnected().getYear();
+                if (connYear == 2024 || connYear == 2025) {
+                    System.err.println("[PostalOfficeEditRestController] Blocking status change: record from " + connYear);
+                    throw new RuntimeException("Cannot change status for offices with connectivity records from " + connYear + ". Only System Admin can edit.");
+                }
+            }
+        }
 
         if (!Boolean.TRUE.equals(oldStatus) && Boolean.TRUE.equals(newStatus)) {
             // ── inactive → active ──────────────────────────────────────────────
-
-<<<<<<< HEAD
-            // Close any existing open record first (safety net)
-            Connectivity existingOpen = connectivityRepository
-                    .findByPostalOfficeIdAndDateDisconnectedIsNull(office.getId())
-                    .orElse(null);
-            
-            if (existingOpen != null) {
-                existingOpen.setDateDisconnected(LocalDateTime.now());
-                connectivityRepository.save(existingOpen);
+            // Validate: Cannot reactivate if current quarter is complete (unless System Admin)
+            if (!isSystemAdmin && isQuarterComplete(currentQuarter, currentMonth)) {
+                System.err.println("[PostalOfficeEditRestController] Blocking inactive→active: current quarter " + currentQuarter + " is complete");
+                throw new RuntimeException("Cannot activate office in completed quarter " + currentQuarter + ". Only System Admin can edit.");
             }
 
-            // Use the already-fetched latest record (before any changes)
-            // to avoid picking up the just-closed record
+            // Always create NEW connectivity record - don't reuse existing (preserve history)
+            Provider defaultProvider = providerRepository.findAll().stream()
+                .findFirst()
+                .orElseGet(() -> {
+                    Provider p = new Provider();
+                    p.setName("Default Provider");
+                    return providerRepository.save(p);
+                });
             Connectivity newConn = new Connectivity();
             newConn.setPostalOffice(office);
+            newConn.setProvider(defaultProvider);
             newConn.setDateConnected(LocalDateTime.now());
             newConn.setDateDisconnected(null);
-
-            if (latestBeforeChange.isPresent()) {
-                Connectivity prev = latestBeforeChange.get();
-                newConn.setProvider(prev.getProvider());
-                newConn.setPlanName(prev.getPlanName());
-                newConn.setPlanPrice(prev.getPlanPrice());
-                newConn.setAccountNumber(prev.getAccountNumber());
-                newConn.setPlanContract(prev.getPlanContract());
-                newConn.setIsWired(prev.getIsWired());
-                newConn.setIsWireless(prev.getIsWireless());
-                newConn.setIsShared(prev.getIsShared());
-                newConn.setIsFree(prev.getIsFree());
-            } else {
-                Provider defaultProvider = providerRepository.findAll().stream()
-                    .findFirst()
-                    .orElseGet(() -> {
-                        Provider p = new Provider();
-                        p.setName("Default Provider");
-                        return providerRepository.save(p);
-                    });
-                newConn.setProvider(defaultProvider);
-            }
-
             Connectivity saved = connectivityRepository.save(newConn);
             office.setActiveConnectivity(saved);
-=======
-            // Unique constraint on OfficeID in Connectivity table
-            // Cannot insert new record -- reuse existing record
-            if (latestBeforeChange.isPresent()) {
-                // Reopen existing record -- new dateConnected (current year), clear dateDisconnected
-                Connectivity conn = latestBeforeChange.get();
-                conn.setDateConnected(LocalDateTime.now());
-                conn.setDateDisconnected(null);
-                Connectivity saved = connectivityRepository.save(conn);
-                office.setActiveConnectivity(saved);
-            } else {
-                // No existing record -- create new one (first time)
-                Provider defaultProvider = providerRepository.findAll().stream()
-                    .findFirst()
-                    .orElseGet(() -> {
-                        Provider p = new Provider();
-                        p.setName("Default Provider");
-                        return providerRepository.save(p);
-                    });
-                Connectivity newConn = new Connectivity();
-                newConn.setPostalOffice(office);
-                newConn.setProvider(defaultProvider);
-                newConn.setDateConnected(LocalDateTime.now());
-                newConn.setDateDisconnected(null);
-                Connectivity saved = connectivityRepository.save(newConn);
-                office.setActiveConnectivity(saved);
-            }
->>>>>>> 01160e722ab6061d2726b3a6b904d700408477a5
-            
+
         } else if (Boolean.TRUE.equals(oldStatus) && !Boolean.TRUE.equals(newStatus)) {
             // ── Switching to INACTIVE ────────────────────────────────────────────
+            // Validate: Cannot deactivate if current quarter is complete (unless System Admin)
+            if (!isSystemAdmin && isQuarterComplete(currentQuarter, currentMonth)) {
+                System.err.println("[PostalOfficeEditRestController] Blocking active→inactive: current quarter " + currentQuarter + " is complete");
+                throw new RuntimeException("Cannot deactivate office in completed quarter " + currentQuarter + ". Only System Admin can edit.");
+            }
+
             // Close the current open record
-            
             Connectivity conn = connectivityRepository
                 .findByPostalOfficeIdAndDateDisconnectedIsNull(office.getId())
                 .orElse(null);
@@ -817,6 +774,23 @@ public class PostalOfficeEditRestController {
                 office.setActiveConnectivity(null);
             }
         }
+    }
+
+    private boolean isQuarterComplete(String quarter, int currentMonth) {
+        // Q1 is complete when we're in Q2 (months 4-6), Q3 (months 7-9), or Q4 (months 10-12)
+        if ("Q1".equals(quarter) && currentMonth >= 4) {
+            return true;
+        }
+        // Q2 is complete when we're in Q3 (months 7-9) or Q4 (months 10-12)
+        if ("Q2".equals(quarter) && currentMonth >= 7) {
+            return true;
+        }
+        // Q3 is complete when we're in Q4 (months 10-12)
+        if ("Q3".equals(quarter) && currentMonth >= 10) {
+            return true;
+        }
+        // Q4 is never complete within the same year (only when year changes)
+        return false;
     }
 
     private Connectivity createConnectivityRecord(PostalOffice office) {

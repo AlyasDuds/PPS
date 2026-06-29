@@ -391,7 +391,7 @@ public class ApprovalService {
         applyFk(values, "barangayId", id -> barangayRepository.findById(id).ifPresent(o::setBarangay));
 
         Boolean newStatus = o.getIsConnected();
-        handleConnectivityStatusChange(o, oldStatus, newStatus);
+        handleConnectivityStatusChange(o, oldStatus, newStatus, true);
 
         postalOfficeRepository.save(o);
     }
@@ -415,31 +415,51 @@ public class ApprovalService {
         }
         PostalOffice savedOffice = postalOfficeRepository.save(o);
         if (Boolean.TRUE.equals(savedOffice.getIsConnected())) {
-            handleConnectivityStatusChange(savedOffice, null, true);
+            handleConnectivityStatusChange(savedOffice, null, true, true);
             postalOfficeRepository.save(savedOffice);
         }
     }
 
-    private void handleConnectivityStatusChange(PostalOffice office, Boolean oldStatus, Boolean newStatus) {
-        if (!Boolean.TRUE.equals(oldStatus) && Boolean.TRUE.equals(newStatus)) {
-            // Switching to ACTIVE — reuse existing open record if available, else create new
-            // Check if the office already has an open connectivity record with no dateDisconnected
-            Optional<Connectivity> existingOpen = connectivityRepository
-                    .findByPostalOfficeIdAndDateDisconnectedIsNull(office.getId());
+    private void handleConnectivityStatusChange(PostalOffice office, Boolean oldStatus, Boolean newStatus, boolean isSystemAdmin) {
+        int currentMonth = LocalDateTime.now().getMonthValue();
+        String currentQuarter = getCurrentQuarter(currentMonth);
 
-            if (existingOpen.isPresent()) {
-                // Already has an open record — just point activeConnectivity at it (no new record)
-                office.setActiveConnectivity(existingOpen.get());
-            } else {
-
-                // Always create a fresh connectivity record when activating
-                Connectivity connectivity = createConnectivityRecord(office);
-                Connectivity saved = connectivityRepository.save(connectivity);
-                office.setActiveConnectivity(saved);
-
+        // Validate: Cannot change status if latest connectivity record is from 2024 or 2025 (unless System Admin)
+        if (!isSystemAdmin) {
+            Optional<Connectivity> latestConn = connectivityRepository.findTopByPostalOfficeIdOrderByDateConnectedDesc(office.getId());
+            if (latestConn.isPresent()) {
+                Connectivity conn = latestConn.get();
+                if (conn.getDateConnected() != null) {
+                    int connYear = conn.getDateConnected().getYear();
+                    if (connYear == 2024 || connYear == 2025) {
+                        System.err.println("[ApprovalService] Blocking status change: record from " + connYear);
+                        throw new RuntimeException("Cannot change status for offices with connectivity records from " + connYear + ". Only System Admin can edit.");
+                    }
+                }
             }
         }
+
+        if (!Boolean.TRUE.equals(oldStatus) && Boolean.TRUE.equals(newStatus)) {
+            // ── inactive → active ──────────────────────────────────────────────
+            // Validate: Cannot reactivate if current quarter is complete (unless System Admin)
+            if (!isSystemAdmin && isQuarterComplete(currentQuarter, currentMonth)) {
+                System.err.println("[ApprovalService] Blocking inactive→active: current quarter " + currentQuarter + " is complete");
+                throw new RuntimeException("Cannot activate office in completed quarter " + currentQuarter + ". Only System Admin can edit.");
+            }
+
+            // Always create NEW connectivity record - don't reuse existing (preserve history)
+            Connectivity connectivity = createConnectivityRecord(office);
+            Connectivity saved = connectivityRepository.save(connectivity);
+            office.setActiveConnectivity(saved);
+        }
         else if (Boolean.TRUE.equals(oldStatus) && !Boolean.TRUE.equals(newStatus)) {
+            // ── Switching to INACTIVE ────────────────────────────────────────────
+            // Validate: Cannot deactivate if current quarter is complete (unless System Admin)
+            if (!isSystemAdmin && isQuarterComplete(currentQuarter, currentMonth)) {
+                System.err.println("[ApprovalService] Blocking active→inactive: current quarter " + currentQuarter + " is complete");
+                throw new RuntimeException("Cannot deactivate office in completed quarter " + currentQuarter + ". Only System Admin can edit.");
+            }
+
             // Switching to INACTIVE — close the active connectivity record
             if (office.getActiveConnectivity() != null) {
                 Connectivity conn = office.getActiveConnectivity();
@@ -455,6 +475,30 @@ public class ApprovalService {
                         });
             }
         }
+    }
+
+    private String getCurrentQuarter(int month) {
+        if (month <= 3) return "Q1";
+        if (month <= 6) return "Q2";
+        if (month <= 9) return "Q3";
+        return "Q4";
+    }
+
+    private boolean isQuarterComplete(String quarter, int currentMonth) {
+        // Q1 is complete when we're in Q2 (months 4-6), Q3 (months 7-9), or Q4 (months 10-12)
+        if ("Q1".equals(quarter) && currentMonth >= 4) {
+            return true;
+        }
+        // Q2 is complete when we're in Q3 (months 7-9) or Q4 (months 10-12)
+        if ("Q2".equals(quarter) && currentMonth >= 7) {
+            return true;
+        }
+        // Q3 is complete when we're in Q4 (months 10-12)
+        if ("Q3".equals(quarter) && currentMonth >= 10) {
+            return true;
+        }
+        // Q4 is never complete within the same year (only when year changes)
+        return false;
     }
 
     private Connectivity createConnectivityRecord(PostalOffice office) {
