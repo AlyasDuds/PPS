@@ -53,7 +53,7 @@ public class MapController {
 
             List<PostalOffice> offices;
             
-            if (roleId != null && (roleId == 1 || roleId == 4)) {
+            if (roleId != null && (roleId == 1 || roleId == 4 || roleId == 5)) {
                 // System Admin and SRD Operation see all offices
                 offices = postalOfficeRepository.findAllWithAreaForMapNonArchived();
             } else {

@@ -184,79 +184,102 @@ function initializePrint() {
             '<title>PHLPost Connectivity Report</title>' +
             '<style>' +
             '* { box-sizing: border-box; margin: 0; padding: 0; }' +
-            'body { font-family: Arial, sans-serif; padding: 28px; color: #222; font-size: 13px; }' +
-            '.rpt-header { display: flex; justify-content: space-between; align-items: flex-start;' +
-            '  border-bottom: 3px solid #002868; padding-bottom: 12px; margin-bottom: 18px; }' +
-            '.rpt-header-left h1 { color: #002868; font-size: 18px; margin-bottom: 3px; }' +
-            '.rpt-header-left p { color: #666; font-size: 11px; }' +
-            '.rpt-header-right { font-size: 11px; color: #555; text-align: right; }' +
-            '.filters { display: flex; flex-wrap: wrap; gap: 8px; background: #f4f6fb;' +
-            '  border: 1px solid #dde1ed; border-radius: 5px; padding: 10px 14px; margin-bottom: 18px; }' +
-            '.filter-chip { font-size: 11px; background: #e8ecf8; border-radius: 12px;' +
-            '  padding: 3px 10px; color: #002868; font-weight: 600; }' +
-            '.stats { display: flex; gap: 12px; margin-bottom: 20px; }' +
-            '.stat-box { flex: 1; border-radius: 6px; padding: 14px 10px; text-align: center; border: 1px solid #ddd; }' +
-            '.stat-box .label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: #888; margin-bottom: 6px; }' +
-            '.stat-box .value { font-size: 26px; font-weight: 700; }' +
-            '.stat-connected    { border-top: 4px solid #1cc88a; } .stat-connected .value { color: #1a9e72; }' +
-            '.stat-disconnected { border-top: 4px solid #e74a3b; } .stat-disconnected .value { color: #c0392b; }' +
-            '.stat-total        { border-top: 4px solid #4e73df; } .stat-total .value { color: #2e59d9; }' +
-            'h3 { color: #002868; font-size: 13px; margin-bottom: 8px; border-left: 4px solid #002868; padding-left: 8px; }' +
-            'table { width: 100%; border-collapse: collapse; font-size: 12px; }' +
-            'thead tr { background: #002868 !important; color: #fff !important;' +
-            '  -webkit-print-color-adjust: exact; print-color-adjust: exact; }' +
-            'th { padding: 8px 10px; text-align: left; font-weight: 600; font-size: 11px; letter-spacing: 0.3px; }' +
-            'td { padding: 7px 10px; border-bottom: 1px solid #e8e8e8; }' +
+            'body { font-family: Arial, sans-serif; background-color: #fff; color: #333; padding: 28px; }' +
+            '* { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }' +
+            
+            /* Header styling */
+            '.report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }' +
+            '.logo-title-section { display: flex; align-items: center; gap: 15px; }' +
+            '.report-logo { height: 50px; }' +
+            '.logo-title-section h2 { color: #002e6e; font-size: 18px; margin: 0; }' +
+            '.logo-title-section p { color: #666; font-size: 11px; margin: 0; }' +
+            '.timestamp { font-size: 11px; color: #555; text-align: right; }' +
+            '.header-line { border: none; border-top: 3px solid #002e6e; margin-bottom: 20px; }' +
+
+            /* Flat Filter Box */
+            '.filter-box-print { display: flex; justify-content: space-around; border: 1px solid #ccc; border-radius: 4px; padding: 10px; margin-bottom: 25px; background-color: #fff; }' +
+            '.filter-item { font-size: 11pt; color: #002e6e; font-weight: bold; }' +
+
+            /* KPI Cards */
+            '.kpi-container { display: flex; justify-content: space-between; gap: 15px; margin-bottom: 25px; }' +
+            '.kpi-card { flex: 1; text-align: center; padding: 15px; border-radius: 4px; background: #fff !important; }' +
+            '.kpi-card small { font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: #888; display: block; margin-bottom: 8px; }' +
+            '.kpi-card h1 { font-size: 26px; font-weight: 700; margin: 0; }' +
+            '.kpi-card.active-card { border: 1px solid #28a745; color: #28a745; }' +
+            '.kpi-card.inactive-card { border: 1px solid #dc3545; color: #dc3545; }' +
+            '.kpi-card.total-card { border: 1px solid #0056b3; color: #0056b3; }' +
+
+            /* Section Titles */
+            '.section-title { color: #002e6e; font-size: 13px; font-weight: bold; margin-top: 20px; margin-bottom: 8px; border-left: 4px solid #002e6e; padding-left: 8px; }' +
+
+            /* Table Design */
+            '.report-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 12px; }' +
+            '.report-table th { background-color: #002e6e !important; color: #ffffff !important; text-align: left; padding: 8px; font-weight: bold; }' +
+            '.report-table td { padding: 8px; border-bottom: 1px solid #e0e0e0; }' +
             'tbody tr:nth-child(even) { background: #f8f9fc; }' +
-            '.footer { margin-top: 22px; font-size: 10px; color: #aaa; text-align: center;' +
-            '  border-top: 1px solid #eee; padding-top: 10px; }' +
-            '@page { margin: 15mm; }' +
+
+            /* Color adjustments */
+            '.text-success { color: #28a745 !important; font-weight: bold; }' +
+            '.text-danger { color: #dc3545 !important; font-weight: bold; }' +
+            '.text-primary { color: #0056b3 !important; font-weight: bold; }' +
+
+            /* Office Cards Grid */
+            '.offices-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 20px; }' +
+            '.office-card { border: 1px solid #e0e0e0; border-radius: 6px; padding: 12px; background: #fff; }' +
+            '.office-card.disconnected-card { border-left: 4px solid #dc3545; }' +
+            '.office-card:not(.disconnected-card) { border-left: 4px solid #28a745; }' +
+            '.office-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }' +
+            '.office-year-quarter { font-size: 10px; font-weight: bold; color: #666; text-transform: uppercase; }' +
+            '.office-area { font-size: 10px; background: #e8ecf8; color: #002e6e; padding: 2px 8px; border-radius: 10px; font-weight: 600; }' +
+            '.office-card-body { font-size: 12px; font-weight: 500; color: #333; }' +
+            '.no-data { text-align: center; color: #999; font-style: italic; padding: 20px; }' +
+
+            '.footer { margin-top: 22px; font-size: 10px; color: #aaa; text-align: center; border-top: 1px solid #eee; padding-top: 10px; }' +
+            '@page { size: portrait; margin: 10mm; }' +
             '</style></head><body>' +
 
-            '<div class="rpt-header">' +
-            '  <div class="rpt-header-left">' +
-            '    <h1>&#128205; PHLPost &mdash; Connectivity Report</h1>' +
-            '    <p>Philippine Postal Corporation &bull; Profile System</p>' +
+            '<div class="report-header">' +
+            '  <div class="logo-title-section">' +
+            '    <div>' +
+            '      <h2>PHLPost — Connectivity Report</h2>' +
+            '      <p>Philippine Postal Corporation • Profile System</p>' +
+            '    </div>' +
             '  </div>' +
-            '  <div class="rpt-header-right">' +
-            '    <strong>Generated:</strong><br>' + printDate +
+            '  <div class="timestamp">' +
+            '    Generated:<br>' + printDate +
             '  </div>' +
             '</div>' +
 
-            '<div class="filters">' +
-            '  <span class="filter-chip">&#128197; ' + year + '</span>' +
-            '  <span class="filter-chip">&#128200; ' + quarter + '</span>' +
-            '  <span class="filter-chip">&#128205; ' + area + '</span>' +
-            '  <span class="filter-chip">&#128246; ' + status + '</span>' +
+            '<hr class="header-line">' +
+
+            '<div class="filter-box-print">' +
+            '  <span class="filter-item">&#128197; ' + year + '</span>' +
+            '  <span class="filter-item">&#128200; ' + quarter + '</span>' +
+            '  <span class="filter-item">&#128205; ' + area + '</span>' +
+            '  <span class="filter-item">&#128246; ' + status + '</span>' +
             '</div>' +
 
-            '<div class="stats">' +
-            '  <div class="stat-box stat-connected"><div class="label">Active (Connected)</div><div class="value">' + connected + '</div></div>' +
-            '  <div class="stat-box stat-disconnected"><div class="label">Inactive (Disconnected)</div><div class="value">' + disconnected + '</div></div>' +
-            '  <div class="stat-box stat-total"><div class="label">Total Offices</div><div class="value">' + total + '</div></div>' +
+            '<div class="kpi-container">' +
+            '  <div class="kpi-card active-card"><small>ACTIVE (CONNECTED)</small><h1>' + connected + '</h1></div>' +
+            '  <div class="kpi-card inactive-card"><small>INACTIVE (DISCONNECTED)</small><h1>' + disconnected + '</h1></div>' +
+            '  <div class="kpi-card total-card"><small>TOTAL OFFICES</small><h1>' + total + '</h1></div>' +
             '</div>' +
 
-            '<h3>Quarterly Breakdown</h3>' +
-            '<table>' +
+            '<h3 class="section-title">Quarterly Breakdown</h3>' +
+            '<table class="report-table">' +
             '<thead><tr><th>Year</th><th>Quarter</th><th>Connected</th><th>Newly Connected</th><th>Disconnected</th><th>Newly Disconnected</th><th>Total</th><th>Status</th></tr></thead>' +
             '<tbody>' + tableRows + '</tbody>' +
             '</table>' +
 
-            // Newly Connected Offices Table
-            '<h3>Newly Connected Offices</h3>' +
-            '<table>' +
-            '<thead><tr><th>Year</th><th>Quarter</th><th>Office Name</th><th>Area</th></tr></thead>' +
-            '<tbody>' + buildNewlyConnectedTable() + '</tbody>' +
-            '</table>' +
+            // Newly Connected Offices Cards
+            '<h3 class="section-title">Newly Connected Offices</h3>' +
+            '<div class="offices-grid">' + buildNewlyConnectedCards() + '</div>' +
 
-            // Newly Disconnected Offices Table
-            '<h3>Newly Disconnected Offices</h3>' +
-            '<table>' +
-            '<thead><tr><th>Year</th><th>Quarter</th><th>Office Name</th><th>Area</th></tr></thead>' +
-            '<tbody>' + buildNewlyDisconnectedTable() + '</tbody>' +
-            '</table>' +
+            // Newly Disconnected Offices Cards
+            '<h3 class="section-title">Newly Disconnected Offices</h3>' +
+            '<div class="offices-grid">' + buildNewlyDisconnectedCards() + '</div>' +
 
-            '<div class="footer">PHLPost Profile System &mdash; Connectivity Report &mdash; Confidential &mdash; ' + printDate + '</div>' +
+            '<div class="footer">PHLPost Profile System — Connectivity Report — Confidential — ' + printDate + '</div>' +
             '</body></html>';
 
         // Write to hidden iframe and print — avoids popup blockers & onload issues
@@ -363,6 +386,124 @@ function buildNewlyDisconnectedTable() {
     return rows;
 }
 
+function buildNewlyConnectedCards() {
+    var cards = '';
+    var groupedData = {};
+
+    $('#quarterlyBreakdownTable tbody tr').each(function () {
+        var cells = $(this).find('td');
+        if (cells.length < 5) return;
+
+        var year = cells.eq(0).text().trim();
+        var quarter = cells.eq(1).text().trim();
+        var newlyConnectedCell = cells.eq(3);
+
+        var key = year + ' - ' + quarter;
+        if (!groupedData[key]) {
+            groupedData[key] = [];
+        }
+
+        var officeList = newlyConnectedCell.find('.qb-names-list');
+        if (officeList.length > 0) {
+            officeList.find('.qb-names-item').each(function () {
+                var areaTag = $(this).find('.qb-area-tag').text().trim();
+                var officeName = $(this).find('span').not('.qb-area-tag').first().text().trim();
+
+                if (officeName) {
+                    groupedData[key].push({
+                        officeName: officeName,
+                        areaTag: areaTag
+                    });
+                }
+            });
+        }
+    });
+
+    for (var key in groupedData) {
+        if (groupedData[key].length > 0) {
+            cards += '<div class="office-card">';
+            cards += '<div class="office-card-header">';
+            cards += '<span class="office-year-quarter">' + key + '</span>';
+            cards += '<span class="office-count">' + groupedData[key].length + ' offices</span>';
+            cards += '</div>';
+            cards += '<div class="office-card-body">';
+            groupedData[key].forEach(function (office) {
+                cards += '<div class="office-item">';
+                cards += '<span class="office-area">' + office.areaTag + '</span>';
+                cards += '<span class="office-name">' + office.officeName + '</span>';
+                cards += '</div>';
+            });
+            cards += '</div>';
+            cards += '</div>';
+        }
+    }
+
+    if (!cards) {
+        cards = '<div class="no-data">No newly connected offices found</div>';
+    }
+
+    return cards;
+}
+
+function buildNewlyDisconnectedCards() {
+    var cards = '';
+    var groupedData = {};
+
+    $('#quarterlyBreakdownTable tbody tr').each(function () {
+        var cells = $(this).find('td');
+        if (cells.length < 6) return;
+
+        var year = cells.eq(0).text().trim();
+        var quarter = cells.eq(1).text().trim();
+        var newlyDisconnectedCell = cells.eq(5);
+
+        var key = year + ' - ' + quarter;
+        if (!groupedData[key]) {
+            groupedData[key] = [];
+        }
+
+        var officeList = newlyDisconnectedCell.find('.qb-names-list');
+        if (officeList.length > 0) {
+            officeList.find('.qb-names-item').each(function () {
+                var areaTag = $(this).find('.qb-area-tag').text().trim();
+                var officeName = $(this).find('span').not('.qb-area-tag').first().text().trim();
+
+                if (officeName) {
+                    groupedData[key].push({
+                        officeName: officeName,
+                        areaTag: areaTag
+                    });
+                }
+            });
+        } 
+    });
+
+    for (var key in groupedData) {
+        if (groupedData[key].length > 0) {
+            cards += '<div class="office-card disconnected-card">';
+            cards += '<div class="office-card-header">';
+            cards += '<span class="office-year-quarter">' + key + '</span>';
+            cards += '<span class="office-count">' + groupedData[key].length + ' offices</span>';
+            cards += '</div>';
+            cards += '<div class="office-card-body">';
+            groupedData[key].forEach(function (office) {
+                cards += '<div class="office-item">';
+                cards += '<span class="office-area">' + office.areaTag + '</span>';
+                cards += '<span class="office-name">' + office.officeName + '</span>';
+                cards += '</div>';
+            });
+            cards += '</div>';
+            cards += '</div>';
+        }
+    }
+
+    if (!cards) {
+        cards = '<div class="no-data">No newly disconnected offices found</div>';
+    }
+
+    return cards;
+}
+
 /* =====================================================
    EXPORT EXCEL
 ===================================================== */
@@ -381,72 +522,52 @@ function initializeExportExcel() {
         }
 
         var data = [];
-        // Header based on Template Columns
-        data.push(['Area', 'Office Name', 'Province', 'City/Municipality', 'Connectivity Status', 'ISP', 'Type of Connection', 'Speed (Mbps)', 'Postmaster']);
+        // Header based on Quarterly Breakdown Table
+        data.push(['Year', 'Quarter', 'Connected', 'Newly Connected', 'Disconnected', 'Newly Disconnected', 'Total', 'Status']);
 
         var hasData = false;
 
-        // Check if DataTable is available and initialized
-        if (typeof $.fn !== 'undefined' && $.fn.DataTable && $.fn.DataTable.isDataTable('#postOfficeTable')) {
-            var table = $('#postOfficeTable').DataTable();
-            var rows = table.rows().data();
-
-            console.log('Export: Found', rows.length, 'rows in DataTable');
-            console.log('Export: Sample row data:', rows.length > 0 ? rows[0] : 'No data');
-
-            if (rows.length > 0) {
+        // Extract data from quarterly breakdown table
+        $('#quarterlyBreakdownTable tbody tr').each(function (index) {
+            var cells = $(this).find('td');
+            if (cells.length > 0) {
                 hasData = true;
-                rows.each(function (r, index) {
-                    data.push([
-                        r.area || 'N/A',
-                        r.name || 'N/A',
-                        r.province || 'N/A',
-                        r.cityMunicipality || 'N/A',
-                        r.connectivityStatus || 'N/A',
-                        r.internetServiceProvider || 'N/A',
-                        r.typeOfConnection || 'N/A',
-                        r.speed || 'N/A',
-                        r.postmaster || 'N/A'
-                    ]);
-                });
-            }
-        } else {
-            // Fallback: Extract data directly from table if DataTable is not available
-            // Column indices based on actual table structure (0-indexed):
-            // 0: #, 1: Area, 2: Office Name, 3: Province, 4: City/Municipality, 
-            // 5: Connectivity Status, 6: ISP, 7: Type of Connection, 8: Speed, 9: Postmaster
-            $('#postOfficeTable tbody tr').each(function (index) {
-                hasData = true;
-                var cells = $(this).find('td');
+                // Helper function to truncate text to avoid Excel limit
+                function truncateText(text, maxLength) {
+                    if (!text) return 'N/A';
+                    text = text.trim();
+                    if (text.length > maxLength) {
+                        return text.substring(0, maxLength);
+                    }
+                    return text;
+                }
+
                 data.push([
-                    cells.eq(1).text().trim() || 'N/A', // Area
-                    cells.eq(2).text().trim() || 'N/A', // Office Name
-                    cells.eq(3).text().trim() || 'N/A', // Province
-                    cells.eq(4).text().trim() || 'N/A', // City/Municipality
-                    cells.eq(5).text().trim() || 'N/A', // Connectivity Status
-                    cells.eq(6).text().trim() || 'N/A', // ISP
-                    cells.eq(7).text().trim() || 'N/A', // Type of Connection
-                    cells.eq(8).text().trim() || 'N/A', // Speed
-                    cells.eq(9).text().trim() || 'N/A'  // Postmaster
+                    truncateText(cells.eq(0).text(), 100), // Year
+                    truncateText(cells.eq(1).text(), 50),  // Quarter
+                    truncateText(cells.eq(2).text(), 100), // Connected
+                    truncateText(cells.eq(3).text(), 100), // Newly Connected
+                    truncateText(cells.eq(4).text(), 100), // Disconnected
+                    truncateText(cells.eq(5).text(), 100), // Newly Disconnected
+                    truncateText(cells.eq(6).text(), 100), // Total
+                    truncateText(cells.eq(7).text(), 50)   // Status
                 ]);
-            });
-        }
+            }
+        });
 
         if (!hasData) {
             console.log('Export Debug: No data found. Checking table status...');
 
             // Additional debugging information
             let debugInfo = {
-                tableExists: $('#postOfficeTable').length > 0,
-                dataTablesLoaded: typeof $.fn !== 'undefined' && $.fn.DataTable,
-                isDataTable: $.fn.DataTable.isDataTable('#postOfficeTable'),
+                tableExists: $('#quarterlyBreakdownTable').length > 0,
                 currentFilters: {
                     year: $('#yearSelector').val(),
                     quarter: $('#quarterFilter').val(),
                     area: $('#areaFilter').val(),
                     status: $('#statusFilter').val()
                 },
-                tableRows: $('#postOfficeTable tbody tr').length
+                tableRows: $('#quarterlyBreakdownTable tbody tr').length
             };
 
             console.log('Export Debug Info:', debugInfo);
@@ -454,8 +575,6 @@ function initializeExportExcel() {
             let message = 'There is no data to export for the current filters.';
             if (debugInfo.tableRows === 0) {
                 message += ' The table appears to be empty. Try clearing filters or refreshing the page.';
-            } else if (!debugInfo.isDataTable) {
-                message += ' The data table is not properly initialized. Please refresh the page.';
             }
 
             Swal.fire({

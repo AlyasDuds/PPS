@@ -9,6 +9,7 @@ import com.pps.profilesystem.Entity.Connectivity;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 @Repository
 public interface ConnectivityRepository extends JpaRepository<Connectivity, Integer> {
@@ -108,11 +109,21 @@ public interface ConnectivityRepository extends JpaRepository<Connectivity, Inte
     List<Connectivity> findByOfficeIdOrderByDateConnectedDesc(@Param("officeId") Integer officeId);
 
     /** Find the open (not yet disconnected) connectivity record for an office. */
-    java.util.Optional<Connectivity> findByPostalOfficeIdAndDateDisconnectedIsNull(Integer postalOfficeId);
+    @Query("SELECT c FROM Connectivity c WHERE c.postalOffice.id = :postalOfficeId AND c.dateDisconnected IS NULL")
+    java.util.Optional<Connectivity> findByPostalOfficeIdAndDateDisconnectedIsNull(@Param("postalOfficeId") Integer postalOfficeId);
 
     /** Find all open (not yet disconnected) connectivity records. */
     List<Connectivity> findByDateDisconnectedIsNull();
 
     /** Find the most recent connectivity record for an office (open or closed). */
     java.util.Optional<Connectivity> findTopByPostalOfficeIdOrderByDateConnectedDesc(Integer postalOfficeId);
+    @Query("""
+       SELECT c FROM Connectivity c
+       WHERE c.postalOffice.id = :officeId
+       AND YEAR(c.dateConnected) = :year
+       ORDER BY c.dateConnected DESC
+       """)
+       java.util.Optional<Connectivity> findCurrentYearRecord(
+              @Param("officeId") Integer officeId,
+              @Param("year") Integer year);
 }

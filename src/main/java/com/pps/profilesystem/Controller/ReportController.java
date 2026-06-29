@@ -1,6 +1,7 @@
 package com.pps.profilesystem.Controller;
 
 import com.pps.profilesystem.Entity.Area;
+import com.pps.profilesystem.Entity.Connectivity;
 import com.pps.profilesystem.Entity.QuarterlySnapshot;
 import com.pps.profilesystem.Entity.User;
 import com.pps.profilesystem.Repository.ArchivedOfficeRepository;
@@ -145,11 +146,11 @@ public class ReportController {
         model.addAttribute("snapshotHistory", snapshots);
 
         Map<String, Boolean> userAccess = new HashMap<>();
-        userAccess.put("can_access_all_areas", roleId != null && (roleId == 1 || roleId == 4));
+        userAccess.put("can_access_all_areas", roleId != null && (roleId == 1 || roleId == 4 || roleId == 5));
         model.addAttribute("userAccess", userAccess);
-        model.addAttribute("isSystemAdmin", roleId != null && (roleId == 1 || roleId == 4));
+        model.addAttribute("isSystemAdmin", roleId != null && (roleId == 1 || roleId == 4 || roleId == 5));
         model.addAttribute("isAreaAdmin", roleId != null && roleId == 2);
-        model.addAttribute("isAnyAdmin", roleId != null && (roleId == 1 || roleId == 2));
+        model.addAttribute("isAnyAdmin", roleId != null && (roleId == 1 || roleId == 2 || roleId == 5));
 
         return "report";
     }
@@ -248,8 +249,8 @@ public class ReportController {
                             toLong(combRow.get("disconnected")) + toLong(areaRow.get("disconnected")));
                     combRow.put("newlyDisconnected",
                             toLong(combRow.get("newlyDisconnected")) + toLong(areaRow.get("newlyDisconnected")));
-                    // Use global total for "All Areas" instead of summing individual area totals
-                    combRow.put("total", countTotal(null));
+                    // Calculate total as sum of all four categories for consistency
+                    combRow.put("total", toLong(combRow.get("connected")) + toLong(combRow.get("newlyConnected")) + toLong(combRow.get("disconnected")) + toLong(combRow.get("newlyDisconnected")));
 
                     ((List<String>) combRow.get("connectedNames")).addAll((List<String>) areaRow.get("connectedNames"));
                     ((List<String>) combRow.get("disconnectedNames"))
@@ -287,8 +288,8 @@ public class ReportController {
 
             long baseConnected = toLong(lastQ.get("connected")) + toLong(lastQ.get("newlyConnected"));
             long baseDisconnected = toLong(lastQ.get("disconnected")) + toLong(lastQ.get("newlyDisconnected"));
-            // Use constant total from countTotal instead of calculating from connected/disconnected
-            long baseTotal = countTotal(areaId);
+            // Total = connected + disconnected
+            long baseTotal = baseConnected + baseDisconnected;
 
             List<String> connNames = new ArrayList<>((List<String>) lastQ.get("connectedNames"));
             connNames.addAll((List<String>) lastQ.get("newlyConnectedNames"));
@@ -342,39 +343,13 @@ public class ReportController {
 
         List<Map<String, Object>> list = new ArrayList<>();
 
-        // For historical years, use the snapshot at the end of that year (Dec 31 23:59:59)
-        // For current year, use the current snapshot
-        LocalDateTime snapshotDate = currentYearMatch ? now : LocalDateTime.of(year, 12, 31, 23, 59, 59);
+        // For historical years and completed quarters, calculate directly at quarter end date
+        // Only use backward calculation for the current ongoing quarter
+        // This prevents current status changes from affecting historical data
 
-        // Fetch base connected and disconnected for the snapshot date
-        List<String> finalConnectedNames = getConnectedNames(snapshotDate, areaId);
-        List<String> finalDisconnectedNames = getDisconnectedNames(snapshotDate, areaId);
-
-        // Running totals starting from snapshot and going backwards
-        List<String> runningConnectedNames = new ArrayList<>(finalConnectedNames);
-        List<String> runningDisconnectedNames = new ArrayList<>(finalDisconnectedNames);
-
-        // Pre-fetch all newly connected/disconnected for each quarter to apply backward
-        // logic
-        List<List<String>> allNewlyConnected = new ArrayList<>();
-        List<List<String>> allNewlyDisconnected = new ArrayList<>();
-
+        // Process each quarter independently to calculate data at quarter end date
+        // This prevents current status changes from affecting historical quarters
         for (int i = 0; i < 4; i++) {
-            LocalDateTime qStart = LocalDateTime.of(year, qMonths[i][0], 1, 0, 0, 0);
-            LocalDateTime qEnd = LocalDateTime.of(year, qMonths[i][1],
-                    YearMonth.of(year, qMonths[i][1]).lengthOfMonth(), 23, 59, 59);
-            // Only use current time (now) for the CURRENT ongoing quarter
-            // For completed quarters, use the quarter end date to freeze the data
-            boolean isCurrentQuarter = currentYearMatch && !qStart.isAfter(now) && !qEnd.isBefore(now);
-            LocalDateTime snapshotEnd = isCurrentQuarter ? now : qEnd;
-            allNewlyConnected.add(getNewlyConnectedNames(qStart, snapshotEnd, areaId));
-            allNewlyDisconnected.add(getNewlyDisconnectedNames(qStart, snapshotEnd, areaId));
-        }
-
-        // We process quarters backwards from Q4 down to Q1
-        Map<Integer, Map<String, Object>> rowsByQuarter = new HashMap<>();
-
-        for (int i = 3; i >= 0; i--) {
             String q = quarters[i];
             LocalDateTime qStart = LocalDateTime.of(year, qMonths[i][0], 1, 0, 0, 0);
             LocalDateTime qEnd = LocalDateTime.of(year, qMonths[i][1],
@@ -383,17 +358,29 @@ public class ReportController {
             boolean isCurrent = currentYearMatch && !qStart.isAfter(now) && !qEnd.isBefore(now);
             boolean isFuture = currentYearMatch && qStart.isAfter(now);
 
+            // Skip if quarter filter is set and doesn't match
+            if (quarterFilter != null && !quarterFilter.isEmpty() && !quarterFilter.equalsIgnoreCase(q)) {
+                continue;
+            }
+
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("quarter", q);
+            row.put("year", year);
+            row.put("isCurrent", isCurrent);
+            row.put("isFuture", isFuture);
+
             if (isFuture) {
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("quarter", q);
-                row.put("year", year);
-                row.put("isCurrent", false);
-                row.put("isFuture", true);
                 row.put("connected", null);
                 row.put("disconnected", null);
                 row.put("newlyConnected", null);
                 row.put("newlyDisconnected", null);
-                rowsByQuarter.put(i, row);
+                row.put("total", null);
+                row.put("totalHint", null);
+                row.put("connectedNames", new ArrayList<String>());
+                row.put("disconnectedNames", new ArrayList<String>());
+                row.put("newlyConnectedNames", new ArrayList<String>());
+                row.put("newlyDisconnectedNames", new ArrayList<String>());
+                list.add(row);
                 continue;
             }
 
@@ -401,93 +388,65 @@ public class ReportController {
             QuarterlySnapshot snapshot = snapshotService.getSnapshot(year, q, areaId);
             if (snapshot != null && !isCurrent) {
                 // Use frozen snapshot data for historical quarters
-                Map<String, Object> row = new LinkedHashMap<>();
-                row.put("quarter", q);
-                row.put("year", year);
-                row.put("isCurrent", isCurrent);
-                row.put("isFuture", false);
                 row.put("connected", snapshot.getConnectedCount());
                 row.put("newlyConnected", snapshot.getNewlyConnectedCount());
                 row.put("disconnected", snapshot.getDisconnectedCount());
                 row.put("newlyDisconnected", snapshot.getNewlyDisconnectedCount());
-                row.put("total", snapshot.getTotalOffices());
+                // Calculate total as sum of all four categories for consistency
+                long snapshotTotal = snapshot.getConnectedCount() + snapshot.getNewlyConnectedCount() + snapshot.getDisconnectedCount() + snapshot.getNewlyDisconnectedCount();
+                row.put("total", snapshotTotal);
                 row.put("totalHint", null);
                 row.put("connectedNames", new ArrayList<String>());
                 row.put("disconnectedNames", new ArrayList<String>());
                 row.put("newlyConnectedNames", new ArrayList<String>());
                 row.put("newlyDisconnectedNames", new ArrayList<String>());
-                rowsByQuarter.put(i, row);
+                list.add(row);
                 continue;
             }
 
-            List<String> newlyConnectedNames = allNewlyConnected.get(i);
-            List<String> newlyDisconnectedNames = allNewlyDisconnected.get(i);
+            // Calculate data at quarter end date to freeze historical data
+            // For completed quarters, ALWAYS use quarter end date, not current date
+            // This prevents current status changes from affecting historical quarterly data
+            LocalDateTime snapshotDate;
+            if (isCurrent) {
+                snapshotDate = now; // Current quarter: use current date
+            } else {
+                snapshotDate = qEnd; // Historical/completed quarter: use quarter end date
+            }
+            
+            List<String> newlyConnectedNames = getNewlyConnectedNames(qStart, snapshotDate, areaId);
+            List<String> newlyDisconnectedNames = getNewlyDisconnectedNames(qStart, snapshotDate, areaId);
+            
+            // 1. KUNIN ANG RAW ACTIVE/INACTIVE
+            List<String> rawConnected = getConnectedNames(snapshotDate, areaId);
+            List<String> rawDisconnected = getDisconnectedNames(snapshotDate, areaId);
 
-            // Base connected is running connected WITHOUT the newly connected this quarter
-            List<String> baseConnectedNames = new ArrayList<>(runningConnectedNames);
-            java.util.Set<String> newlySet = new java.util.HashSet<>(newlyConnectedNames);
-            baseConnectedNames.removeIf(newlySet::contains);
+            // 2. EXCLUSION WORKFLOW: 
+            // Para sa 'Connected' column, tanggalin ang mga bago lang kumonekta para strictly "Dati nang connected" ang matira.
+            List<String> connectedNames = new ArrayList<>(rawConnected);
+            connectedNames.removeAll(newlyConnectedNames);
 
-            // Base disconnected is running disconnected WITHOUT the newly disconnected this
-            // quarter
-            List<String> baseDisconnectedNames = new ArrayList<>(runningDisconnectedNames);
-            java.util.Set<String> newlyDiscSet = new java.util.HashSet<>(newlyDisconnectedNames);
-            baseDisconnectedNames.removeIf(newlyDiscSet::contains);
+            // Para sa 'Disconnected' column, tanggalin ang mga bago lang nadisconnect para strictly "Dati nang disconnected" ang matira.
+            List<String> disconnectedNames = new ArrayList<>(rawDisconnected);
+            disconnectedNames.removeAll(newlyDisconnectedNames);
 
-            // Connected at end of quarter = base connected + newly connected
-            // Use Set to avoid duplicates
-            java.util.Set<String> endOfQuarterConnectedSet = new java.util.HashSet<>(baseConnectedNames);
-            endOfQuarterConnectedSet.addAll(newlyConnectedNames);
-
-            Map<String, Object> row = new LinkedHashMap<>();
-            row.put("quarter", q);
-            row.put("year", year);
-            row.put("isCurrent", isCurrent);
-            row.put("isFuture", false);
-
-            row.put("connectedNames", baseConnectedNames);
-            row.put("disconnectedNames", baseDisconnectedNames);
+            row.put("connectedNames", connectedNames);
+            row.put("disconnectedNames", disconnectedNames);
             row.put("newlyConnectedNames", newlyConnectedNames);
             row.put("newlyDisconnectedNames", newlyDisconnectedNames);
+            
+            row.put("connected", connectedNames.size());          // Lalabas na: 70
+            row.put("newlyConnected", newlyConnectedNames.size());  // Lalabas na: 2
+            row.put("disconnected", disconnectedNames.size());      // Halimbawa: 0
+            row.put("newlyDisconnected", newlyDisconnectedNames.size()); 
 
-            row.put("connected", endOfQuarterConnectedSet.size());
-            row.put("newlyConnected", newlyConnectedNames.size());
-            row.put("disconnected", baseDisconnectedNames.size());
-            row.put("newlyDisconnected", newlyDisconnectedNames.size());
-            // Total = total non-archived offices for the area (constant across quarters)
-            // This ensures total only changes when new offices are inserted or archived
-            long totalOffices = countTotal(areaId);
-            row.put("total", totalOffices);
+            // 3. ANG REVISED TOTAL FORMULA
+            // Total Active ngayong quarter + Lahat ng Dati pang disconnected + Bagong disconnected
+            long totalOffices = connectedNames.size() + newlyConnectedNames.size() + disconnectedNames.size() + newlyDisconnectedNames.size();
+            row.put("total", totalOffices); // Lalabas na: 72
+            
             row.put("totalHint", null);
-
-            rowsByQuarter.put(i, row);
-
-            // Prepare for PREVIOUS quarter
-            // When going backwards, we need to add newly DISCONNECTED offices back to the running connected list
-            // because they were connected before this quarter
-            // We also need to REMOVE newly connected offices from running connected list
-            // because they were NOT connected in the previous quarter
-            runningConnectedNames = new ArrayList<>(baseConnectedNames);
-            runningConnectedNames.addAll(newlyDisconnectedNames);
-            // Note: newly connected offices are already excluded from baseConnectedNames,
-            // so runningConnectedNames now correctly represents the connected state at the START of this quarter
-            // (which is the END of the previous quarter)
-
-            runningDisconnectedNames = new ArrayList<>(baseDisconnectedNames);
-            // We DO NOT add newlyConnectedNames to runningDisconnectedNames.
-            // This assumes newly connected offices were BRAND NEW and did not exist as
-            // disconnected before.
-            // This guarantees the disconnected count stays constant backwards.
-        }
-
-        // Add to list in forward order
-        for (int i = 0; i < 4; i++) {
-            if (quarterFilter != null && !quarterFilter.isEmpty() && !quarterFilter.equalsIgnoreCase(quarters[i])) {
-                continue;
-            }
-            if (rowsByQuarter.containsKey(i)) {
-                list.add(rowsByQuarter.get(i));
-            }
+            list.add(row);
         }
 
         return list;
@@ -529,6 +488,11 @@ public class ReportController {
                 totalNewlyConn = toLong(row.get("newlyConnected"));
                 totalNewlyDisc = toLong(row.get("newlyDisconnected"));
                 total = toLong(row.get("total"));
+                
+                // Exclude newly connected from connected count
+                // Connected should only show offices that were already connected
+                totalConnected = totalConnected - totalNewlyConn;
+                
                 foundNonFuture = true;
                 break; // only one row when filtered
             }
@@ -553,6 +517,10 @@ public class ReportController {
                 totalNewlyConn = toLong(bestRow.get("newlyConnected"));
                 totalNewlyDisc = toLong(bestRow.get("newlyDisconnected"));
                 total = toLong(bestRow.get("total"));
+                
+                // Exclude newly connected from connected count
+                // Connected should only show offices that were already connected
+                totalConnected = totalConnected - totalNewlyConn;
             }
         }
 
@@ -636,7 +604,7 @@ public class ReportController {
     private List<Area> getAllAreas(Integer roleId, Integer userAreaId) {
         try {
             List<Area> all = areaRepository.findAll();
-            if (roleId != null && (roleId == 1 || roleId == 4))
+            if (roleId != null && (roleId == 1 || roleId == 4 || roleId == 5))
                 return all;
             if (userAreaId == null)
                 return new ArrayList<>();
@@ -744,18 +712,24 @@ public class ReportController {
         if (areaId != null && areaId == -1) {
             return new ArrayList<>();
         }
+        // Use Map to ensure uniqueness by office ID
         return connectivityRepository.findActiveAtDate(snap).stream()
                 .filter(c -> c.getPostalOffice() != null)
                 .map(c -> c.getPostalOffice())
-                .distinct()
                 .filter(po -> !archivedOfficeRepository.existsByPostalOfficeId(po.getId()))
                 .filter(po -> areaId == null || (po.getArea() != null && areaId.equals(po.getArea().getId())))
                 .filter(po -> !NEWLY_CONNECTED_IGNORE.contains(po.getId()))
-                .map(po -> {
-                    String area = po.getArea() != null ? po.getArea().getAreaName() : "N/A";
-                    String name = po.getName() != null ? po.getName() : "";
-                    return po.getId() + "::" + area + " | " + name;
-                })
+                .collect(java.util.stream.Collectors.toMap(
+                    po -> po.getId(),  // Key: office ID (ensures uniqueness)
+                    po -> {
+                        String area = po.getArea() != null ? po.getArea().getAreaName() : "N/A";
+                        String name = po.getName() != null ? po.getName() : "";
+                        return po.getId() + "::" + area + " | " + name;
+                    },
+                    (existing, replacement) -> existing  // Keep first if duplicate
+                ))
+                .values()
+                .stream()
                 .sorted(java.util.Comparator.comparing(e -> e.contains("::") ? e.substring(e.indexOf("::") + 2) : e))
                 .collect(java.util.stream.Collectors.toList());
     }
@@ -767,29 +741,48 @@ public class ReportController {
             return new ArrayList<>();
         }
 
-        java.util.Set<Integer> activeIds = connectivityRepository.findActiveAtDate(snap).stream()
-                .filter(c -> c.getPostalOffice() != null)
-                .map(c -> c.getPostalOffice().getId())
-                .filter(id -> !NEWLY_CONNECTED_IGNORE.contains(id))
-                .collect(java.util.stream.Collectors.toSet());
-
+        // Get all connectivity records and determine status at snapshot date
+        // An office is disconnected at snap if it has a connectivity record that was disconnected before snap
+        // and no active connectivity at snap
         return postalOfficeRepository.findByIsArchivedFalse().stream()
-                .filter(po -> !activeIds.contains(po.getId()))
                 .filter(po -> areaId == null || (po.getArea() != null && areaId.equals(po.getArea().getId())))
+                .filter(po -> !NEWLY_CONNECTED_IGNORE.contains(po.getId()))
                 .filter(po -> {
-                    LocalDateTime firstConn = connectivityRepository.findByOfficeIdOrderByDateConnectedDesc(po.getId())
-                            .stream()
-                            .map(cc -> cc.getDateConnected())
-                            .filter(java.util.Objects::nonNull)
-                            .min(LocalDateTime::compareTo)
-                            .orElse(null);
-                    return firstConn == null || !firstConn.isAfter(snap);
+                    // Check if office was disconnected at snapshot date
+                    List<Connectivity> allConns = connectivityRepository.findByOfficeIdOrderByDateConnectedDesc(po.getId());
+                    if (allConns.isEmpty()) {
+                        // No connectivity records - consider as never connected (not counted as disconnected)
+                        return false;
+                    }
+                    
+                    // Check if any connectivity record was disconnected before or at snap
+                    boolean wasDisconnectedBeforeSnap = allConns.stream()
+                            .anyMatch(c -> c.getDateDisconnected() != null && !c.getDateDisconnected().isAfter(snap));
+                    
+                    if (!wasDisconnectedBeforeSnap) {
+                        // Never disconnected before snap - not counted as disconnected
+                        return false;
+                    }
+                    
+                    // Check if office was active at snap (should not be in disconnected list)
+                    boolean wasActiveAtSnap = allConns.stream()
+                            .anyMatch(c -> {
+                                LocalDateTime connDate = c.getDateConnected() != null ? c.getDateConnected() : c.getCreatedStamp();
+                                LocalDateTime discDate = c.getDateDisconnected();
+                                return connDate != null && !connDate.isAfter(snap) 
+                                        && (discDate == null || discDate.isAfter(snap));
+                            });
+                    
+                    // Include in disconnected list if it was disconnected before snap and not active at snap
+                    return wasDisconnectedBeforeSnap && !wasActiveAtSnap;
                 })
                 .map(po -> {
                     String area = po.getArea() != null ? po.getArea().getAreaName() : "N/A";
                     String name = po.getName() != null ? po.getName() : "";
                     return po.getId() + "::" + area + " | " + name;
                 })
+                .collect(java.util.stream.Collectors.toSet())  // Ensure uniqueness
+                .stream()
                 .sorted(java.util.Comparator.comparing(e -> e.contains("::") ? e.substring(e.indexOf("::") + 2) : e))
                 .collect(java.util.stream.Collectors.toList());
     }

@@ -42,6 +42,7 @@ $(function () {
         $('#editISPContactNumber').val(d.ispContactNumber || '');
         $('#editLatitude').val(d.latitude != null ? d.latitude : '');
         $('#editLongitude').val(d.longitude != null ? d.longitude : '');
+        $('#editAreaIdHidden').val(d.areaId != null ? d.areaId : '');
 
         $('#editOfficeModal').modal('show');
     });
@@ -78,7 +79,8 @@ function saveOfficeChanges() {
         ispContactPerson:          $('#editISPContactPerson').val().trim(),
         ispContactNumber:          $('#editISPContactNumber').val().trim(),
         latitude:                  parseFloat($('#editLatitude').val()) || null,
-        longitude:                 parseFloat($('#editLongitude').val()) || null
+        longitude:                 parseFloat($('#editLongitude').val()) || null,
+        areaId:                    $('#editAreaIdHidden').val() ? parseInt($('#editAreaIdHidden').val()) : null
     };
 
     var $btn = $('#editOfficeModal .modal-footer .btn-warning');

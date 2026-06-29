@@ -265,10 +265,8 @@ public class PostalOfficeInsertController {
         String ownedShared  = strVal(req.get("ownedOrShared"));
         boolean hasPlanPrice = planPriceRaw != null && !planPriceRaw.toString().trim().isEmpty();
 
-        boolean hasConnData = Boolean.TRUE.equals(savedOffice.getIsConnected())
-                || planName != null || accountNum != null || hasPlanPrice || planContract != null;
-        if (!hasConnData) return;
-
+        // Always create connectivity record for tracking purposes
+        // Even if inactive, we need a record to track status changes
         Provider provider = getOrCreateDefaultProvider();
 
         Connectivity conn = new Connectivity();
@@ -295,11 +293,30 @@ public class PostalOfficeInsertController {
 
         LocalDateTime connected = parseDateTime(req.get("dateConnected"));
         LocalDateTime disconnected = parseDateTime(req.get("dateDisconnected"));
-        if (connected != null) conn.setDateConnected(connected);
-        if (disconnected != null) conn.setDateDisconnected(disconnected);
+        
+        // Set dateConnected - use current date if not provided
+        if (connected != null) {
+            conn.setDateConnected(connected);
+        } else {
+            conn.setDateConnected(LocalDateTime.now());
+        }
+        
+        // Set dateDisconnected if inactive or explicitly provided
+        if (!Boolean.TRUE.equals(savedOffice.getIsConnected())) {
+            // Office is inactive - set dateDisconnected to now if not provided
+            if (disconnected != null) {
+                conn.setDateDisconnected(disconnected);
+            } else {
+                conn.setDateDisconnected(LocalDateTime.now());
+            }
+        } else if (disconnected != null) {
+            // Office is active but dateDisconnected was provided (edge case)
+            conn.setDateDisconnected(disconnected);
+        }
 
         Connectivity savedConn = connectivityRepository.save(conn);
 
+        // Only set active connectivity if office is currently connected
         if (Boolean.TRUE.equals(savedOffice.getIsConnected())) {
             savedOffice.setActiveConnectivity(savedConn);
             postalOfficeRepository.save(savedOffice);
@@ -406,7 +423,7 @@ public class PostalOfficeInsertController {
         Integer areaId = currentUser.getAreaId();
 
         // Admin (1) and SRD Operation (4) can access all areas.
-        if (roleId != null && (roleId == 1 || roleId == 4)) return allAreas;
+        if (roleId != null && (roleId == 1 || roleId == 4 || roleId == 5)) return allAreas;
 
         // Area Admin (2) and User (3) only see their assigned area.
         if (areaId == null) return List.of();

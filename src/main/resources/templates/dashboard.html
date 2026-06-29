@@ -10,7 +10,8 @@
     <script src="https://cdn.jsdelivr.net/npm/stompjs/lib/stomp.min.js"></script>
     <div id="dashboardRoleFlags" class="d-none" aria-hidden="true" th:data-is-system-admin="${isSystemAdmin}"
         th:data-is-area-admin="${isAreaAdmin}" th:data-is-srd-operation="${isSrdOperation}"
-        th:data-can-dashboard-edit="${canDashboardEdit}" th:data-can-dashboard-archive="${canDashboardArchive}"></div>
+        th:data-can-dashboard-edit="${canDashboardEdit}" th:data-can-dashboard-archive="${canDashboardArchive}"
+        th:data-current-user-email="${#authentication.name}"></div>
 
     <!-- Main Body -->
     <div class="container-fluid p-2">
@@ -19,22 +20,30 @@
         <div th:replace="~{fragments/connectivity-stats-cards :: connectivityStatsCards}"></div>
 
         <!-- Online Users Combined Card -->
-        <div class="row mb-4" th:if="${showOnlineStatus}">
+        <div class="row mb-4" th:if="${isSrdOperation}">
             <div class="col-12">
                 <div class="card shadow-sm">
-                    <div class="card-header py-2 d-flex justify-content-between align-items-center" style="background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
-                        <div class="d-flex align-items-center">
-                            <h6 class="m-0 font-weight-bold text-success mr-3">
-                                <i class="fas fa-users mr-2"></i>Online Users
-                            </h6>
-                            <span class="badge badge-success" id="onlineUsersCount">0</span>
-                            <div class="online-indicator ml-2" style="width: 20px; height: 20px; border-radius: 50%; background-color: #28a745; display: flex; align-items: center; justify-content: center;">
-                                <i class="fas fa-circle text-white fa-xs" style="animation: pulse 2s infinite; font-size: 8px;"></i>
+                    <div class="card-header py-2" style="background-color: #f8f9fa; border-bottom: 1px solid #dee2e6;">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <div class="d-flex align-items-center">
+                                <h6 class="m-0 font-weight-bold text-success mr-3">
+                                    <i class="fas fa-users mr-2"></i>Online Users
+                                </h6>
+                                <span class="badge badge-success" id="onlineUsersCount">0</span>
+                                <div class="online-indicator ml-2" style="width: 20px; height: 20px; border-radius: 50%; background-color: #28a745; display: flex; align-items: center; justify-content: center;">
+                                    <i class="fas fa-circle text-white fa-xs" style="animation: pulse 2s infinite; font-size: 8px;"></i>
+                                </div>
                             </div>
+                            <button class="btn btn-sm btn-outline-success" onclick="updateOnlineUsersDetails()">
+                                <i class="fas fa-sync-alt mr-1"></i>Refresh
+                            </button>
                         </div>
-                        <button class="btn btn-sm btn-outline-success" onclick="updateOnlineUsersDetails()">
-                            <i class="fas fa-sync-alt mr-1"></i>Refresh
-                        </button>
+                        <div class="input-group input-group-sm">
+                            <div class="input-group-prepend">
+                                <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            </div>
+                            <input type="text" class="form-control" id="onlineUsersSearch" placeholder="Search by username, office, or area..." onkeyup="filterOnlineUsers()">
+                        </div>
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -69,7 +78,7 @@
                                 <div class="text-xs font-weight-bold text-uppercase mb-1" style="color:#6610f2;">
                                     <i class="fas fa-chart-pie mr-1"></i>Area Percentages</div>
                                 <div class="area-carousel-container mt-2" style="overflow: hidden; position: relative;">
-                                    <div class="area-carousel-track d-flex" id="areaCarousel" style="transition: transform 0.2s ease-in-out;">
+                                    <div class="area-carousel-track d-flex" id="areaCarousel" style="transition: transform 5.0s ease-in-out;">
                                         <th:block th:each="entry : ${areaConnectivityStats}">
                                             <div class="area-carousel-item" style="min-width: 300px; padding: 0 10px;">
                                                 <div class="small font-weight-bold text-muted mb-1" th:text="${entry.key}">Area 1</div>
@@ -189,33 +198,31 @@
                         <thead class="thead-dark">
                             <tr>
                                 <th class="text-center" style="width:45px;">#</th>
-                                <th style="width:110px;">Area</th>
-                                <th> Name</th>
-                                <th style="width:130px;">Province</th>
-                                <th style="width:160px;">City/Municipality</th>
-                                <th class="text-center" style="width:120px;">
-
-                                    <span class="th-sub">Internet Status</span>
-                                </th>
+                                <th style="width:110px;">AREA</th>
+                                <th>NAME</th>
+                                <th style="width:130px;">PROVINCE</th>
+                                <th style="width:160px;">CITY/MUNICIPALITY</th>
+                                <th class="text-center" style="width:120px;">CONNECTION STATUS</th>
+                                <th class="text-center" style="width:100px;">SPEED</th>
                                 <th class="text-center" style="width:120px;" sec:authorize="!hasRole('SRD_OPERATION')">
-                                    Actions</th>
+                                    ACTION</th>
                             </tr>
                         </thead>
                         <tbody>
                             <tr th:each="office, iter : ${offices}" th:data-office-id="${office.id}"
                                 th:data-office-name="${office.name}">
                                 <td class="text-center text-muted" style="font-size:12px;"></td>
-                                <td th:text="${not #strings.isEmpty(office.area) ? office.area : 'N/A'}"></td>
+                                <td th:text="${not #strings.isEmpty(office.area) ? #strings.toUpperCase(office.area) : 'N/A'}"></td>
                                 <td>
                                     <a href="#" th:data-office-id="${office.id}" th:data-office-name="${office.name}"
                                         onclick="openOfficeProfilePopup(this.dataset.officeId, this.dataset.officeName)"
                                         class="office-name-link" data-toggle="tooltip" data-placement="top"
                                         th:title="'Click to view details for ' + ${office.name}"
-                                        th:text="${office.name}">Office Name</a>
+                                        th:text="${#strings.toUpperCase(office.name)}">OFFICE NAME</a>
                                 </td>
-                                <td th:text="${not #strings.isEmpty(office.province) ? office.province : 'N/A'}"></td>
+                                <td th:text="${not #strings.isEmpty(office.province) ? #strings.toUpperCase(office.province) : 'N/A'}"></td>
                                 <td
-                                    th:text="${not #strings.isEmpty(office.cityMunicipality) ? office.cityMunicipality : 'N/A'}">
+                                    th:text="${not #strings.isEmpty(office.cityMunicipality) ? #strings.toUpperCase(office.cityMunicipality) : 'N/A'}">
                                 </td>
                                 <td class="text-center">
                                     <span th:if="${office.connectionStatus == true}" class="badge badge-success">
@@ -225,6 +232,7 @@
                                         <i class="fas fa-times-circle mr-1"></i>Inactive
                                     </span>
                                 </td>
+                                <td class="text-center" th:text="${not #strings.isEmpty(office.speed) ? office.speed : 'N/A'}"></td>
                                 <td class="text-center action-buttons" sec:authorize="!hasRole('SRD_OPERATION')">
                                     <button class="btn btn-sm btn-warning btn-edit" th:data-office-id="${office.id}"
                                         th:data-office-name="${office.name}" data-toggle="tooltip" data-placement="top"
@@ -254,13 +262,14 @@
                         <thead class="thead-light">
                             <tr>
                                 <th class="text-center" style="width:60px;">#</th>
-                                <th>Name</th>
-                                <th th:if="${isAreaAdmin}" style="width:110px;">Area</th>
-                                <th>Province</th>
-                                <th>City/Municipality</th>
-                                <th class="text-center">Connectivity</th>
+                                <th>NAME</th>
+                                <th th:if="${isAreaAdmin}" style="width:110px;">AREA</th>
+                                <th>PROVINCE</th>
+                                <th>CITY/MUNICIPALITY</th>
+                                <th class="text-center">CONNECTION STATUS</th>
+                                <th class="text-center" style="width:100px;">SPEED</th>
                                 <th class="text-center" style="width:120px;" sec:authorize="!hasRole('SRD_OPERATION')">
-                                    Actions</th>
+                                    ACTION</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -272,15 +281,15 @@
                                         onclick="openOfficeProfilePopup(this.dataset.officeId, this.dataset.officeName)"
                                         class="office-name-link" data-toggle="tooltip" data-placement="top"
                                         th:title="'Click to view details for ' + ${office.name}"
-                                        th:text="${office.name}">Office Name</a>
+                                        th:text="${#strings.toUpperCase(office.name)}">OFFICE NAME</a>
                                 </td>
                                 <td th:if="${isAreaAdmin}"
-                                    th:text="${not #strings.isEmpty(office.area) ? office.area : 'N/A'}">Area</td>
-                                <td th:text="${not #strings.isEmpty(office.province) ? office.province : 'N/A'}">
-                                    Province</td>
+                                    th:text="${not #strings.isEmpty(office.area) ? #strings.toUpperCase(office.area) : 'N/A'}">AREA</td>
+                                <td th:text="${not #strings.isEmpty(office.province) ? #strings.toUpperCase(office.province) : 'N/A'}">
+                                    PROVINCE</td>
                                 <td
-                                    th:text="${not #strings.isEmpty(office.cityMunicipality) ? office.cityMunicipality : 'N/A'}">
-                                    City/Municipality</td>
+                                    th:text="${not #strings.isEmpty(office.cityMunicipality) ? #strings.toUpperCase(office.cityMunicipality) : 'N/A'}">
+                                    CITY/MUNICIPALITY</td>
                                 <td class="text-center">
                                     <span th:if="${office.connectionStatus == true}" class="badge badge-success">
                                         <i class="fas fa-check-circle mr-1"></i>Active
@@ -289,6 +298,7 @@
                                         <i class="fas fa-times-circle mr-1"></i>Inactive
                                     </span>
                                 </td>
+                                <td class="text-center" th:text="${not #strings.isEmpty(office.speed) ? office.speed : 'N/A'}"></td>
                                 <td class="text-center action-buttons" sec:authorize="!hasRole('SRD_OPERATION')">
                                     <button class="btn btn-sm btn-warning btn-edit" th:data-office-id="${office.id}"
                                         th:data-office-name="${office.name}" data-toggle="tooltip" data-placement="top"

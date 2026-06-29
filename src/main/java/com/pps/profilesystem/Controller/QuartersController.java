@@ -110,11 +110,11 @@ public class QuartersController {
         model.addAttribute("activePage", "quarters");
 
         Map<String, Boolean> userAccess = new HashMap<>();
-        userAccess.put("can_access_all_areas", roleId != null && (roleId == 1 || roleId == 4));
+        userAccess.put("can_access_all_areas", roleId != null && (roleId == 1 || roleId == 4 || roleId == 5));
         model.addAttribute("userAccess", userAccess);
-        model.addAttribute("isSystemAdmin", roleId != null && (roleId == 1 || roleId == 4));
+        model.addAttribute("isSystemAdmin", roleId != null && (roleId == 1 || roleId == 4 || roleId == 5));
         model.addAttribute("isAreaAdmin", roleId != null && roleId == 2);
-        model.addAttribute("isAnyAdmin", roleId != null && (roleId == 1 || roleId == 2));
+        model.addAttribute("isAnyAdmin", roleId != null && (roleId == 1 || roleId == 2 || roleId == 5));
         model.addAttribute("userAreaId", userAreaId);
 
         boolean isSrdOperation = roleId != null && roleId == 4;
@@ -122,7 +122,7 @@ public class QuartersController {
         // Quarters table actions: all roles except SRD Operation may request edits (USER goes through approval in API).
         model.addAttribute("canQuarterEdit", roleId != null && !isSrdOperation);
         // Matches SecurityConfig: /api/archive/** allows ADMIN, AREA_ADMIN, SRD_OPERATION only (not ROLE_USER).
-        model.addAttribute("canQuarterArchive", roleId != null && (roleId == 1 || roleId == 2 || roleId == 4));
+        model.addAttribute("canQuarterArchive", roleId != null && (roleId == 1 || roleId == 2 || roleId == 4 || roleId == 5));
 
         return "quarters";
     }
@@ -401,7 +401,7 @@ private Map<String, Long> getConnectivityStats(
     private List<Area> getAreas(Integer roleId, Integer userAreaId) {
         try {
             List<Area> all = areaRepository.findAll();
-            if (roleId != null && (roleId == 1 || roleId == 4)) return all;
+            if (roleId != null && (roleId == 1 || roleId == 4 || roleId == 5)) return all;
             if (userAreaId == null) return new ArrayList<>();
             return all.stream()
                     .filter(a -> userAreaId.equals(a.getId()))

@@ -6,6 +6,7 @@ import com.pps.profilesystem.Entity.User;
 import com.pps.profilesystem.Repository.PostalOfficeRepository;
 import com.pps.profilesystem.Repository.UserRepository;
 import com.pps.profilesystem.Service.LocationHierarchyService;
+import com.pps.profilesystem.Service.OnlineUserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -40,6 +41,9 @@ public class DashboardController {
     @Autowired
     private ReportController reportController;
 
+    @Autowired
+    private OnlineUserService onlineUserService;
+
     @GetMapping("/dashboard")
     @Transactional(readOnly = true)
     public String dashboard(Model model) {
@@ -58,14 +62,26 @@ public class DashboardController {
         // dropping the region/province/city joins due to multi-bag fetch conflicts.
         List<PostalOffice> offices;
 
-        if (roleId != null && (roleId == 1 || roleId == 4)) {
-            offices = postalOfficeRepository.findAllNonArchivedForTable();
+        if (roleId != null && (roleId == 1 || roleId == 4 || roleId == 5)) {
+            offices = postalOfficeRepository.findAllNonArchivedForTable()
+                .stream()
+                .sorted((o1, o2) -> {
+                    String name1 = o1.getName() != null ? o1.getName().toUpperCase() : "";
+                    String name2 = o2.getName() != null ? o2.getName().toUpperCase() : "";
+                    return name1.compareTo(name2);
+                })
+                .collect(Collectors.toList());
         } else {
             offices = postalOfficeRepository.findAllNonArchivedForTable()
                 .stream()
                 .filter(po -> {
                     if (areaId == null) return false;
                     return po.getArea() != null && areaId.equals(po.getArea().getId());
+                })
+                .sorted((o1, o2) -> {
+                    String name1 = o1.getName() != null ? o1.getName().toUpperCase() : "";
+                    String name2 = o2.getName() != null ? o2.getName().toUpperCase() : "";
+                    return name1.compareTo(name2);
                 })
                 .collect(Collectors.toList());
         }
@@ -85,7 +101,7 @@ public class DashboardController {
         model.addAttribute("activeCount",       connectivityStats.getOrDefault("totalConnected", 0L));
         model.addAttribute("inactiveCount",     connectivityStats.getOrDefault("totalDisconnected", 0L));
         model.addAttribute("areaCount",         postalOfficeRepository.countDistinctAreasNonArchived());
-        model.addAttribute("showOnlineStatus", roleId != null && (roleId == 1 || roleId == 4)); // Only for System Admin
+        model.addAttribute("showOnlineStatus", roleId != null && (roleId == 1 || roleId == 4 || roleId == 5)); // Only for System Admin
 
         // Calculate area connectivity percentages (connected vs inactive)
         List<Area> allAreas = locationService.getAllAreas();
@@ -116,7 +132,7 @@ public class DashboardController {
 
         // For modal dropdowns and filters
         List<Area> visibleAreas = locationService.getAllAreas();
-        if (!(roleId != null && (roleId == 1 || roleId == 4))) {
+        if (!(roleId != null && (roleId == 1 || roleId == 4 || roleId == 5))) {
             visibleAreas = visibleAreas.stream()
                     .filter(a -> areaId != null && areaId.equals(a.getId()))
                     .collect(Collectors.toList());
@@ -125,7 +141,7 @@ public class DashboardController {
         model.addAttribute("regions", locationService.getAllRegions());
 
         model.addAttribute("activePage",    "dashboard");
-        model.addAttribute("isSystemAdmin", roleId != null && (roleId == 1 || roleId == 4));
+        model.addAttribute("isSystemAdmin", roleId != null && (roleId == 1 || roleId == 4 || roleId == 5));
         model.addAttribute("isAreaAdmin", roleId != null && roleId == 2);
         boolean isSrdOperation = roleId != null && roleId == 4;
         model.addAttribute("isSrdOperation", isSrdOperation);

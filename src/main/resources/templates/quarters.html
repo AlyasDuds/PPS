@@ -17,6 +17,10 @@
          th:data-can-quarter-archive="${canQuarterArchive}"></div>
     <link rel="stylesheet" th:href="@{/css/quarters.css}">
     <div class="container-fluid">
+        <!-- STAT CARDS -->
+        <div th:replace="~{fragments/connectivity-stats-cards :: connectivityStatsCards}"></div>
+        <!-- END STAT CARDS -->
+
         <!-- FILTER PANEL -->
         <div class="row mb-4">
             <div class="col-12">
@@ -129,10 +133,6 @@
             </div>
         </div>
         <!-- END FILTER PANEL -->
-
-        <!-- STAT CARDS -->
-        <div th:replace="~{fragments/connectivity-stats-cards :: connectivityStatsCards}"></div>
-        <!-- END STAT CARDS -->
 
         <!-- DATA TABLE -->
         <div id="dataTableSection" class="mt-4">
