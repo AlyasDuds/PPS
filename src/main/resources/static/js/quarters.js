@@ -302,7 +302,7 @@ function initializeTable() {
                     visible: (function () {
                         return quartersRoleAttr('is-system-admin');
                     })(),
-                    render: function(d) { return d || 'N/A'; }
+                    render: function(d) { return d ? String(d).toUpperCase() : 'N/A'; }
                 },
                 {
                     targets: 2,
@@ -312,20 +312,21 @@ function initializeTable() {
                         if (type !== 'display') return data || '';
                         if (!data) return 'N/A';
                         const safe = String(data).replace(/'/g, "\\'");
-                        return '<a href="javascript:void(0)" class="office-name-link" onclick="openOfficeProfilePopup(\'' + row.id + '\', \'' + safe + '\')" data-toggle="tooltip" data-placement="top" title="Click to view details for ' + data + '">' + data + '</a>';
+                        const upperData = String(data).toUpperCase();
+                        return '<a href="javascript:void(0)" class="office-name-link" onclick="openOfficeProfilePopup(\'' + row.id + '\', \'' + safe + '\')" data-toggle="tooltip" data-placement="top" title="Click to view details for ' + data + '">' + upperData + '</a>';
                     }
                 },
                 {
                     targets: 3,
                     data: 'province',
                     defaultContent: 'N/A',
-                    render: function(d) { return d || 'N/A'; }
+                    render: function(d) { return d ? String(d).toUpperCase() : 'N/A'; }
                 },
                 {
                     targets: 4,
                     data: 'cityMunicipality',
                     defaultContent: 'N/A',
-                    render: function(d) { return d || 'N/A'; }
+                    render: function(d) { return d ? String(d).toUpperCase() : 'N/A'; }
                 },
                 {
                     targets: 5,
@@ -389,8 +390,9 @@ function initializeTable() {
             pageLength: 10,
             responsive: true,
             order: (function () {
-                // If Area is visible (System Admin), keep old "Area then Name" feel.
-                return quartersRoleAttr('is-system-admin') ? [[1, ''], [2, '']] : [[2, '']];
+                // Sort alphabetically A-Z by Name (column 2)
+                // If Area is visible (System Admin), sort by Area then Name
+                return quartersRoleAttr('is-system-admin') ? [[1, 'asc'], [2, 'asc']] : [[2, 'asc']];
             })(),
 
             dom: '<"d-flex align-items-center justify-content-between mb-2"<"dt-info" i><"dt-length" l>>rt<"dt-footer d-flex align-items-center justify-content-between mt-2"p>',

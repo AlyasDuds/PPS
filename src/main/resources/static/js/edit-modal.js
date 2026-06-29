@@ -27,6 +27,7 @@ $(function () {
     /* Keep hidden input in sync with Area select */
     $(document).on('change', '#editAreaId', function () {
         $('#editAreaIdHidden').val(this.value);
+        console.log('Area changed to:', this.value);
     });
 
     /* Toggle Type of Connection Other field */
@@ -386,7 +387,8 @@ function _fillModal(d) {
     _setField('#editOfficeEmail', d.officeEmail);
     $('#editClassification').val(d.classification  || '');
     $('#editServiceProvided').val(d.serviceProvided || '');
-
+    $('#connectivityRecordLabel')
+        .text(d.connectivityRecordLabel || 'No Record');
     _setField('#editAddress',   d.address);
     _setField('#editZipCode',   d.zipCode);
     _setField('#editLatitude',  d.latitude  != null ? d.latitude  : null);
@@ -397,6 +399,45 @@ function _fillModal(d) {
     );
     _setField('#editDateConnected', d.dateConnected);
     _setField('#editDateDisconnected', d.dateDisconnected);
+    // Show active connectivity year / quarter indicator
+    if (d.dateConnected) {
+
+        let connectedDate = new Date(d.dateConnected);
+
+        let year = connectedDate.getFullYear();
+        let month = connectedDate.getMonth() + 1;
+
+        let quarter;
+
+        if (month <= 3) {
+            quarter = "Q1";
+        } else if (month <= 6) {
+            quarter = "Q2";
+        } else if (month <= 9) {
+            quarter = "Q3";
+        } else {
+            quarter = "Q4";
+        }
+
+        let currentYear = new Date().getFullYear();
+
+        let label;
+
+        if (year === currentYear) {
+            label = year + " " + quarter + " (LIVE DATA)";
+        } else {
+            label = year + " " + quarter + " (HISTORICAL)";
+        }
+
+        $('#activeConnectivityYear').text(label);
+        $('#connectivityYearBadge').show();
+
+    } else {
+
+        $('#activeConnectivityYear').text('No connectivity record');
+        $('#connectivityYearBadge').show();
+
+    }
     $('#editOfficeStatus').val(d.officeStatus || '');
     $('#editIsActive').val(d.isActive || '');
     $('#editIsConnected').val(d.isConnected || '');
@@ -462,19 +503,31 @@ function _fillModal(d) {
     $('#editIsFree').prop('checked', d.isFree === true);
 
     // Load area options first, then set area value and fill hierarchy
+    // Ensure areaId is properly set even if areas cache fails
+    console.log('Loading modal with areaId:', d.areaId, 'and name:', d.name);
+    
     if (_areasCache) {
         _areasCache.done(function(areas) {
             _populateSelect('#editAreaId', areas, 'id', 'name', '-- Select Area --');
             $('#editAreaId').val(d.areaId || '');
             $('#editAreaIdHidden').val(d.areaId || '');
+            console.log('Area set to:', d.areaId, 'from cache');
             _fillLocationHierarchy(d);
+        }).fail(function() {
+            // If cache fails, still try to set the areaId
+            console.warn('Areas cache failed, setting areaId directly');
+            $('#editAreaIdHidden').val(d.areaId || '');
         });
     } else {
         _areasCache = $.getJSON('/api/postal/areas').done(function(areas) {
             _populateSelect('#editAreaId', areas, 'id', 'name', '-- Select Area --');
             $('#editAreaId').val(d.areaId || '');
             $('#editAreaIdHidden').val(d.areaId || '');
+            console.log('Area set to:', d.areaId, 'from fresh fetch');
             _fillLocationHierarchy(d);
+        }).fail(function() {
+            console.warn('Failed to fetch areas, setting areaId directly');
+            $('#editAreaIdHidden').val(d.areaId || '');
         });
     }
 }

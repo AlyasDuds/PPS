@@ -243,6 +243,6 @@ public class SnapshotController {
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) return false;
         Integer roleId = user.getRole();
-        return roleId != null && (roleId == 1 || roleId == 4); // System Admin or SRD Operation
+        return roleId != null && (roleId == 1 || roleId == 4 || roleId == 5); // System Admin, SRD Operation, or Superadmin
     }
 }

@@ -60,7 +60,7 @@ public class DataTableController {
         // dropping the region/province/city joins due to multi-bag fetch conflicts.
         List<PostalOffice> offices;
 
-        if (roleId != null && (roleId == 1 || roleId == 4)) {
+        if (roleId != null && (roleId == 1 || roleId == 4 || roleId == 5)) {
             offices = postalOfficeRepository.findAllNonArchivedForTable();
         } else {
             offices = postalOfficeRepository.findAllNonArchivedForTable()
@@ -96,7 +96,7 @@ public class DataTableController {
 
         // For modal dropdowns and filters
         List<Area> visibleAreas = locationService.getAllAreas();
-        if (!(roleId != null && (roleId == 1 || roleId == 4))) {
+        if (!(roleId != null && (roleId == 1 || roleId == 4 || roleId == 5))) {
             visibleAreas = visibleAreas.stream()
                     .filter(a -> areaId != null && areaId.equals(a.getId()))
                     .collect(Collectors.toList());
@@ -105,7 +105,7 @@ public class DataTableController {
         model.addAttribute("regions", locationService.getAllRegions());
 
         model.addAttribute("activePage",    "table");
-        model.addAttribute("isSystemAdmin", roleId != null && (roleId == 1 || roleId == 4));
+        model.addAttribute("isSystemAdmin", roleId != null && (roleId == 1 || roleId == 4 || roleId == 5));
         model.addAttribute("isAreaAdmin", roleId != null && roleId == 2);
         model.addAttribute("userAreaId", areaId);
 

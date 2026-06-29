@@ -463,7 +463,7 @@ public class ConnectivityNotificationService {
         Integer roleId = user.getRole();
         Integer areaId = user.getAreaId();
         // System admins (roleId 1) and SRD Operation (roleId 4) can see all areas
-        if (roleId != null && (roleId == 1 || roleId == 4)) {
+        if (roleId != null && (roleId == 1 || roleId == 4 || roleId == 5)) {
             return null;
         }
         return areaId;

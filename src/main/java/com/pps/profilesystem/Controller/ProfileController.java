@@ -176,7 +176,7 @@ public class ProfileController {
         if (roleId == null) {
             return false;
         }
-        if (roleId == 1 || roleId == 4) {
+        if (roleId == 1 || roleId == 4 || roleId == 5) {
             return true;
         }
         Integer userAreaId = user.getAreaId();
@@ -187,9 +187,9 @@ public class ProfileController {
         Integer roleId = user.getRole();
         boolean isSrd = roleId != null && roleId == 4;
         model.addAttribute("canProfileEdit", roleId != null && !isSrd);
-        model.addAttribute("canProfileArchive", roleId != null && (roleId == 1 || roleId == 2 || roleId == 4));
+        model.addAttribute("canProfileArchive", roleId != null && (roleId == 1 || roleId == 2 || roleId == 4 || roleId == 5));
         model.addAttribute("canProfilePhotoUpload", roleId != null && !isSrd);
-        model.addAttribute("canAccessAllAreas", roleId != null && (roleId == 1 || roleId == 4));
+        model.addAttribute("canAccessAllAreas", roleId != null && (roleId == 1 || roleId == 4 || roleId == 5));
         model.addAttribute("canEdit", roleId != null && !isSrd);
     }
 }

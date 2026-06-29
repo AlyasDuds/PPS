@@ -89,14 +89,25 @@ function initializeWebSocket() {
 }
 
 function updateOnlineUsersFromWebSocket(data) {
-    // Update count badge
+    // Get current user email to filter out
+    const currentUserEmail = document.getElementById('dashboardRoleFlags')?.getAttribute('data-current-user-email');
+    
+    // Filter out current user, superadmin users (roleId 5), and users with username/email containing "superadmin"
+    const filteredUsers = data.users.filter(user => 
+        user.email !== currentUserEmail && 
+        user.roleId !== 5 &&
+        user.username !== 'superadmin' &&
+        !user.email?.toLowerCase().includes('superadmin')
+    );
+    
+    // Update count badge (show count of other users only)
     const onlineCountEl = document.getElementById('onlineUsersCount');
     if (onlineCountEl) {
-        onlineCountEl.textContent = data.count;
+        onlineCountEl.textContent = filteredUsers.length;
     }
     
     // Update table
-    displayOnlineUsersFromWebSocket(data.users);
+    displayOnlineUsersFromWebSocket(filteredUsers);
 }
 
 function displayOnlineUsersFromWebSocket(onlineUsers) {
@@ -167,14 +178,14 @@ function initializeAreaCarousel() {
     carousel.addEventListener('mouseleave', () => {
         isDragging = false;
         carousel.style.cursor = 'grab';
-        carousel.style.transition = 'transform 0.5s ease-in-out'; // Re-enable transition
+        carousel.style.transition = 'transform 0.3s ease-in-out'; // Re-enable transition (faster)
         autoScrollInterval = setInterval(autoScroll, scrollInterval); // Resume auto-scroll
     });
 
     carousel.addEventListener('mouseup', () => {
         isDragging = false;
         carousel.style.cursor = 'grab';
-        carousel.style.transition = 'transform 0.5s ease-in-out'; // Re-enable transition
+        carousel.style.transition = 'transform 0.3s ease-in-out'; // Re-enable transition (faster)
         autoScrollInterval = setInterval(autoScroll, scrollInterval); // Resume auto-scroll
     });
 
@@ -249,13 +260,25 @@ function updateOnlineUsersDetails() {
     $.get('/api/user-sessions/online-users')
         .done(function(response) {
             if (response.success && response.onlineUsers) {
-                // Update count badge
+                // Get current user email to filter out
+                const currentUserEmail = document.getElementById('dashboardRoleFlags')?.getAttribute('data-current-user-email');
+                
+                // Filter out current user, superadmin users (roleId 5), and users with username/email containing "superadmin"
+                const filteredUsers = response.onlineUsers.filter(user => 
+                    user.email !== currentUserEmail && 
+                    user.username !== currentUserEmail &&
+                    user.roleId !== 5 &&
+                    user.username !== 'superadmin' &&
+                    !user.email?.toLowerCase().includes('superadmin')
+                );
+                
+                // Update count badge (show count of other users only)
                 const onlineCountEl = document.getElementById('onlineUsersCount');
                 if (onlineCountEl) {
-                    onlineCountEl.textContent = response.onlineCount;
+                    onlineCountEl.textContent = filteredUsers.length;
                 }
                 // Update table
-                displayOnlineUsers(response.onlineUsers);
+                displayOnlineUsers(filteredUsers);
             }
         })
         .fail(function() {
@@ -285,6 +308,31 @@ function displayOnlineUsers(onlineUsers) {
     });
 
     onlineUsersList.innerHTML = html;
+}
+
+function filterOnlineUsers() {
+    const searchTerm = document.getElementById('onlineUsersSearch').value.toLowerCase();
+    const onlineUsersList = document.getElementById('onlineUsersList');
+    if (!onlineUsersList) return;
+
+    const rows = onlineUsersList.getElementsByTagName('tr');
+    
+    for (let i = 0; i < rows.length; i++) {
+        const row = rows[i];
+        const cells = row.getElementsByTagName('td');
+        
+        if (cells.length === 4) {
+            const username = cells[0].textContent.toLowerCase();
+            const office = cells[1].textContent.toLowerCase();
+            const area = cells[2].textContent.toLowerCase();
+            
+            if (username.includes(searchTerm) || office.includes(searchTerm) || area.includes(searchTerm)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        }
+    }
 }
 
 // ── Filter Panel Functionality ───────────────────────────────────────────

@@ -14,8 +14,9 @@
 
     <div class="container-fluid">
 
-        
-      
+        <!-- ===== STATS CARDS ===== -->
+        <div th:replace="~{fragments/connectivity-stats-cards :: connectivityStatsCards}"></div>
+
         <!-- ===== FILTER PANEL ===== -->
         <div class="row mb-4">
             <div class="col-12">
@@ -93,9 +94,6 @@
                 </div>
             </div>
         </div>
-
-        <!-- ===== STATS CARDS ===== -->
-        <div th:replace="~{fragments/connectivity-stats-cards :: connectivityStatsCards}"></div>
 
         <!-- ===== QUARTERLY BREAKDOWN ===== -->
         <div class="row mb-4">

@@ -107,10 +107,10 @@ public class SecurityConfig {
                     "/api/keep-alive",          // public ping for session check
                     "/api/user/current"         // public check for authentication status
                 ).permitAll()
-                // Only ADMIN, AREA_ADMIN, and SRD_OPERATION can access user management and archive
+                // Only ADMIN, AREA_ADMIN, SRD_OPERATION, and SUPERADMIN can access user management and archive
                 // AREA_ADMIN can access but sees only their own area's data
-                .requestMatchers("/users", "/register").hasAnyRole("ADMIN", "AREA_ADMIN", "SRD_OPERATION")
-                .requestMatchers("/archive", "/api/archive/**", "/api/restore/**").hasAnyRole("ADMIN", "AREA_ADMIN", "SRD_OPERATION")
+                .requestMatchers("/users", "/register").hasAnyRole("ADMIN", "AREA_ADMIN", "SRD_OPERATION", "SUPERADMIN")
+                .requestMatchers("/archive", "/api/archive/**", "/api/restore/**").hasAnyRole("ADMIN", "AREA_ADMIN", "SRD_OPERATION", "SUPERADMIN")
                 // Only AREA_ADMIN and SRD_OPERATION can access approval system
                 .requestMatchers("/approvals/**").hasAnyRole("AREA_ADMIN", "SRD_OPERATION")
                 // All authenticated users can receive approval/connectivity notifications.

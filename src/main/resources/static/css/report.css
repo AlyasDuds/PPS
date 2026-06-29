@@ -67,17 +67,40 @@
    PRINT STYLES
    ===================================================== */
 @media print {
-    /* Hide chrome */
+    /* 1. Reset Page Margins & Background Colors */
+    @page {
+        size: A4 portrait;
+        margin: 15mm;
+    }
+    
+    body {
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 12pt;
+    }
+
+    /* Force browsers to print background colors for KPI cards/headers */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* 2. Hide Interactive Controls */
     #sidebar,
     .main-header,
     .main-footer,
     #printReportBtn,
     #exportCsvBtn,
+    #exportExcelBtn,
     #applyFiltersBtn,
     #clearFiltersBtn,
     #toggleFiltersBtn,
     .filter-panel,
     .filter-tag,
+    .filter-section,
+    select,
+    .dropdown,
+    button,
     nav {
         display: none !important;
     }
@@ -92,6 +115,78 @@
         margin: 0 !important;
     }
 
+    /* 3. Optimize KPI Cards Layout */
+    .kpi-container,
+    .row.mb-4 {
+        display: flex !important;
+        justify-content: space-between !important;
+        margin-bottom: 20px;
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+    
+    .kpi-card,
+    .card,
+    .connectivity-card {
+        flex: 1 !important;
+        margin: 0 5px !important;
+        border: 1px solid #ddd !important;
+        box-shadow: none !important;
+        page-break-inside: avoid;
+    }
+
+    /* 4. Fix Scrollable Tables so they expand fully */
+    .table-responsive, 
+    .scrollable-panel,
+    div[style*="overflow-y"],
+    .qb-list,
+    .qb-names-list {
+        overflow: visible !important;
+        max-height: none !important;
+        height: auto !important;
+        display: block !important;
+    }
+
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        page-break-inside: auto;
+    }
+
+    tr {
+        page-break-inside: avoid;
+        break-inside: avoid;
+    }
+
+    thead {
+        display: table-header-group; /* Repeats table headers if rows span multiple pages */
+    }
+
+    /* 5. Clean up Spacing for Print sections */
+    .section-title,
+    h3, h5 {
+        margin-top: 30px !important;
+        page-break-after: avoid; /* Don't leave a heading sitting alone at the bottom */
+    }
+
+    /* Table styling */
+    #quarterlyBreakdownTable {
+        font-size: 11px;
+    }
+
+    thead tr {
+        background: #002868 !important;
+        color: #fff !important;
+    }
+
+    .header-with-connectivity,
+    .header-without-connectivity,
+    .total-value-green,
+    .total-value-red {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
     /* Print header */
     .container-fluid::before {
         content: "PHLPost — Connectivity Report";
@@ -102,41 +197,6 @@
         border-bottom: 3px solid #002868;
         padding-bottom: 8px;
         margin-bottom: 16px;
-    }
-
-    /* Cards */
-    .card, .connectivity-card {
-        box-shadow: none !important;
-        border: 1px solid #ccc !important;
-    }
-
-    /* Table */
-    #quarterlyBreakdownTable {
-        font-size: 11px;
-    }
-
-    thead tr {
-        background: #002868 !important;
-        color: #fff !important;
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
-    .header-with-connectivity,
-    .header-without-connectivity {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
-    .total-value-green,
-    .total-value-red {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-
-    /* Avoid breaking cards across pages */
-    .row.mb-4 {
-        page-break-inside: avoid;
     }
 }
 
