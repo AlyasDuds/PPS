@@ -226,7 +226,10 @@ public class PostalOfficeEditRestController {
                 Connectivity conn = latestConnOpt.get();
                 if (conn.getDateConnected() != null) {
                     int connYear = conn.getDateConnected().getYear();
+<<<<<<< HEAD
                     String connQuarter = getCurrentQuarter(conn.getDateConnected().getMonthValue());
+=======
+>>>>>>> 01160e722ab6061d2726b3a6b904d700408477a5
 
                     // System admin can edit historical data - skip validation for system admin
                     if (!isSystemAdmin) {
@@ -264,6 +267,7 @@ public class PostalOfficeEditRestController {
                                                     + connYear + ". Only System Admin can edit.");
                                         }
                                     } catch (Exception ignored) {}
+<<<<<<< HEAD
                                 }
                             }
                         }
@@ -308,6 +312,8 @@ public class PostalOfficeEditRestController {
                                             }
                                         } catch (Exception ignored) {}
                                     }
+=======
+>>>>>>> 01160e722ab6061d2726b3a6b904d700408477a5
                                 }
                             }
                         }
@@ -725,6 +731,7 @@ public class PostalOfficeEditRestController {
         if (!Boolean.TRUE.equals(oldStatus) && Boolean.TRUE.equals(newStatus)) {
             // ── inactive → active ──────────────────────────────────────────────
 
+<<<<<<< HEAD
             // Close any existing open record first (safety net)
             Connectivity existingOpen = connectivityRepository
                     .findByPostalOfficeIdAndDateDisconnectedIsNull(office.getId())
@@ -766,6 +773,34 @@ public class PostalOfficeEditRestController {
 
             Connectivity saved = connectivityRepository.save(newConn);
             office.setActiveConnectivity(saved);
+=======
+            // Unique constraint on OfficeID in Connectivity table
+            // Cannot insert new record -- reuse existing record
+            if (latestBeforeChange.isPresent()) {
+                // Reopen existing record -- new dateConnected (current year), clear dateDisconnected
+                Connectivity conn = latestBeforeChange.get();
+                conn.setDateConnected(LocalDateTime.now());
+                conn.setDateDisconnected(null);
+                Connectivity saved = connectivityRepository.save(conn);
+                office.setActiveConnectivity(saved);
+            } else {
+                // No existing record -- create new one (first time)
+                Provider defaultProvider = providerRepository.findAll().stream()
+                    .findFirst()
+                    .orElseGet(() -> {
+                        Provider p = new Provider();
+                        p.setName("Default Provider");
+                        return providerRepository.save(p);
+                    });
+                Connectivity newConn = new Connectivity();
+                newConn.setPostalOffice(office);
+                newConn.setProvider(defaultProvider);
+                newConn.setDateConnected(LocalDateTime.now());
+                newConn.setDateDisconnected(null);
+                Connectivity saved = connectivityRepository.save(newConn);
+                office.setActiveConnectivity(saved);
+            }
+>>>>>>> 01160e722ab6061d2726b3a6b904d700408477a5
             
         } else if (Boolean.TRUE.equals(oldStatus) && !Boolean.TRUE.equals(newStatus)) {
             // ── Switching to INACTIVE ────────────────────────────────────────────
